@@ -48,3 +48,9 @@ nbdist/
 !*/build/*.java
 !*/build/*.html
 !*/build/*.xml
+
+######################################################################
+# 微信开发者工具
+
+mini-program/project.private.config.json
+mini-program/.idea/

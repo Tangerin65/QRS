@@ -1,0 +1,256 @@
+.home-page,
+.placeholder-page,
+.scan-page,
+.profile-page {
+  background: linear-gradient(180deg, #eef5ff 0, #f7f9fc 480rpx);
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 230rpx;
+  padding: 20rpx 8rpx 40rpx;
+}
+
+.hero-copy { flex: 1; min-width: 0; padding-right: 20rpx; }
+.hero-mark { flex-shrink: 0; }
+.service-guide { margin-top: 32rpx; padding: 28rpx; }
+.guide-copy { display: block; margin-top: 16rpx; color: #64748b; font-size: 25rpx; line-height: 1.7; }
+.action-archives { background: #e0e7ff; color: #4f46e5; }
+.action-messages { background: #dcfce7; color: #15803d; }
+.action-pc { background: #fef3c7; color: #b45309; }
+
+.eyebrow {
+  display: block;
+  margin-bottom: 18rpx;
+  color: #2563eb;
+  font-size: 21rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+}
+
+.hero-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 142rpx;
+  height: 142rpx;
+  border-radius: 44rpx;
+  background: linear-gradient(145deg, #2563eb, #60a5fa);
+  box-shadow: 0 18rpx 36rpx rgba(37, 99, 235, 0.22);
+  color: #ffffff;
+  font-size: 76rpx;
+  font-weight: 700;
+}
+
+.account-card,
+.bind-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 142rpx;
+  padding: 26rpx 28rpx;
+  margin-bottom: 36rpx;
+}
+
+.account-label {
+  display: block;
+  margin-bottom: 8rpx;
+  color: #718096;
+  font-size: 23rpx;
+}
+
+.account-name {
+  display: block;
+  color: #111827;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.account-role {
+  display: block;
+  margin-top: 6rpx;
+  color: #64748b;
+  font-size: 23rpx;
+}
+
+.account-badge {
+  padding: 10rpx 18rpx;
+  border-radius: 99rpx;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 22rpx;
+}
+
+.bind-card {
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 20rpx;
+  border: 2rpx solid #dbeafe;
+  background: #eff6ff;
+}
+
+.bind-icon,
+.action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  color: #2563eb;
+  font-size: 38rpx;
+}
+
+.bind-icon {
+  width: 64rpx;
+  height: 64rpx;
+  flex: 0 0 64rpx;
+  background: #dbeafe;
+}
+
+.bind-copy {
+  flex: 1;
+}
+
+.bind-title {
+  display: block;
+  color: #1e3a8a;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.bind-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #5b6f92;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.bind-button {
+  flex: 0 0 auto;
+  min-width: 124rpx;
+  height: 62rpx;
+  padding: 0 16rpx;
+  border-radius: 14rpx;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 24rpx;
+  line-height: 62rpx;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 34rpx 4rpx 18rpx;
+}
+
+.section-title {
+  display: block;
+  color: #111827;
+  font-size: 31rpx;
+  font-weight: 700;
+}
+
+.section-desc {
+  display: block;
+  margin-top: 6rpx;
+  color: #94a3b8;
+  font-size: 22rpx;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20rpx;
+}
+
+.action-card {
+  position: relative;
+  min-height: 184rpx;
+  padding: 24rpx;
+}
+
+.action-icon {
+  width: 62rpx;
+  height: 62rpx;
+  margin-bottom: 18rpx;
+  font-weight: 700;
+}
+
+.action-search { background: #e0e7ff; color: #4f46e5; }
+.action-todo { background: #dcfce7; color: #15803d; }
+.action-scan { background: #fef3c7; color: #b45309; }
+.action-profile { background: #fce7f3; color: #be185d; }
+
+.action-title,
+.notice-title {
+  display: block;
+  color: #334155;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.action-desc {
+  display: block;
+  max-width: 230rpx;
+  margin-top: 8rpx;
+  color: #94a3b8;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.action-arrow {
+  position: absolute;
+  top: 26rpx;
+  right: 24rpx;
+  color: #cbd5e1;
+  font-size: 36rpx;
+}
+
+.notice-head {
+  margin-top: 42rpx;
+}
+
+.view-all {
+  color: #2563eb;
+  font-size: 23rpx;
+}
+
+.notice-list {
+  padding: 4rpx 26rpx;
+}
+
+.notice-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #edf1f7;
+}
+
+.notice-item:last-child {
+  border-bottom: 0;
+}
+
+.notice-dot {
+  width: 14rpx;
+  height: 14rpx;
+  flex: 0 0 14rpx;
+  margin-top: 10rpx;
+  border-radius: 50%;
+  background: #60a5fa;
+}
+
+.notice-copy {
+  flex: 1;
+}
+
+.notice-detail {
+  display: block;
+  margin-top: 8rpx;
+  color: #94a3b8;
+  font-size: 23rpx;
+  line-height: 1.5;
+}

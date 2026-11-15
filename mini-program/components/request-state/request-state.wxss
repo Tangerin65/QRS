@@ -1,0 +1,61 @@
+.request-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260rpx;
+  color: #718096;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.request-loading {
+  flex-direction: row;
+  gap: 16rpx;
+}
+
+.loading-dot {
+  width: 28rpx;
+  height: 28rpx;
+  border: 4rpx solid #bfdbfe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+.state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  margin-bottom: 18rpx;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.state-message {
+  max-width: 560rpx;
+  line-height: 1.6;
+}
+
+.retry-button {
+  min-width: 180rpx;
+  height: 68rpx;
+  margin-top: 24rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid #bfdbfe;
+  border-radius: 14rpx;
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 25rpx;
+  line-height: 64rpx;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
