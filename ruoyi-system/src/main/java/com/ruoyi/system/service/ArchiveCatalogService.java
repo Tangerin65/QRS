@@ -36,6 +36,8 @@ public class ArchiveCatalogService {
     public record Change(Long id, String code, String name, String kind, Long parentId,
                          String status, int sortOrder, String remark, Integer revision) {}
     public record Choice(long id, String code, String name, String path) {}
+    public record ImportRow(int row, String code, String name, String kind, String parentCode,
+                            String status, int sortOrder, String remark) {}
 
     private final JdbcTemplate jdbc;
 
@@ -44,7 +46,11 @@ public class ArchiveCatalogService {
     }
 
     public Catalog get(long id) {
-        List<Catalog> rows = jdbc.query(SELECT + " where id=?", ROW, id);
+        return find(id, false);
+    }
+
+    private Catalog find(long id, boolean forUpdate) {
+        List<Catalog> rows = jdbc.query(SELECT + " where id=?" + (forUpdate ? " for update" : ""), ROW, id);
         if (rows.isEmpty()) throw new ServiceException("目录不存在，请刷新列表");
         return rows.get(0);
     }
@@ -83,7 +89,7 @@ public class ArchiveCatalogService {
 
         jdbc.queryForObject("select id from ams_edit_lock where id=1 for update", Integer.class);
         Long id = input.id();
-        if (id != null && !get(id).kind().equals(kind)) throw new ServiceException("已有目录的类型不可变更");
+        if (id != null && !find(id, true).kind().equals(kind)) throw new ServiceException("已有目录的类型不可变更");
         Long parentId = Objects.equals(input.parentId(), 0L) ? null : input.parentId();
         validateHierarchy(id, parentId, kind, status);
         try {
@@ -104,7 +110,7 @@ public class ArchiveCatalogService {
         } catch (DuplicateKeyException e) {
             throw new ServiceException("目录编码已存在");
         }
-        return get(id);
+        return find(id, true);
     }
 
     private void validateHierarchy(Long id, Long parentId, String kind, String status) {
@@ -116,13 +122,36 @@ public class ArchiveCatalogService {
         Long current = parentId;
         while (current != null) {
             if (!seen.add(current)) throw new ServiceException("上级目录不能是自身或自己的下级");
-            Catalog ancestor = get(current);
+            Catalog ancestor = find(current, true);
+            if (current.equals(parentId) && "category".equals(kind)
+                && !Set.of("fond", "category").contains(ancestor.kind())) {
+                throw new ServiceException("分类的上级必须是全宗或其他分类");
+            }
             if ("active".equals(status) && !"active".equals(ancestor.status()))
                 throw new ServiceException("启用目录的上级必须处于启用状态");
             current = ancestor.parentId();
         }
-        if (id != null && "disabled".equals(status) && countActiveChildren(id, "") > 0)
+        if (id != null && "disabled".equals(status) && !jdbc.queryForList(
+            "select id from ams_catalog where parent_id=? and status='active' limit 1 for update", Long.class, id).isEmpty())
             throw new ServiceException("请先停用该目录下的启用目录");
+    }
+
+    @Transactional
+    public int importRows(List<ImportRow> rows, String actor) {
+        if (rows.isEmpty() || rows.size() > 1000) throw new ServiceException("每次导入1至1000条目录");
+        jdbc.queryForObject("select id from ams_edit_lock where id=1 for update", Integer.class);
+        for (ImportRow row : rows) {
+            try {
+                Long parentId = clean(row.parentCode()).isEmpty() ? null : jdbc.query(
+                    SELECT + " where code=? for update", ROW, clean(row.parentCode())).stream()
+                    .findFirst().orElseThrow(() -> new ServiceException("找不到上级编码，请将上级记录放在下级记录之前")).id();
+                save(new Change(null, row.code(), row.name(), row.kind(), parentId, row.status(),
+                    row.sortOrder(), row.remark(), null), actor);
+            } catch (ServiceException e) {
+                throw new ServiceException("第" + row.row() + "行：" + e.getMessage() + "。整批未导入。");
+            }
+        }
+        return rows.size();
     }
 
     @Transactional(readOnly = true)
@@ -131,6 +160,13 @@ public class ArchiveCatalogService {
         Catalog category = get(id);
         if (!"category".equals(category.kind()) || !"active".equals(category.status()) || countActiveChildren(id, "category") > 0)
             throw new ServiceException("请选择启用的末级档案分类");
+        Set<Long> seen = new HashSet<>(Set.of(id));
+        for (Long parent = category.parentId(); parent != null;) {
+            if (!seen.add(parent)) throw new ServiceException("分类路径异常，请联系管理员");
+            Catalog ancestor = get(parent);
+            if (!"active".equals(ancestor.status())) throw new ServiceException("上级目录已停用");
+            parent = ancestor.parentId();
+        }
         return category;
     }
 

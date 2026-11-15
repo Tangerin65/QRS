@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" th:content="${session.csrf_token}">
+    <title>档案分类管理</title>
+    <link rel="stylesheet" th:href="@{/css/archive/catalog.css}">
+    <script defer th:src="@{/js/archive/catalog.js}"></script>
+</head>
+<body th:attr="data-base=@{/archive/catalog/},data-manage=${canManage}">
+<main class="workspace">
+    <header class="page-header">
+        <div><h1>档案分类管理</h1><p>维护全宗、分类、档案集和逻辑文件夹。</p></div>
+        <button id="add" th:if="${canManage}" class="button primary" type="button">新增目录</button>
+    </header>
+
+    <section class="metrics" aria-label="当前查询统计">
+        <article><span>目录节点</span><strong id="metric-total">—</strong></article>
+        <article><span>已启用</span><strong id="metric-active">—</strong></article>
+        <article><span>已停用</span><strong id="metric-disabled">—</strong></article>
+    </section>
+
+    <p id="feedback" class="feedback" role="status" hidden></p>
+    <section class="panel" aria-labelledby="catalog-title">
+        <header class="panel-heading">
+            <h2 id="catalog-title">目录</h2>
+            <div class="actions">
+                <button id="mode" class="button" type="button" aria-pressed="false">切换列表</button>
+                <a id="excel-form" th:if="${canManage}" class="button" th:href="@{/archive/catalog/form}">下载模板</a>
+                <button id="import" th:if="${canManage}" class="button" type="button">Excel 导入</button>
+                <button id="export" class="button" type="button">导出结果</button>
+                <button id="print" class="button" type="button">打印结果</button>
+            </div>
+        </header>
+        <form id="filters" class="filters">
+            <label>名称或编码<input name="keyword" placeholder="如采购合同" maxlength="120"></label>
+            <label>类型<select name="kind">
+                <option value="">全部类型</option><option value="fond">全宗</option><option value="category">分类</option>
+                <option value="collection">档案集</option><option value="folder">逻辑文件夹</option>
+            </select></label>
+            <label>状态<select name="status"><option value="">全部状态</option><option value="active">启用</option><option value="disabled">停用</option></select></label>
+            <label>排序<select name="sort"><option value="">显示顺序</option><option value="code">编码升序</option><option value="name">名称升序</option><option value="newest">最新创建</option></select></label>
+            <button class="button primary" type="submit">查询</button>
+            <button id="clear" class="button" type="button">重置</button>
+        </form>
+        <div id="catalog-content" class="content" aria-live="polite"></div>
+        <div id="pagination" class="pagination" aria-label="分页" hidden></div>
+    </section>
+</main>
+<section id="print-view" class="print-view" aria-label="目录打印"></section>
+<dialog id="editor-dialog" aria-labelledby="dialog-title">
+    <form id="editor">
+        <header class="dialog-header"><h2 id="dialog-title"></h2><button id="close-dialog" class="button" type="button" aria-label="关闭">×</button></header>
+        <div id="dialog-content" class="dialog-body"></div>
+        <p id="dialog-error" class="feedback error" role="alert" hidden></p>
+        <footer class="dialog-footer"><button id="cancel-dialog" type="button" class="button">关闭</button><button id="save" type="submit" class="button primary">保存</button></footer>
+    </form>
+</dialog>
+</body>
+</html>
