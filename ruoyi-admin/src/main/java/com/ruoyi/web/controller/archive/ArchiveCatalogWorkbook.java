@@ -103,7 +103,8 @@ final class ArchiveCatalogWorkbook {
                 writeRow(guide, 1, List.of("类型填全宗、分类、档案集或逻辑文件夹；全宗的上级编码留空。"));
                 writeRow(guide, 2, List.of("下级填已有上级编码；同批新增时，上级记录须排在下级前面。"));
                 writeRow(guide, 3, List.of("状态可填启用、停用，留空视为启用。显示顺序留空视为 0。"));
-                writeRow(guide, 4, List.of("每次最多导入 1000 条，出现重复或无效记录时整批不写入。"));
+                writeRow(guide, 4, List.of("编码最多 32 位，可用字母、数字、点、横线和下划线。"));
+                writeRow(guide, 5, List.of("每次最多导入 1000 条，出现重复或无效记录时整批不写入。"));
             }
             workbook.write(output);
         }

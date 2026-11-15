@@ -28,8 +28,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Controller
 @RequestMapping("/archive/catalog")
 public class ArchiveCatalogController extends BaseController {
-    private static final String VIEW = "archive:catalog:view";
-    private static final String MANAGE = "archive:catalog:manage";
+    private static final String VIEW = "arc:category:view";
+    private static final String MANAGE = "arc:category:manage";
     private final ArchiveCatalogService catalog;
 
     public ArchiveCatalogController(ArchiveCatalogService catalog) {

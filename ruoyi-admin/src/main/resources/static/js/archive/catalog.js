@@ -105,7 +105,8 @@ function render() {
     navigation.replaceChildren();
     navigation.hidden = true;
     if (!state.rows.length) {
-        content.replaceChildren(element("p","没有符合条件的目录。可调整筛选条件或新增目录。","empty"));
+        const message = state.params ? "没有符合条件的目录。" : "暂无目录。";
+        content.replaceChildren(element("p",message,"empty"));
         return;
     }
     if (state.mode === "tree") {
@@ -238,7 +239,8 @@ function input(type, name, value, maxLength) {
 }
 
 function openEditor(row, inheritedParent = null) {
-    const code = input("text","code",row?.code || "",64);
+    const code = input("text","code",row?.code || "",32);
+    code.title = "最多 32 位字母、数字、点、横线或下划线";
     code.pattern = "[A-Za-z0-9_.\\-]+";
     code.required = true;
     const name = input("text","name",row?.name || "",120);
@@ -250,18 +252,16 @@ function openEditor(row, inheritedParent = null) {
     kind.disabled = !!row;
     const parent = element("select");
     const parentField = field("上级目录",parent);
+    const status = element("select");
+    for (const [value,label] of Object.entries(statuses)) status.add(new Option(label,value));
+    status.value = row?.status || "active";
     const index = new Map(state.all.map(item => [item.id,item]));
     for (const item of state.all) {
-        if (item.id === row?.id) continue;
-        let next = item.parentId;
-        const seen = new Set();
-        while (next !== null && next !== row?.id && !seen.has(next) && index.has(next)) {
-            seen.add(next);
-            next = index.get(next).parentId;
-        }
-        if (next === row?.id) continue;
-        const choice = new Option(catalogPath(item,index) + "（" + item.code + "）",String(item.id));
+        if (row && (item.id === row.id || item.categoryPath.startsWith(row.categoryPath + "/"))) continue;
+        const suffix = item.status === "disabled" ? " · 已停用" : "";
+        const choice = new Option(catalogPath(item,index) + "（" + item.code + "）" + suffix,String(item.id));
         choice.dataset.kind = item.kind;
+        choice.dataset.status = item.status;
         parent.add(choice);
     }
     parent.add(new Option("请选择上级目录",""),0);
@@ -269,15 +269,16 @@ function openEditor(row, inheritedParent = null) {
     function updateParent() {
         parentField.hidden = kind.value === "fond";
         parent.required = !parentField.hidden;
-        for (const option of parent.options)
-            option.disabled = kind.value === "category" && option.value !== "" && !["fond","category"].includes(option.dataset.kind);
+        for (const option of parent.options) {
+            option.disabled = option.value !== "" &&
+                ((kind.value === "category" && !["fond","category"].includes(option.dataset.kind)) ||
+                    (status.value === "active" && option.dataset.status === "disabled"));
+        }
         if (parent.selectedOptions[0]?.disabled) parent.value = "";
     }
     kind.addEventListener("change",updateParent);
+    status.addEventListener("change",updateParent);
     updateParent();
-    const status = element("select");
-    for (const [value,label] of Object.entries(statuses)) status.add(new Option(label,value));
-    status.value = row?.status || "active";
     const order = input("number","sortOrder",row?.sortOrder ?? 0);
     order.min = "0";
     order.max = "2147483647";

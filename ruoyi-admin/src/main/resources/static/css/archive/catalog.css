@@ -7,7 +7,6 @@ button,input,select,textarea { font:inherit; }
 .workspace { max-width:1320px; margin:auto; padding:30px clamp(16px,4vw,44px); }
 h1,h2,p { margin:0; } h1 { font-size:29px; } h2 { font-size:17px; }
 .page-header,.panel-heading,.dialog-header,.dialog-footer,.pagination { display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
-.page-header p { margin-top:5px; color:var(--muted); }
 .metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:20px 0; }
 .metrics article,.panel { padding:13px 17px; background:white; border:1px solid var(--line); border-radius:10px; }
 .metrics span { color:var(--muted); } .metrics strong { display:block; font-size:25px; }
