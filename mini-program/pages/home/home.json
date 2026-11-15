@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "档案管理系统",
+  "usingComponents": {
+    "request-state": "/components/request-state/request-state",
+    "app-tabbar": "/components/app-tabbar/app-tabbar"
+  }
+}

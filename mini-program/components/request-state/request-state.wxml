@@ -1,0 +1,15 @@
+<view wx:if="{{status === 'loading'}}" class="request-state request-loading">
+  <view class="loading-dot"></view>
+  <text>正在加载</text>
+</view>
+
+<view wx:elif="{{status === 'error'}}" class="request-state request-error">
+  <view class="state-icon">!</view>
+  <text class="state-message">{{message || '请求未完成，请重试'}}</text>
+  <button class="retry-button" bindtap="handleRetry">{{retryText}}</button>
+</view>
+
+<view wx:elif="{{status === 'empty'}}" class="request-state request-empty">
+  <view class="state-icon">—</view>
+  <text class="state-message">{{message || '暂无内容'}}</text>
+</view>

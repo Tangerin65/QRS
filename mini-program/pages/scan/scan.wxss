@@ -1,0 +1,157 @@
+.scan-page {
+  background: linear-gradient(180deg, #eef5ff 0, #f7f9fc 420rpx);
+}
+
+.scan-hero {
+  padding: 24rpx 8rpx 34rpx;
+}
+
+.scan-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 82rpx;
+  height: 82rpx;
+  margin-bottom: 24rpx;
+  border-radius: 26rpx;
+  background: #dbeafe;
+  color: #2563eb;
+  font-size: 52rpx;
+}
+
+.scan-hero .page-title {
+  font-size: 38rpx;
+}
+
+.scan-card {
+  padding: 34rpx 32rpx;
+  text-align: center;
+}
+
+.scan-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 430rpx;
+  height: 430rpx;
+  margin: 0 auto 32rpx;
+  border: 2rpx solid #bfdbfe;
+  border-radius: 20rpx;
+  background: #f8fbff;
+  overflow: hidden;
+}
+
+.mode-tabs { display: flex; padding: 8rpx; margin-bottom: 16rpx; }
+.mode-tab { flex: 1; padding: 8rpx 4rpx; background: #fff; color: #64748b; font-size: 25rpx; border-radius: 16rpx; }
+.mode-tab.selected { background: #eff6ff; color: #2563eb; font-weight: 700; }
+.pc-request { padding: 12rpx 0; text-align: left; }
+.pc-symbol { text-align: center; font-size: 72rpx; color: #2563eb; margin-bottom: 24rpx; }
+.pc-title { display: block; text-align: center; font-size: 34rpx; font-weight: 700; margin-bottom: 24rpx; }
+.pc-row { display: block; margin-top: 14rpx; color: #475569; font-size: 26rpx; overflow-wrap: anywhere; }
+.countdown { display: block; margin-top: 24rpx; color: #2563eb; font-size: 27rpx; font-weight: 600; }
+.pc-warning { display: block; margin-top: 20rpx; color: #9a3412; font-size: 25rpx; line-height: 1.6; }
+.result-value { overflow-wrap: anywhere; }
+
+.corner {
+  position: absolute;
+  width: 54rpx;
+  height: 54rpx;
+  border-color: #2563eb;
+  border-style: solid;
+}
+
+.corner-tl { top: 36rpx; left: 36rpx; border-width: 6rpx 0 0 6rpx; }
+.corner-tr { top: 36rpx; right: 36rpx; border-width: 6rpx 6rpx 0 0; }
+.corner-bl { bottom: 36rpx; left: 36rpx; border-width: 0 0 6rpx 6rpx; }
+.corner-br { right: 36rpx; bottom: 36rpx; border-width: 0 6rpx 6rpx 0; }
+
+.scan-line {
+  position: absolute;
+  top: 88rpx;
+  right: 54rpx;
+  left: 54rpx;
+  height: 3rpx;
+  background: #60a5fa;
+  box-shadow: 0 0 14rpx #60a5fa;
+  animation: scan 2.2s ease-in-out infinite;
+}
+
+.scan-frame-text {
+  color: #94a3b8;
+  font-size: 25rpx;
+}
+
+.scan-button,
+.confirm-button {
+  width: 100%;
+}
+
+.scan-result {
+  margin-top: 28rpx;
+  padding: 24rpx;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  text-align: left;
+}
+
+.result-label {
+  display: block;
+  color: #94a3b8;
+  font-size: 23rpx;
+}
+
+.result-value {
+  display: block;
+  margin-top: 8rpx;
+  color: #1e3a8a;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.confirm-button {
+  margin-top: 20rpx;
+}
+
+.tips {
+  margin-top: 24rpx;
+  padding: 28rpx 30rpx;
+}
+
+.tips-title {
+  display: block;
+  margin-bottom: 20rpx;
+  color: #334155;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  margin-top: 16rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.tip-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34rpx;
+  height: 34rpx;
+  flex: 0 0 34rpx;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+@keyframes scan {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(250rpx); }
+}

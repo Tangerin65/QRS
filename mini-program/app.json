@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/archives/archives",
+    "pages/messages/messages",
+    "pages/profile/profile",
+    "pages/scan/scan"
+  ],
+  "window": {
+    "navigationBarTitleText": "档案管理系统",
+    "navigationBarBackgroundColor": "#f7f9fc",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f9fc",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
