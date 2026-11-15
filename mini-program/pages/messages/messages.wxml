@@ -1,0 +1,12 @@
+<view class="page placeholder-page">
+  <view class="placeholder-hero">
+    <text class="page-title">待办与消息</text>
+    <text class="page-subtitle">个人待办、公告与业务提醒</text>
+  </view>
+  <view class="handoff-card card">
+    <view class="handoff-icon">✓</view>
+    <text class="handoff-title">消息服务暂未开放</text>
+    <text class="handoff-desc">功能开放后，可在这里查看和处理本人的待办与消息。</text>
+  </view>
+  <app-tabbar active="messages"></app-tabbar>
+</view>

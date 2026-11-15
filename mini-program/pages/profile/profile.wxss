@@ -1,0 +1,92 @@
+.profile-header {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 8rpx 42rpx;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112rpx;
+  height: 112rpx;
+  border: 6rpx solid #ffffff;
+  border-radius: 36rpx;
+  background: linear-gradient(145deg, #2563eb, #60a5fa);
+  box-shadow: 0 14rpx 28rpx rgba(37, 99, 235, 0.2);
+  color: #ffffff;
+  font-size: 46rpx;
+  font-weight: 700;
+}
+
+.profile-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 24rpx;
+}
+
+.profile-name { overflow-wrap: anywhere; }
+.spaced-button { margin-top: 20rpx; }
+.inline-message { display: block; margin-top: 24rpx; color: #9a3412; font-size: 25rpx; line-height: 1.6; }
+
+.profile-name {
+  display: block;
+  color: #111827;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.profile-role {
+  display: block;
+  margin-top: 10rpx;
+  color: #718096;
+  font-size: 24rpx;
+}
+
+.profile-action {
+  padding: 30rpx;
+}
+
+.profile-action-title {
+  display: block;
+  color: #334155;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.profile-action-desc {
+  display: block;
+  margin: 10rpx 0 24rpx;
+  color: #94a3b8;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.profile-action .primary-button,
+.profile-action .secondary-button {
+  width: 100%;
+}
+
+.profile-list {
+  margin-top: 24rpx;
+  padding: 0 28rpx;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 94rpx;
+  border-bottom: 1rpx solid #edf1f7;
+  color: #334155;
+  font-size: 27rpx;
+}
+
+.profile-row:last-child {
+  border-bottom: 0;
+}
+
+.row-hint {
+  color: #94a3b8;
+  font-size: 23rpx;
+}

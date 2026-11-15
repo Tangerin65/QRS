@@ -1,0 +1,9 @@
+{
+  "desc": "档案管理系统小程序页面索引",
+  "rules": [
+    {
+      "action": "disallow",
+      "page": "*"
+    }
+  ]
+}

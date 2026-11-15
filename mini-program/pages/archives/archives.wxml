@@ -1,0 +1,12 @@
+<view class="page placeholder-page">
+  <view class="placeholder-hero">
+    <text class="page-title">档案查询</text>
+    <text class="page-subtitle">查询授权范围内的档案</text>
+  </view>
+  <view class="handoff-card card">
+    <view class="handoff-icon">▣</view>
+    <text class="handoff-title">档案查询暂未开放</text>
+    <text class="handoff-desc">功能开放后，可在这里检索和阅览有权访问的档案。</text>
+  </view>
+  <app-tabbar active="archives"></app-tabbar>
+</view>

@@ -1,0 +1,30 @@
+<view class="page profile-page">
+  <view class="profile-header">
+    <view class="avatar">{{avatarText}}</view>
+    <view class="profile-copy">
+      <text class="profile-name">{{profileName}}</text>
+      <text class="profile-role">{{profileRole}}</text>
+    </view>
+  </view>
+  <view class="profile-action card">
+    <block wx:if="{{!bound}}">
+      <text class="profile-action-title">使用平台已有账号</text>
+      <text class="profile-action-desc">已绑定微信可直接登录；首次使用请扫描本人的账号二维码。</text>
+      <button class="primary-button" loading="{{busy}}" disabled="{{busy || !configured}}" bindtap="resumeLogin">微信登录</button>
+      <button class="secondary-button spaced-button" disabled="{{busy}}" bindtap="goScan">扫码绑定账号</button>
+    </block>
+    <block wx:else>
+      <text class="profile-action-title">登录管理</text>
+      <text class="profile-action-desc">账号资料和权限由管理后台维护。切换平台绑定关系需由管理员解除旧绑定。</text>
+      <button class="primary-button" disabled="{{busy}}" bindtap="goPc">扫码确认电脑登录</button>
+      <button class="secondary-button spaced-button" disabled="{{busy}}" data-switch="yes" bindtap="confirmLogout">切换账号</button>
+      <button class="secondary-button spaced-button" disabled="{{busy}}" data-switch="no" bindtap="confirmLogout">退出登录</button>
+    </block>
+    <text wx:if="{{!configured}}" class="inline-message">服务尚未接入，登录和绑定暂不可用。</text>
+    <text wx:if="{{message}}" class="inline-message">{{message}}</text>
+  </view>
+  <view class="profile-list card">
+    <view class="profile-row"><text>版本</text><text class="row-hint">公共框架 0.2.0</text></view>
+  </view>
+  <app-tabbar active="profile"></app-tabbar>
+</view>

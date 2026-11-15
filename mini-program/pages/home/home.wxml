@@ -1,0 +1,53 @@
+<view class="page home-page">
+  <view class="hero">
+    <view class="hero-copy">
+      <text class="eyebrow">档案服务</text>
+      <text class="page-title">档案管理系统</text>
+      <text class="page-subtitle">随时查档，便捷办理</text>
+    </view>
+    <view class="hero-mark"><text>档</text></view>
+  </view>
+
+  <view wx:if="{{!configured}}" class="connection-note">服务尚未接入，当前可查看公共页面。</view>
+  <request-state wx:if="{{sessionStatus === 'loading'}}" status="loading" />
+  <view wx:elif="{{sessionStatus === 'success' && bound}}" class="account-card card">
+    <view>
+      <text class="account-label">当前账号</text>
+      <text class="account-name">{{userName}}</text>
+      <text class="account-role">{{roleName}}</text>
+    </view>
+    <view class="account-badge">已登录</view>
+  </view>
+  <view wx:elif="{{sessionStatus === 'success'}}" class="bind-card card">
+    <view class="bind-icon">⌗</view>
+    <view class="bind-copy">
+      <text class="bind-title">欢迎使用档案服务</text>
+      <text class="bind-desc">{{connectionText}}</text>
+    </view>
+    <button class="bind-button" bindtap="goScan">去绑定</button>
+  </view>
+  <request-state wx:else status="error" message="{{sessionMessage}}" bind:retry="handleRetry" />
+
+  <view wx:if="{{sessionStatus === 'success'}}">
+    <view class="section-head">
+      <view>
+        <text class="section-title">常用功能</text>
+        <text class="section-desc">{{bound ? '显示当前账号可用的入口' : '绑定后显示已授权的业务功能'}}</text>
+      </view>
+    </view>
+    <view class="action-grid">
+      <view wx:for="{{quickActions}}" wx:key="key" class="action-card card"
+        data-target="{{item.key}}" bindtap="handleAction">
+        <view class="action-icon action-{{item.key}}">{{item.icon}}</view>
+        <text class="action-title">{{item.title}}</text>
+        <text class="action-desc">{{item.desc}}</text>
+        <text class="action-arrow">›</text>
+      </view>
+    </view>
+    <view class="service-guide card">
+      <text class="section-title">使用提示</text>
+      <text class="guide-copy">请扫描管理员为本人生成的账号二维码。电脑扫码登录前，请核对电脑端的登录请求；不是本人操作时请拒绝。</text>
+    </view>
+  </view>
+  <app-tabbar active="home"></app-tabbar>
+</view>
