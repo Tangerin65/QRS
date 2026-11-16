@@ -6,7 +6,7 @@ Page({
   data: {
     sessionStatus: 'loading', sessionMessage: '', bound: false,
     userName: '', roleName: '', quickActions: [],
-    configured: Boolean(config.baseUrl), connectionText: ''
+    configured: Boolean(config.baseUrl), connectionText: '', openGuide: ''
   },
   onLoad() {
     this._unsubscribe = app.subscribeSession((state) => this.applySession(state));
@@ -33,9 +33,9 @@ Page({
     const actions = navigation.visible().filter((item) =>
       item.key !== 'home' && item.key !== 'profile');
     actions.push(bound
-      ? { key: 'pc', title: '电脑扫码登录', desc: '确认本人发起的电脑登录', icon: '⌗' }
-      : { key: 'scan', title: '绑定平台账号', desc: '扫描本人的账号二维码', icon: '⌗' });
-    actions.push({ key: 'profile', title: '个人中心', desc: '账号状态与登录管理', icon: '◎' });
+      ? { key: 'pc', title: '电脑登录' }
+      : { key: 'scan', title: '账号绑定' });
+    actions.push({ key: 'profile', title: '个人中心' });
     this.setData({
       sessionStatus: state.status === 'loading' ? 'loading' : 'success',
       bound,
@@ -43,8 +43,7 @@ Page({
       roleName: bound ? state.user.roleName : '',
       quickActions: actions,
       connectionText: state.status === 'expired' ? '登录已失效，请到个人中心重新登录' :
-        state.status === 'unbound' ? '微信尚未绑定，请扫描个人账号二维码' :
-        '首次使用请先绑定平台账号'
+        state.status === 'unbound' ? '微信尚未绑定平台账号' : '首次使用请先绑定账号'
     });
   },
   handleAction(event) {
@@ -54,6 +53,13 @@ Page({
     this.loadSession();
   },
   goScan() {
-    navigation.go('scan');
+    navigation.go(this.data.bound ? 'pc' : 'scan');
+  },
+  goProfile() {
+    navigation.go('profile');
+  },
+  toggleGuide(event) {
+    const guide = event.currentTarget.dataset.guide;
+    this.setData({ openGuide: this.data.openGuide === guide ? '' : guide });
   }
 });

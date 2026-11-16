@@ -238,7 +238,7 @@ Page({
   },
 
   retry() {
-    // 重试只重新扫码，不自动重发绑定或登录确认等写入请求。
+    // 重新扫码，不重发上一次提交。
     this.startScan();
   },
   fail(error) { this.setData({ status: 'error', message: error.message || '操作未完成，请重新扫码' }); },

@@ -3,59 +3,62 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 260rpx;
-  color: #718096;
-  font-size: 26rpx;
+  padding: 32rpx 28rpx;
+  border-radius: 16rpx;
+  color: #8a95a5;
+  font-size: 25rpx;
   text-align: center;
 }
 
 .request-loading {
   flex-direction: row;
   gap: 16rpx;
+  min-height: 110rpx;
+}
+
+.request-error, .request-empty {
+  margin-top: 20rpx;
+  background: #fff;
 }
 
 .loading-dot {
-  width: 28rpx;
-  height: 28rpx;
-  border: 4rpx solid #bfdbfe;
-  border-top-color: #2563eb;
+  width: 26rpx;
+  height: 26rpx;
+  border: 3rpx solid #dbe6fb;
+  border-top-color: #4779e8;
   border-radius: 50%;
-  animation: spin 0.9s linear infinite;
+  animation: spin .9s linear infinite;
 }
 
 .state-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
+  width: 56rpx;
+  height: 56rpx;
   margin-bottom: 18rpx;
-  border-radius: 50%;
-  background: #eef2ff;
-  color: #4f46e5;
-  font-size: 34rpx;
-  font-weight: 700;
 }
 
 .state-message {
   max-width: 560rpx;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .retry-button {
-  min-width: 180rpx;
-  height: 68rpx;
-  margin-top: 24rpx;
-  padding: 0 24rpx;
-  border: 2rpx solid #bfdbfe;
-  border-radius: 14rpx;
-  background: #ffffff;
-  color: #2563eb;
-  font-size: 25rpx;
-  line-height: 64rpx;
+  min-width: 168rpx;
+  margin: 24rpx 0 0;
+  padding: 14rpx 26rpx;
+  border: 1rpx solid #dbe3ef;
+  border-radius: 10rpx;
+  background: #fff;
+  color: #4779e8;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.retry-button::after {
+  border: 0;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -11,5 +11,6 @@ Page({
       navigation.guard('messages');
     });
   },
-  onUnload() { if (this._unsubscribe) this._unsubscribe(); }
+  onUnload() { if (this._unsubscribe) this._unsubscribe(); },
+  goHome() { navigation.go('home'); }
 });

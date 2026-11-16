@@ -1,14 +1,14 @@
 const session = require('./session');
 
-// 权限名称为前后端待确认契约，统一放在此处；角色名称本身不授予任何权限。
+// 权限名与后端确认后在此统一调整。
 const entries = [
-  { key: 'home', label: '首页', icon: '⌂', path: '/pages/home/home' },
+  { key: 'home', label: '工作台', path: '/pages/home/home' },
   { key: 'archives', label: '查档', title: '档案检索', desc: '查询授权范围内的档案',
-    icon: '▣', path: '/pages/archives/archives', permission: 'records:search:view' },
+    path: '/pages/archives/archives', permission: 'records:search:view' },
   { key: 'messages', label: '待办', title: '我的待办', desc: '查看个人待办与业务消息',
-    icon: '✓', path: '/pages/messages/messages', permission: 'records:message:view' },
+    path: '/pages/messages/messages', permission: 'records:message:view' },
   { key: 'profile', label: '我的', title: '个人中心', desc: '账号状态与登录管理',
-    icon: '◎', path: '/pages/profile/profile' }
+    path: '/pages/profile/profile' }
 ];
 function can(permission) {
   if (!permission) return true;

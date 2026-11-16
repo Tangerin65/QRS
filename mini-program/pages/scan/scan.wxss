@@ -1,157 +1,230 @@
 .scan-page {
-  background: linear-gradient(180deg, #eef5ff 0, #f7f9fc 420rpx);
+  padding-top: 20rpx;
 }
 
-.scan-hero {
-  padding: 24rpx 8rpx 34rpx;
-}
-
-.scan-symbol {
+.mode-tabs {
   display: flex;
+  padding: 8rpx;
+  border-radius: 14rpx;
+  background: #e9edf4;
+}
+
+.mode-tab {
+  display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  width: 82rpx;
-  height: 82rpx;
-  margin-bottom: 24rpx;
-  border-radius: 26rpx;
-  background: #dbeafe;
-  color: #2563eb;
-  font-size: 52rpx;
+  min-height: 74rpx;
+  border-radius: 10rpx;
+  color: #7c889a;
+  font-size: 26rpx;
 }
 
-.scan-hero .page-title {
-  font-size: 38rpx;
+.mode-tab.selected {
+  background: #fff;
+  color: #4779e8;
+  font-weight: 500;
+}
+
+.scan-heading {
+  padding: 38rpx 4rpx 30rpx;
+}
+
+.scan-heading .page-title {
+  font-size: 36rpx;
 }
 
 .scan-card {
-  padding: 34rpx 32rpx;
+  padding: 36rpx 32rpx 28rpx;
   text-align: center;
+}
+
+.scan-card .primary-button, .scan-card .secondary-button {
+  width: 100%;
 }
 
 .scan-frame {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  max-width: 430rpx;
-  height: 430rpx;
-  margin: 0 auto 32rpx;
-  border: 2rpx solid #bfdbfe;
-  border-radius: 20rpx;
-  background: #f8fbff;
-  overflow: hidden;
+  width: 360rpx;
+  max-width: 100%;
+  height: 328rpx;
+  margin: 10rpx auto 36rpx;
+  background: #f6f8fd;
+  border-radius: 12rpx;
 }
 
-.mode-tabs { display: flex; padding: 8rpx; margin-bottom: 16rpx; }
-.mode-tab { flex: 1; padding: 8rpx 4rpx; background: #fff; color: #64748b; font-size: 25rpx; border-radius: 16rpx; }
-.mode-tab.selected { background: #eff6ff; color: #2563eb; font-weight: 700; }
-.pc-request { padding: 12rpx 0; text-align: left; }
-.pc-symbol { text-align: center; font-size: 72rpx; color: #2563eb; margin-bottom: 24rpx; }
-.pc-title { display: block; text-align: center; font-size: 34rpx; font-weight: 700; margin-bottom: 24rpx; }
-.pc-row { display: block; margin-top: 14rpx; color: #475569; font-size: 26rpx; overflow-wrap: anywhere; }
-.countdown { display: block; margin-top: 24rpx; color: #2563eb; font-size: 27rpx; font-weight: 600; }
-.pc-warning { display: block; margin-top: 20rpx; color: #9a3412; font-size: 25rpx; line-height: 1.6; }
-.result-value { overflow-wrap: anywhere; }
-
-.corner {
-  position: absolute;
-  width: 54rpx;
-  height: 54rpx;
-  border-color: #2563eb;
-  border-style: solid;
-}
-
-.corner-tl { top: 36rpx; left: 36rpx; border-width: 6rpx 0 0 6rpx; }
-.corner-tr { top: 36rpx; right: 36rpx; border-width: 6rpx 6rpx 0 0; }
-.corner-bl { bottom: 36rpx; left: 36rpx; border-width: 0 0 6rpx 6rpx; }
-.corner-br { right: 36rpx; bottom: 36rpx; border-width: 0 6rpx 6rpx 0; }
-
-.scan-line {
-  position: absolute;
-  top: 88rpx;
-  right: 54rpx;
-  left: 54rpx;
-  height: 3rpx;
-  background: #60a5fa;
-  box-shadow: 0 0 14rpx #60a5fa;
-  animation: scan 2.2s ease-in-out infinite;
+.scan-frame-icon {
+  width: 110rpx;
+  height: 110rpx;
+  opacity: .65;
 }
 
 .scan-frame-text {
-  color: #94a3b8;
-  font-size: 25rpx;
+  margin-top: 26rpx;
+  color: #8f9db4;
+  font-size: 24rpx;
 }
 
-.scan-button,
-.confirm-button {
-  width: 100%;
+.corner {
+  position: absolute;
+  width: 40rpx;
+  height: 40rpx;
+  border-color: #6e92e9;
+  border-style: solid;
 }
 
-.scan-result {
-  margin-top: 28rpx;
-  padding: 24rpx;
-  border-radius: 18rpx;
-  background: #f8fafc;
+.corner-tl {
+  top: 0;
+  left: 0;
+  border-width: 4rpx 0 0 4rpx;
+  border-top-left-radius: 10rpx;
+}
+
+.corner-tr {
+  top: 0;
+  right: 0;
+  border-width: 4rpx 4rpx 0 0;
+  border-top-right-radius: 10rpx;
+}
+
+.corner-bl {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 4rpx 4rpx;
+  border-bottom-left-radius: 10rpx;
+}
+
+.corner-br {
+  bottom: 0;
+  right: 0;
+  border-width: 0 4rpx 4rpx 0;
+  border-bottom-right-radius: 10rpx;
+}
+
+.camera-note {
+  display: block;
+  margin-top: 20rpx;
+  color: #9aa4b3;
+  font-size: 22rpx;
+}
+
+.result-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 116rpx;
+  height: 116rpx;
+  margin: 10rpx auto 28rpx;
+  border-radius: 34rpx;
+}
+
+.result-icon image {
+  width: 64rpx;
+  height: 64rpx;
+}
+
+.pc-title {
+  display: block;
+  margin-bottom: 26rpx;
+  color: #2a384e;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.device-info, .account-number {
+  padding: 12rpx 24rpx;
+  border-radius: 12rpx;
+  background: #f6f8fb;
   text-align: left;
 }
 
-.result-label {
-  display: block;
-  color: #94a3b8;
+.device-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24rpx;
+  padding: 16rpx 0;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+
+.device-label {
+  flex: 0 0 62rpx;
+  color: #929eae;
+}
+
+.device-value {
+  flex: 1;
+  min-width: 0;
+  color: #47556a;
+  overflow-wrap: anywhere;
+}
+
+.countdown {
+  display: inline-block;
+  margin-top: 26rpx;
+  padding: 7rpx 18rpx;
+  border-radius: 8rpx;
+  background: #edf3ff;
+  color: #4779e8;
   font-size: 23rpx;
 }
 
-.result-value {
+.pc-warning {
   display: block;
-  margin-top: 8rpx;
-  color: #1e3a8a;
-  font-size: 32rpx;
-  font-weight: 700;
+  margin: 22rpx 0 8rpx;
+  color: #aa793e;
+  font-size: 24rpx;
+  line-height: 1.7;
 }
 
 .confirm-button {
   margin-top: 20rpx;
 }
 
-.tips {
-  margin-top: 24rpx;
-  padding: 28rpx 30rpx;
-}
-
-.tips-title {
+.result-description {
   display: block;
-  margin-bottom: 20rpx;
-  color: #334155;
-  font-size: 28rpx;
-  font-weight: 700;
+  margin-top: 22rpx;
+  color: #8a96a8;
+  font-size: 25rpx;
+  line-height: 1.7;
 }
 
-.tip-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 14rpx;
-  margin-top: 16rpx;
-  color: #64748b;
-  font-size: 24rpx;
-  line-height: 1.55;
+.result-label {
+  display: block;
+  margin: 12rpx 0;
+  color: #929eae;
+  font-size: 23rpx;
 }
 
-.tip-number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34rpx;
-  height: 34rpx;
-  flex: 0 0 34rpx;
-  border-radius: 50%;
-  background: #eff6ff;
-  color: #2563eb;
-  font-size: 21rpx;
-  font-weight: 700;
+.result-value {
+  display: block;
+  padding-bottom: 14rpx;
+  color: #344154;
+  font-size: 34rpx;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
-@keyframes scan {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(250rpx); }
+.text-button {
+  padding: 24rpx 12rpx 8rpx;
+  color: #4779e8;
+  font-size: 25rpx;
+}
+
+.scan-help {
+  padding: 28rpx 10rpx;
+  color: #97a0af;
+  font-size: 23rpx;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.scan-help .text-button {
+  display: block;
+  margin: 0 auto;
+  padding-top: 20rpx;
 }

@@ -8,9 +8,9 @@
   ],
   "window": {
     "navigationBarTitleText": "档案管理系统",
-    "navigationBarBackgroundColor": "#f7f9fc",
+    "navigationBarBackgroundColor": "#f4f6f9",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f7f9fc",
+    "backgroundColor": "#f4f6f9",
     "backgroundTextStyle": "light"
   },
   "style": "v2",
