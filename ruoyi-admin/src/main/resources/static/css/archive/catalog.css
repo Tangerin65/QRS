@@ -1,0 +1,49 @@
+:root { color-scheme:light; --ink:#172630; --muted:#4d6473; --line:#d9e4ea; --accent:#146756; --wash:#edf7f4; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; color:var(--ink); background:#f3f7fa; font:14px/1.55 Inter,"Microsoft YaHei",system-ui,sans-serif; }
+button,input,select,textarea { font:inherit; }
+:focus-visible { outline:3px solid #288675; outline-offset:2px; }
+.workspace { max-width:1320px; margin:auto; padding:30px clamp(16px,4vw,44px); }
+h1,h2,p { margin:0; } h1 { font-size:29px; } h2 { font-size:17px; }
+.page-header,.panel-heading,.dialog-header,.dialog-footer,.pagination { display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+.metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:20px 0; }
+.metrics article,.panel { padding:13px 17px; background:white; border:1px solid var(--line); border-radius:10px; }
+.metrics span { color:var(--muted); } .metrics strong { display:block; font-size:25px; }
+.panel { padding:0; overflow:hidden; } .panel-heading,.filters,.pagination { padding:14px 18px; }
+.actions,.filters { display:flex; align-items:end; gap:8px; flex-wrap:wrap; }
+.filters { border-block:1px solid var(--line); background:#f8fafb; }
+label { display:grid; gap:4px; font-weight:600; }
+input:not([type=file]),select,textarea { width:100%; padding:6px 9px; min-height:36px; color:var(--ink); background:#fff; border:1px solid #c5d4dd; border-radius:6px; }
+textarea { resize:vertical; }
+.button { display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:6px 11px; border-radius:6px; border:1px solid #c5d4dd; color:var(--ink); background:white; cursor:pointer; white-space:nowrap; text-decoration:none; }
+.button:hover { background:#eef4f7; } .button:disabled { opacity:.55; cursor:default; }
+.button.primary { background:var(--accent); color:white; border-color:var(--accent); } .button.primary:hover { background:#0f5648; }
+.button.small { min-height:27px; padding:3px 8px; }
+.feedback { padding:9px 12px; margin-bottom:12px; background:var(--wash); color:#125948; border-radius:6px; }
+.feedback.error { background:#fff0ee; color:#832525; }
+.status { display:inline-block; border-radius:17px; padding:2px 8px; background:#edf3f7; color:#365164; white-space:nowrap; }
+.status.active { color:#155b48; background:var(--wash); }
+.empty { padding:26px 18px; color:var(--muted); }
+.content { overflow:auto; }
+.tree { margin:0; padding:13px 18px 18px; list-style:none; }
+.tree ul { list-style:none; padding-left:20px; border-left:1px solid var(--line); }
+.tree details,.tree li { margin:3px 0; }
+.tree .line,.tree summary { padding:4px 0; overflow-wrap:anywhere; }
+.tree summary { cursor:pointer; }
+.tree .line>* + *,.tree summary>* + * { margin-left:8px; }
+.tree .path { display:block; margin-left:14px; color:var(--muted); }
+table { width:100%; border-collapse:collapse; text-align:left; }
+td,th { padding:10px 13px; border-bottom:1px solid var(--line); vertical-align:middle; overflow-wrap:anywhere; }
+th { color:var(--muted); background:#f8fafb; white-space:nowrap; }
+dialog { width:min(610px,calc(100vw - 22px)); max-height:calc(100vh - 24px); padding:0; border:1px solid var(--line); border-radius:10px; color:var(--ink); }
+dialog::backdrop { background:#13283370; }
+.dialog-header,.dialog-footer { border-bottom:1px solid var(--line); padding:12px 18px; }
+.dialog-footer { border-top:1px solid var(--line); border-bottom:0; justify-content:end; }
+.dialog-body { padding:15px 18px; display:grid; gap:12px; }
+dialog .feedback { margin:0 18px 12px; }
+dl { margin:0; display:grid; grid-template-columns:85px minmax(0,1fr); gap:8px 12px; }
+dt,small { color:var(--muted); } dd { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.print-view { display:none; }
+@media(max-width:610px) { .workspace { padding-top:18px; } .metrics { gap:6px; } .metrics article { padding:8px 10px; } .filters label { flex:1 1 130px; } }
+@media print { body { background:#fff; } .workspace,dialog { display:none !important; } .print-view { display:block; } .print-view table { margin-top:12px; } tr { break-inside:avoid; } }
