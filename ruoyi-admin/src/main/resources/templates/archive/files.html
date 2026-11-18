@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('档案附件')" />
+</head>
+<body class="gray-bg">
+<div class="wrapper wrapper-content">
+    <div class="ibox float-e-margins">
+        <div class="ibox-title"><h5>档案附件</h5></div>
+        <div class="ibox-content">
+            <p><strong th:text="${archive.archiveCode}"></strong>　<span th:text="${archive.title}"></span></p>
+            <p class="text-muted">支持 PDF、Word、Excel、文本文件、图片及音视频文件</p>
+            <div th:if="${canUpload}" id="upload-panel">
+                <div class="btn-group-sm" style="margin-bottom:12px">
+                    <button class="btn btn-success" type="button" onclick="archiveFiles.pick('single-file')"><i class="fa fa-file-o"></i> 单文件上传</button>
+                    <button class="btn btn-primary" type="button" onclick="archiveFiles.pick('multiple-files')"><i class="fa fa-files-o"></i> 多文件上传</button>
+                    <button class="btn btn-info" type="button" onclick="archiveFiles.pick('folder-files')"><i class="fa fa-folder-open-o"></i> 文件夹上传</button>
+                </div>
+                <input id="single-file" type="file" class="hide" hidden aria-label="选择单个附件">
+                <input id="multiple-files" type="file" class="hide" multiple hidden aria-label="选择多个附件">
+                <input id="folder-files" type="file" class="hide" multiple hidden aria-label="选择附件文件夹">
+                <p class="text-muted">选择后逐个上传。</p>
+                <div id="upload-queue" style="display:none">
+                    <p id="upload-summary"></p>
+                    <div class="table-responsive" style="max-height:300px;overflow:auto">
+                        <table class="table table-bordered table-condensed">
+                            <thead><tr><th>文件路径</th><th>大小</th><th>进度</th><th>结果</th></tr></thead>
+                            <tbody id="upload-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <p th:unless="${canUpload}" class="text-muted">当前档案不允许上传附件</p>
+        </div>
+    </div>
+    <div class="ibox float-e-margins">
+        <div class="ibox-title"><h5>已上传附件</h5></div>
+        <div class="ibox-content">
+            <button class="btn btn-default btn-sm" type="button" onclick="archiveFiles.refresh()"><i class="fa fa-refresh"></i> 刷新</button>
+            <div class="table-responsive" style="margin-top:12px">
+                <table class="table table-bordered table-striped">
+                    <thead><tr><th>原文件名</th><th>相对路径</th><th>自动存储名</th><th>类型</th><th>大小</th><th>上传人</th><th>上传时间</th><th th:if="${canDeleteFiles}">操作</th></tr></thead>
+                    <tbody id="attachment-rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:include="include :: footer" />
+<script th:inline="javascript">
+    var archiveFileOptions = {
+        archiveId: /*[[${archive.archiveId}]]*/ 0,
+        maxFileSize: /*[[${maxFileSize}]]*/ 0,
+        canDeleteFiles: /*[[${canDeleteFiles}]]*/ false
+    };
+</script>
+<script th:src="@{/js/archive/files.js}"></script>
+</body>
+</html>

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="renderer" content="webkit">
-    <title>若依系统首页</title>
+    <title>档案管理系统</title>
     <!-- 避免IE使用兼容模式 -->
  	<meta http-equiv="X-UA-Compatible" content="IE=edge">
     <link th:href="@{favicon.ico}" rel="shortcut icon"/>
@@ -26,11 +26,9 @@
         <div class="nav-close">
             <i class="fa fa-times-circle"></i>
         </div>
-        <a th:href="@{/index}">
-            <li class="logo hidden-xs">
-                <span class="logo-lg">RuoYi</span>
-            </li>
-         </a>
+        <a class="logo hidden-xs" th:href="@{/index}">
+            <span class="logo-lg">档案管理系统</span>
+        </a>
         <div class="sidebar-collapse">
             <ul class="nav" id="side-menu">
             	<li>
@@ -49,7 +47,7 @@
 				    </div>
             	</li>
                 <li>
-                    <a class="menuItem" th:href="@{/system/main}"><i class="fa fa-home"></i> <span class="nav-label">首页</span> </a>
+                    <a class="menuItem" th:href="@{/records/workbench}"><i class="fa fa-home"></i> <span class="nav-label">档案工作台</span> </a>
                 </li>
                 <li th:each="menu : ${menus}">
                 	<a th:class="@{${!#strings.isEmpty(menu.url) && menu.url != '#'} ? ${menu.target}}" th:href="@{${#strings.isEmpty(menu.url)} ? |#| : ${menu.url}}" th:data-refresh="${menu.isRefresh == '0'}">
@@ -216,7 +214,7 @@
                     </li>
                     <li class="dropdown user-menu">
 						<a href="javascript:void(0)" class="dropdown-toggle" data-hover="dropdown">
-							<img th:src="(${#strings.isEmpty(user.avatar)}) ? @{/img/profile.jpg} : @{${user.avatar}}" th:onerror="this.src='img/profile.jpg'" class="user-image">
+							<img th:src="(${#strings.isEmpty(user.avatar)}) ? @{/img/profile.jpg} : @{${user.avatar}}" th:onerror="this.src='img/profile.jpg'" class="user-image" alt="用户头像">
 							<span class="hidden-xs">[[${#strings.defaultString(user.userName, '-')}]]</span>
 						</a>
 						<ul class="dropdown-menu">
@@ -252,7 +250,7 @@
             </button>
             <nav class="page-tabs menuTabs">
                 <div class="page-tabs-content">
-                    <a href="javascript:;" class="menuTab" th:data-id="@{/system/main}">首页</a>
+                    <a href="javascript:;" class="menuTab" th:data-id="@{/records/workbench}">档案工作台</a>
                 </div>
             </nav>
             <button class="roll-nav roll-right tabRight">
@@ -264,12 +262,12 @@
         <a id="ax_close_max" class="ax_close_max" href="javascript:;" title="关闭全屏"> <i class="fa fa-times-circle-o"></i> </a>
 
         <div class="row mainContent" id="content-main" th:classappend="${mainClass}">
-            <iframe class="RuoYi_iframe" name="iframe0" width="100%" height="100%" th:data-id="@{/system/main}"
+            <iframe class="RuoYi_iframe" name="iframe0" width="100%" height="100%" th:data-id="@{/records/workbench}"
                 frameborder="0" seamless></iframe>
         </div>
 
         <div th:if="${footer}" class="footer">
-            <div class="pull-right">© [[${copyrightYear}]] RuoYi Copyright </div>
+            <div class="pull-right">© [[${copyrightYear}]] 档案管理系统 </div>
         </div>
     </div>
     <!--右侧部分结束-->
@@ -288,8 +286,8 @@
 <script th:src="@{/ajax/libs/fullscreen/jquery.fullscreen.js}"></script>
 <script th:inline="javascript">
 window.history.forward(1);
-var ctx = [[@{/}]]; 
-var lockscreen = [[${session.lockscreen}]]; 
+var ctx = /*[[@{/}]]*/ "/";
+var lockscreen = /*[[${session.lockscreen}]]*/ false;
 if(lockscreen){window.top.location=ctx+"lockscreen";}
 // 皮肤缓存
 var skin = storage.get("skin");
@@ -339,6 +337,8 @@ function toggleMenu() {
 
 /** 刷新时访问路径页签 */
 function applyPath(url) {
+    //恢复页面地址并将旧首页指向档案工作台
+    if (url === ctx + 'system/main') url = ctx + 'records/workbench';
 	$('a[href$="' + decodeURI(url) + '"]').click();
 	if (!$('a[href$="' + url + '"]').hasClass("noactive")) {
 	    $('a[href$="' + url + '"]').parent("li").addClass("selected").parents("li").addClass("active").end().parents("ul").addClass("in");
@@ -347,10 +347,11 @@ function applyPath(url) {
 
 // 默认激活页签（首页）
 function tabActive() {
-    var $mainTab = $('.menuTab[data-id="' + ctx + 'system/main"]');
+    //激活档案工作台首页
+    var $mainTab = $('.menuTab[data-id="' + ctx + 'records/workbench"]');
     $mainTab.addClass('active');
     // 懒加载：首次激活首页时才设置 src 并显示
-    var $mainIframe = $('.mainContent .RuoYi_iframe[data-id="' + ctx + 'system/main"]');
+    var $mainIframe = $('.mainContent .RuoYi_iframe[data-id="' + ctx + 'records/workbench"]');
     if ($mainIframe.length) {
         openToCurrentTab($mainIframe[0]);
     }
