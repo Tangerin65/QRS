@@ -5,13 +5,9 @@ const session = require('./utils/session');
 
 App({
   onLaunch() {
-    // 清除初版曾经写入本地的凭证；业务数据与二维码凭证都不持久化。
+    // 兼容初版，清除旧会话缓存。
     wx.removeStorageSync('records_session');
     this._refresh = null;
-    this._networkListener = (state) => {
-      if (!state.isConnected) wx.showToast({ title: '网络已断开，请联网后重试', icon: 'none' });
-    };
-    wx.onNetworkStatusChange(this._networkListener);
   },
 
   getSession: () => session.snapshot(),
@@ -47,7 +43,7 @@ App({
       }
       return session.set(session.normalize(data, token));
     }).catch((error) => {
-      // 已退出或已换账号的旧响应不再改变新会话。
+      // 忽略切换账号前的响应。
       if (revision !== session.revision()) return session.snapshot();
       if (error.code === 'ACCOUNT_UNBOUND') {
         session.clear('unbound');
@@ -64,7 +60,7 @@ App({
 
   logout() {
     const token = session.token();
-    // 发起吊销请求后立即清理本地状态；失败时也不恢复旧账号。
+    // 本地立即退出，再等待服务端吊销结果。
     const revoke = token && config.baseUrl
       ? request.post(config.api.logout) : Promise.resolve();
     session.setSignedOut(true);

@@ -1,65 +1,56 @@
 <view class="page scan-page">
-  <view class="mode-tabs card">
-    <button class="mode-tab {{mode === 'bind' ? 'selected' : ''}}" data-mode="bind"
-      disabled="{{busy || scanning}}" bindtap="changeMode">绑定平台账号</button>
-    <button class="mode-tab {{mode === 'pc' ? 'selected' : ''}}" data-mode="pc"
-      disabled="{{busy || scanning}}" bindtap="changeMode">电脑扫码登录</button>
+  <view class="mode-tabs">
+    <button class="mode-tab {{mode === 'bind' ? 'selected' : ''}}" data-mode="bind" disabled="{{busy || scanning}}" bindtap="changeMode">账号绑定</button>
+    <button class="mode-tab {{mode === 'pc' ? 'selected' : ''}}" data-mode="pc" disabled="{{busy || scanning}}" bindtap="changeMode">电脑登录</button>
   </view>
-  <view class="scan-hero">
-    <view class="scan-symbol">⌗</view>
-    <text class="page-title">{{mode === 'pc' ? '确认电脑端登录' : '绑定本人平台账号'}}</text>
-    <text class="page-subtitle">{{mode === 'pc' ? '扫描电脑登录页的动态二维码，核对后再确认。' : '首次使用请扫描管理员为本人生成的账号二维码。'}}</text>
+  <view class="scan-heading">
+    <text class="page-title">{{mode === 'pc' ? '安全登录电脑端' : '绑定你的平台账号'}}</text>
+    <text class="page-subtitle">{{mode === 'pc' ? '扫描电脑端动态二维码，核对后确认' : '扫描管理员提供的个人账号二维码'}}</text>
   </view>
-  <view wx:if="{{!configured}}" class="connection-note">服务尚未接入，暂不能完成账号绑定或电脑登录。</view>
+  <view wx:if="{{!configured}}" class="connection-note">服务暂未接入，暂不能完成绑定或登录。</view>
   <view class="scan-card card">
-    <block wx:if="{{!pcReady && !pcDone && !pcCancelled}}">
+    <block wx:if="{{!pcReady && !pcDone && !pcCancelled && !userNo}}">
       <view class="scan-frame">
         <view class="corner corner-tl"></view><view class="corner corner-tr"></view>
         <view class="corner corner-bl"></view><view class="corner corner-br"></view>
-        <view class="scan-line"></view>
-        <text class="scan-frame-text">{{mode === 'pc' ? '扫描电脑动态二维码' : '扫描个人账号二维码'}}</text>
+        <image class="scan-frame-icon" src="/assets/icons/scan.png" mode="aspectFit" />
+        <text class="scan-frame-text">{{mode === 'pc' ? '电脑端登录二维码' : '个人账号二维码'}}</text>
       </view>
-      <button class="primary-button scan-button" bindtap="startScan"
-        loading="{{busy || scanning}}" disabled="{{busy || scanning}}">打开扫一扫</button>
+      <button class="primary-button" bindtap="startScan" loading="{{busy || scanning}}" disabled="{{busy || scanning}}">打开扫一扫</button>
+      <text class="camera-note">点击后使用相机扫描二维码</text>
     </block>
-
-    <view wx:if="{{mode === 'bind' && userNo}}" class="scan-result">
-      <text class="result-label">识别到的平台账号</text>
-      <text class="result-value">{{userNo}}</text>
-      <button class="secondary-button confirm-button" bindtap="confirmBind" disabled="{{busy}}">确认绑定本人账号</button>
+    <view wx:if="{{mode === 'bind' && userNo}}" class="bind-result">
+      <view class="result-icon tone-scan"><image src="/assets/icons/profile.png" mode="aspectFit" /></view>
+      <text class="pc-title">确认绑定此账号？</text>
+      <view class="account-number"><text class="result-label">平台账号</text><text class="result-value">{{userNo}}</text></view>
+      <text class="result-description">请核对编号，确认二维码属于本人。</text>
+      <button class="primary-button confirm-button" bindtap="confirmBind" loading="{{busy}}" disabled="{{busy}}">确认绑定本人账号</button>
+      <button class="text-button" bindtap="startScan" disabled="{{busy}}">重新扫描</button>
     </view>
-
     <view wx:if="{{pcReady}}" class="pc-request">
-      <view class="pc-symbol">▣</view>
+      <view class="result-icon tone-pc"><image src="/assets/icons/pc.png" mode="aspectFit" /></view>
       <text class="pc-title">是否允许电脑登录？</text>
-      <text class="pc-row">登录账号：{{accountName}}</text>
-      <text class="pc-row">设备：{{deviceName}}</text>
-      <text class="pc-row">位置：{{location}}</text>
-      <text class="countdown">请在 {{secondsLeft}} 秒内处理</text>
-      <text class="pc-warning">仅确认本人发起的登录；设备或位置不符时请拒绝。</text>
-      <button class="primary-button confirm-button" disabled="{{busy || secondsLeft === 0}}" bindtap="confirmPc">确认登录</button>
+      <view class="device-info">
+        <view class="device-row"><text class="device-label">账号</text><text class="device-value">{{accountName}}</text></view>
+        <view class="device-row"><text class="device-label">设备</text><text class="device-value">{{deviceName}}</text></view>
+        <view class="device-row"><text class="device-label">位置</text><text class="device-value">{{location}}</text></view>
+      </view>
+      <text class="countdown">{{secondsLeft}} 秒内有效</text>
+      <text class="pc-warning">请确认是本人操作，设备或位置不符时请拒绝。</text>
+      <button class="primary-button confirm-button" loading="{{busy}}" disabled="{{busy || secondsLeft === 0}}" bindtap="confirmPc">确认登录</button>
       <button class="secondary-button confirm-button" disabled="{{busy}}" bindtap="cancelPc">拒绝登录</button>
     </view>
     <view wx:if="{{pcDone || pcCancelled}}" class="pc-request">
-      <view class="pc-symbol">{{pcDone ? '✓' : '—'}}</view>
+      <view class="result-icon {{pcDone ? 'tone-pc' : 'tone-logout'}}"><image src="/assets/icons/{{pcDone ? 'success' : 'cancel'}}.png" mode="aspectFit" /></view>
       <text class="pc-title">{{pcDone ? '已确认电脑登录' : '已拒绝本次登录'}}</text>
-      <text class="page-subtitle">{{pcDone ? '请返回电脑端继续使用。' : '本次请求已取消，新的登录请求请重新扫码。'}}</text>
+      <text class="result-description">{{pcDone ? '请返回电脑端继续使用。' : '本次请求已取消，可重新扫描其他二维码。'}}</text>
       <button class="secondary-button confirm-button" bindtap="startScan">扫描其他二维码</button>
     </view>
     <request-state wx:if="{{status === 'loading'}}" status="loading" />
   </view>
-  <request-state wx:if="{{status === 'error'}}" status="error" message="{{message}}"
-    retry-text="重新扫码" bind:retry="retry" />
-  <view class="tips card">
-    <text class="tips-title">{{mode === 'pc' ? '电脑登录须知' : '绑定须知'}}</text>
-    <block wx:if="{{mode === 'pc'}}">
-      <view class="tip-item"><text class="tip-number">1</text><text>先登录小程序，再扫描电脑登录页展示的二维码。</text></view>
-      <view class="tip-item"><text class="tip-number">2</text><text>二维码短时有效且只能使用一次，过期后请在电脑端刷新。</text></view>
-    </block>
-    <block wx:else>
-      <view class="tip-item"><text class="tip-number">1</text><text>二维码只包含平台用户编号，请确认属于本人。</text></view>
-      <view class="tip-item"><text class="tip-number">2</text><text>重绑其他账号，请联系管理员解除原绑定关系。</text></view>
-    </block>
-    <button class="secondary-button confirm-button" disabled="{{busy || scanning}}" bindtap="goProfile">前往个人中心</button>
+  <request-state wx:if="{{status === 'error'}}" status="error" message="{{message}}" retry-text="重新扫码" bind:retry="retry" />
+  <view class="scan-help">
+    <text>{{mode === 'pc' ? '二维码过期后，请在电脑端刷新。' : '更换绑定请联系管理员解除原绑定。'}}</text>
+    <button class="text-button" disabled="{{busy || scanning}}" bindtap="goProfile">前往个人中心 ›</button>
   </view>
 </view>

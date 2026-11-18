@@ -1,7 +1,4 @@
-/**
- * 与成员 6 确认接口后修改此处。AppSecret 等认证秘密必须保存在后端。
- * baseUrl 留空时只展示公共页面，不请求服务或伪造登录成功。
- */
+// 接口待联调；baseUrl 留空时仅展示页面。
 module.exports = {
   appName: '档案管理系统',
   baseUrl: '',
