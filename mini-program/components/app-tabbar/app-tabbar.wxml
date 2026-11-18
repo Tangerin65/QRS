@@ -1,0 +1,6 @@
+<view class="tabbar">
+  <button wx:for="{{items}}" wx:key="key" class="tab-item {{active === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="navigate" aria-label="{{item.label}}" aria-current="{{active === item.key}}">
+    <image class="tab-icon" src="/assets/icons/tab-{{item.key}}{{active === item.key ? '-active' : ''}}.png" mode="aspectFit" />
+    <text class="tab-label">{{item.label}}</text>
+  </button>
+</view>

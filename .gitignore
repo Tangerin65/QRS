@@ -37,6 +37,10 @@ nbdist/
 
 ######################################################################
 # Others
+# 每人独立的外部配置与运行文件
+/config/application-local.yml
+/config/application-local.yaml
+/runtime/
 *.log
 *.xml.versionsBackup
 *.swp
@@ -44,3 +48,9 @@ nbdist/
 !*/build/*.java
 !*/build/*.html
 !*/build/*.xml
+
+######################################################################
+# 微信开发者工具
+
+mini-program/project.private.config.json
+mini-program/.idea/

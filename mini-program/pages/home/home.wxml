@@ -1,0 +1,59 @@
+<view class="page home-page">
+  <view class="workbench-heading">
+    <view><text class="page-title">工作台</text><text class="page-subtitle">档案管理系统</text></view>
+    <button class="heading-scan" bindtap="goScan" aria-label="扫一扫"><image src="/assets/icons/scan.png" mode="aspectFit" /></button>
+  </view>
+  <view class="service-banner">
+    <view class="banner-copy">
+      <text class="banner-title">档案服务，随手办理</text>
+      <text class="banner-desc">查档 · 扫码 · 在线协作</text>
+      <button class="banner-button" bindtap="goScan">{{bound ? '电脑扫码登录' : '扫码绑定账号'}} <text>›</text></button>
+    </view>
+    <view class="banner-art" aria-hidden="true">
+      <view class="art-sheet art-sheet-back"></view>
+      <view class="art-sheet"><view class="art-line"></view><view class="art-line short"></view></view>
+      <view class="art-folder"><view class="art-folder-label"></view></view>
+    </view>
+  </view>
+  <request-state wx:if="{{sessionStatus === 'loading'}}" status="loading" />
+  <request-state wx:elif="{{sessionStatus === 'error'}}" status="error" message="{{sessionMessage}}" bind:retry="handleRetry" />
+  <block wx:else>
+    <view class="account-strip" bindtap="goProfile">
+      <view class="account-dot {{bound ? 'online' : ''}}"></view>
+      <text class="account-name">{{bound ? userName : '欢迎使用'}}</text>
+      <text class="account-role">{{bound ? roleName : connectionText}}</text>
+      <text class="row-arrow">›</text>
+    </view>
+    <view class="section card applications">
+      <view class="section-heading"><text class="section-title">常用应用</text><text class="section-meta">{{bound ? '我的服务' : '账号服务'}}</text></view>
+      <view class="application-grid {{quickActions.length < 3 ? 'few-applications' : ''}}">
+        <button wx:for="{{quickActions}}" wx:key="key" class="application-item" data-target="{{item.key}}" bindtap="handleAction">
+          <view class="application-icon tone-{{item.key}}"><image src="/assets/icons/{{item.key}}.png" mode="aspectFit" /></view>
+          <text class="application-label">{{item.title}}</text>
+        </button>
+      </view>
+      <text wx:if="{{!bound}}" class="application-note">绑定账号后显示可用的业务应用</text>
+    </view>
+  </block>
+  <view class="section card guide-section">
+    <view class="section-heading"><text class="section-title">使用指南</text><text class="section-meta">首次使用看这里</text></view>
+    <view class="guide-item">
+      <button class="guide-row" data-guide="bind" bindtap="toggleGuide" aria-expanded="{{openGuide === 'bind'}}">
+        <view class="small-icon tone-scan"><image src="/assets/icons/scan.png" mode="aspectFit" /></view>
+        <view class="row-copy"><text class="row-title">如何绑定平台账号</text><text class="row-subtitle">首次使用，先完成账号绑定</text></view>
+        <text class="row-arrow {{openGuide === 'bind' ? 'expanded' : ''}}">›</text>
+      </button>
+      <text wx:if="{{openGuide === 'bind'}}" class="guide-answer">向管理员获取本人的账号二维码，在扫一扫中选择“账号绑定”，扫码并核对编号后确认。更换绑定需先联系管理员解除原绑定。</text>
+    </view>
+    <view class="guide-item">
+      <button class="guide-row" data-guide="pc" bindtap="toggleGuide" aria-expanded="{{openGuide === 'pc'}}">
+        <view class="small-icon tone-pc"><image src="/assets/icons/pc.png" mode="aspectFit" /></view>
+        <view class="row-copy"><text class="row-title">如何登录电脑端</text><text class="row-subtitle">扫码后核对设备，确认本人操作</text></view>
+        <text class="row-arrow {{openGuide === 'pc' ? 'expanded' : ''}}">›</text>
+      </button>
+      <text wx:if="{{openGuide === 'pc'}}" class="guide-answer">先登录小程序，再选择“电脑登录”扫描电脑端的动态二维码。核对账号、设备与位置后确认；非本人操作请选择拒绝。</text>
+    </view>
+  </view>
+  <text wx:if="{{!configured}}" class="service-note">服务暂未接入，登录与业务办理待开放</text>
+  <app-tabbar active="home"></app-tabbar>
+</view>

@@ -1,0 +1,265 @@
+.workbench-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4rpx 4rpx 28rpx;
+}
+
+.workbench-heading .page-title {
+  font-size: 44rpx;
+}
+
+.workbench-heading .page-subtitle {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+}
+
+.heading-scan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78rpx;
+  height: 78rpx;
+  background: #fff;
+  border-radius: 22rpx;
+}
+
+.heading-scan image {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.service-banner {
+  display: flex;
+  position: relative;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+  min-height: 246rpx;
+  padding: 34rpx 30rpx;
+  border-radius: 20rpx;
+  background: #4779e8;
+  color: #fff;
+}
+
+.banner-copy {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.banner-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #dce7ff;
+  font-size: 23rpx;
+}
+
+.banner-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 26rpx;
+  padding: 10rpx 20rpx;
+  border-radius: 8rpx;
+  background: #fff;
+  color: #426fd0;
+  font-size: 23rpx;
+}
+
+.banner-button text {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.banner-art {
+  position: relative;
+  flex: 0 0 148rpx;
+  height: 166rpx;
+  margin-left: 8rpx;
+}
+
+.art-sheet {
+  position: absolute;
+  top: 8rpx;
+  right: 20rpx;
+  width: 90rpx;
+  height: 118rpx;
+  padding: 28rpx 14rpx;
+  border-radius: 8rpx;
+  background: #fff;
+  transform: rotate(8deg);
+}
+
+.art-sheet-back {
+  right: 44rpx;
+  top: 4rpx;
+  background: #9ebeff;
+  transform: rotate(-12deg);
+}
+
+.art-line {
+  height: 5rpx;
+  margin-bottom: 12rpx;
+  border-radius: 4rpx;
+  background: #c2d4fb;
+}
+
+.art-line.short {
+  width: 70%;
+}
+
+.art-folder {
+  position: absolute;
+  bottom: 4rpx;
+  right: 0;
+  width: 140rpx;
+  height: 88rpx;
+  border: 2rpx solid #ffdb8e;
+  border-radius: 8rpx 16rpx 14rpx 14rpx;
+  background: #f8c96c;
+  transform: rotate(-5deg);
+}
+
+.art-folder-label {
+  position: absolute;
+  top: 28rpx;
+  left: 18rpx;
+  width: 34rpx;
+  height: 8rpx;
+  border-radius: 3rpx;
+  background: #fff3ce;
+}
+
+.account-strip {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-height: 86rpx;
+  padding: 18rpx 6rpx 0;
+}
+
+.account-dot {
+  flex: 0 0 12rpx;
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #aebbd0;
+}
+
+.account-dot.online {
+  background: #41b88c;
+}
+
+.account-name {
+  max-width: 230rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 25rpx;
+}
+
+.account-role {
+  flex: 1;
+  min-width: 0;
+  color: #8a95a5;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.applications {
+  margin-top: 18rpx;
+}
+
+.application-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 10rpx 12rpx 30rpx;
+}
+
+.few-applications {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.application-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 8rpx 0;
+}
+
+.application-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90rpx;
+  height: 90rpx;
+  border-radius: 26rpx;
+}
+
+.application-icon image {
+  width: 54rpx;
+  height: 54rpx;
+}
+
+.application-label {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.application-note {
+  display: block;
+  margin: -4rpx 28rpx 0;
+  padding-bottom: 24rpx;
+  text-align: center;
+  color: #949dab;
+  font-size: 22rpx;
+}
+
+.guide-section {
+  padding-bottom: 4rpx;
+}
+
+.guide-section .section-heading {
+  padding-bottom: 8rpx;
+}
+
+.guide-item {
+  margin: 0 26rpx;
+  border-bottom: 1rpx solid #f0f2f6;
+}
+
+.guide-item:last-child {
+  border-bottom: 0;
+}
+
+.guide-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  width: 100%;
+  padding: 24rpx 0;
+}
+
+.guide-answer {
+  display: block;
+  padding: 0 0 24rpx;
+  color: #788597;
+  font-size: 24rpx;
+  line-height: 1.8;
+}
+
+.expanded {
+  transform: rotate(90deg);
+}

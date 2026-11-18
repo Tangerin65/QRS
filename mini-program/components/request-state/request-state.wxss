@@ -1,0 +1,64 @@
+.request-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 28rpx;
+  border-radius: 16rpx;
+  color: #8a95a5;
+  font-size: 25rpx;
+  text-align: center;
+}
+
+.request-loading {
+  flex-direction: row;
+  gap: 16rpx;
+  min-height: 110rpx;
+}
+
+.request-error, .request-empty {
+  margin-top: 20rpx;
+  background: #fff;
+}
+
+.loading-dot {
+  width: 26rpx;
+  height: 26rpx;
+  border: 3rpx solid #dbe6fb;
+  border-top-color: #4779e8;
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+}
+
+.state-icon {
+  width: 56rpx;
+  height: 56rpx;
+  margin-bottom: 18rpx;
+}
+
+.state-message {
+  max-width: 560rpx;
+  line-height: 1.7;
+}
+
+.retry-button {
+  min-width: 168rpx;
+  margin: 24rpx 0 0;
+  padding: 14rpx 26rpx;
+  border: 1rpx solid #dbe3ef;
+  border-radius: 10rpx;
+  background: #fff;
+  color: #4779e8;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.retry-button::after {
+  border: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

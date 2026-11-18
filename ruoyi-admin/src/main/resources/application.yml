@@ -1,7 +1,7 @@
 # 项目相关配置
 ruoyi:
   # 名称
-  name: RuoYi
+  name: 档案管理系统
   # 版本
   version: 4.8.3
   # 版权年份
@@ -13,10 +13,14 @@ ruoyi:
   # 获取ip地址开关
   addressEnabled: false
 
+# 档案附件私有目录，不放在公开的 ruoyi.profile 目录内
+archive:
+  file-root: D:/ruoyi/archiveFiles
+
 # 开发环境配置
 server:
-  # 服务器的HTTP端口，默认为80
-  port: 80
+  # 开发环境端口，避免与IIS占用的端口冲突
+  port: 8081
   servlet:
     # 应用的访问路径
     context-path: /

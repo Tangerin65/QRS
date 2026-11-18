@@ -1,0 +1,17 @@
+# 复制到项目根 config/application-local.yml（已忽略），启用 druid,local。
+# 真实密码只填本地副本或环境变量，不提交 Git。
+server:
+  port: 8080
+ruoyi:
+  demoEnabled: false
+  profile: ${QRS_UPLOAD_PATH:./runtime/public-upload}
+spring:
+  datasource:
+    druid:
+      master:
+        url: ${QRS_DB_URL:jdbc:mysql://localhost:3306/qrs?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+        username: ${QRS_DB_USERNAME:root}
+        password: ${QRS_DB_PASSWORD:}
+      statViewServlet:
+        enabled: false
+# profile 对应公开资源映射；正式档案附件不要存放在上述目录。
