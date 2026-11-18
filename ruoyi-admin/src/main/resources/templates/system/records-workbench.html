@@ -9,8 +9,13 @@
         .records-section { background: #fff; border: 1px solid #e7eaec; padding: 16px; margin-bottom: 16px; }
         .records-section h3 { font-size: 15px; margin: 0 0 14px; font-weight: 600; }
         .records-links { display: flex; flex-wrap: wrap; gap: 8px; }
-        .records-link { display: inline-block; min-width: 150px; padding: 12px; border: 1px solid #e7eaec; color: #337ab7; }
-        .records-link:hover { background: #f7f9fa; text-decoration: none; }
+        .records-link { display: inline-block; min-width: 150px; padding: 12px; border: 1px solid #e4e9ed; color: #337ab7; background: #f1f6fa; }
+        .records-links > .records-link:nth-child(6n + 2) { background: #f1f7f3; border-color: #e3ece6; }
+        .records-links > .records-link:nth-child(6n + 3) { background: #faf6ed; border-color: #eee7d8; }
+        .records-links > .records-link:nth-child(6n + 4) { background: #f3f3f9; border-color: #e7e7ef; }
+        .records-links > .records-link:nth-child(6n + 5) { background: #f9f2f0; border-color: #eee4e1; }
+        .records-links > .records-link:nth-child(6n) { background: #f0f6f5; border-color: #e0eae8; }
+        .records-link:hover { filter: brightness(0.98); text-decoration: none; }
         .records-link strong { display: block; color: #333; margin-bottom: 4px; }
         .records-link span { color: #777; font-size: 12px; }
         .records-notice { border-left: 3px solid #f0ad4e; background: #fcf8e3; padding: 10px 12px; color: #8a6d3b; }
@@ -19,30 +24,27 @@
 <body class="gray-bg">
 <div class="records-page">
     <h1 class="records-title">档案管理工作台</h1>
-    <div class="records-subtitle">档案业务功能入口</div>
+    <div class="records-subtitle">档案业务功能一览</div>
 
     <div class="records-section">
         <h3>登记与利用</h3>
         <div class="records-links">
-            <a class="records-link" shiro:hasPermission="records:register:view" th:href="@{/records/register}"><strong>档案登记</strong><span>进入登记功能</span></a>
-            <div class="records-link"><strong>档案检索</strong><span>由负责成员接入</span></div>
-            <div class="records-link"><strong>阅览与借阅</strong><span>由负责成员接入</span></div>
+            <a class="records-link" shiro:hasPermission="archiveQuery" th:href="@{/records/register}"><strong>档案登记</strong><span>档案上传入库</span></a>
+            <div class="records-link"><strong>档案检索</strong><span>TBC</span></div>
+            <div class="records-link"><strong>阅览与借阅</strong><span>TBC</span></div>
         </div>
     </div>
 
     <div class="records-section">
         <h3>档案管理</h3>
         <div class="records-links">
-            <div class="records-link"><strong>分类与元数据</strong><span>由负责成员接入</span></div>
-            <div class="records-link"><strong>归档与保管</strong><span>由负责成员接入</span></div>
-            <div class="records-link"><strong>统计报表</strong><span>由负责成员接入</span></div>
+            <div class="records-link"><strong>气象信息</strong><span>TBC</span></div>
+            <div class="records-link"><strong>归档与保管</strong><span>TBC</span></div>
+            <div class="records-link"><strong>统计报表</strong><span>TBC</span></div>
         </div>
     </div>
 
-    <div class="records-section">
-        <h3>实施进度</h3>
-        <div class="records-notice">当前为团队公共框架阶段。工作台只提供受权限控制的页面入口，不代表登记、检索、归档等业务功能已经实现。</div>
-    </div>
+
 </div>
 <th:block th:include="include :: footer" />
 </body>

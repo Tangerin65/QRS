@@ -1,6 +1,5 @@
 package com.ruoyi.web.controller.common;
 
-import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,17 +12,11 @@ import com.ruoyi.common.core.controller.BaseController;
 @RequestMapping("/records")
 public class RecordsWorkbenchController extends BaseController
 {
-    @RequiresPermissions("records:workbench:view")
     @GetMapping("/workbench")
     public String workbench()
     {
+        //打开登录后的档案工作台首页
         return "system/records-workbench";
     }
 
-    @RequiresPermissions("records:register:view")
-    @GetMapping("/register")
-    public String register()
-    {
-        return "system/records-register";
-    }
 }
