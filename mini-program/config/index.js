@@ -7,6 +7,8 @@ module.exports = {
     login: '/api/mobile/auth/login',
     session: '/api/mobile/auth/session',
     logout: '/api/mobile/auth/logout',
+    // 成员6 提供的个人中心资料接口，返回头像占位、基础资料与绑定状态
+    profile: '/api/mobile/auth/profile',
     bindAccount: '/api/mobile/account/bind',
     pcInspect: '/api/mobile/auth/pc/inspect',
     pcConfirm: '/api/mobile/auth/pc/confirm',
