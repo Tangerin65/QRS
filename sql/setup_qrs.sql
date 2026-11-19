@@ -1092,6 +1092,89 @@ CREATE TABLE IF NOT EXISTS arc_file (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案附件';
 
 
+
+-- M10归档与库位
+
+CREATE TABLE IF NOT EXISTS arc_location (
+    location_id   BIGINT NOT NULL AUTO_INCREMENT,
+    parent_id     BIGINT DEFAULT NULL,
+    location_level VARCHAR(16) NOT NULL DEFAULT 'RACK',
+    location_code VARCHAR(32) NOT NULL,
+    location_name VARCHAR(120) NOT NULL,
+    capacity      INT DEFAULT NULL,
+    status        TINYINT NOT NULL DEFAULT 0,
+    sort_no       INT NOT NULL DEFAULT 0,
+    remark        VARCHAR(500) NOT NULL DEFAULT '',
+    create_by     VARCHAR(64) NOT NULL DEFAULT '',
+    create_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by     VARCHAR(64) DEFAULT NULL,
+    update_time   DATETIME DEFAULT NULL,
+    PRIMARY KEY (location_id),
+    UNIQUE KEY uk_arc_location_code (location_code),
+    KEY idx_arc_location_parent (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案库位';
+
+CREATE TABLE IF NOT EXISTS arc_archive_batch (
+    batch_id       BIGINT NOT NULL AUTO_INCREMENT,
+    batch_no       VARCHAR(32) NOT NULL,
+    applicant_id   BIGINT NOT NULL,
+    applicant_name VARCHAR(64) NOT NULL DEFAULT '',
+    total_count    INT NOT NULL DEFAULT 0,
+    success_count  INT NOT NULL DEFAULT 0,
+    fail_count     INT NOT NULL DEFAULT 0,
+    batch_status   VARCHAR(16) NOT NULL DEFAULT 'RUNNING',
+    location_id    BIGINT DEFAULT NULL,
+    submit_time    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finish_time    DATETIME DEFAULT NULL,
+    remark         VARCHAR(500) NOT NULL DEFAULT '',
+    PRIMARY KEY (batch_id),
+    UNIQUE KEY uk_arc_batch_no (batch_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次';
+
+CREATE TABLE IF NOT EXISTS arc_archive_batch_item (
+    item_id      BIGINT NOT NULL AUTO_INCREMENT,
+    batch_id     BIGINT NOT NULL,
+    archive_id   BIGINT NOT NULL,
+    archive_code VARCHAR(96) NOT NULL DEFAULT '',
+    title        VARCHAR(200) NOT NULL DEFAULT '',
+    item_result  VARCHAR(8) NOT NULL,
+    reason_code  VARCHAR(32) NOT NULL DEFAULT '',
+    reason       VARCHAR(200) NOT NULL DEFAULT '',
+    PRIMARY KEY (item_id),
+    KEY idx_arc_batch_item_batch (batch_id, item_result)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次明细';
+
+
+-- M10归档与库位权限
+START TRANSACTION;
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '档案归档',0,7,'/records/archiving','menuItem','C','0','1','archiveArchivingQuery','fa fa-archive','admin',NOW(),'M10 档案归档'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/archiving');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '归档批次',0,8,'/records/batch','menuItem','C','0','1','archiveBatchQuery','fa fa-list-alt','admin',NOW(),'M10 归档批次'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/batch');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '库位管理',0,9,'/records/location','menuItem','C','0','1','archiveLocationQuery','fa fa-cubes','admin',NOW(),'M10 库位管理'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/location');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT action.menu_name,parent.menu_id,action.order_num,'#','','F','0','1',action.perms,'#','admin',NOW(),'M10 归档操作权限'
+FROM (SELECT '提交归档' menu_name,1 order_num,'archiveArchivingSubmit' perms UNION ALL
+      SELECT '归档退回补正',2,'archiveArchivingReturn') action
+JOIN (SELECT menu_id FROM sys_menu WHERE url='/records/archiving' ORDER BY menu_id LIMIT 1) parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu existing WHERE existing.parent_id=parent.menu_id AND existing.perms=action.perms);
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT action.menu_name,parent.menu_id,action.order_num,'#','','F','0','1',action.perms,'#','admin',NOW(),'M10 库位操作权限'
+FROM (SELECT '维护库位' menu_name,1 order_num,'archiveLocationManage' perms) action
+JOIN (SELECT menu_id FROM sys_menu WHERE url='/records/location' ORDER BY menu_id LIMIT 1) parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu existing WHERE existing.parent_id=parent.menu_id AND existing.perms=action.perms);
+
+COMMIT;
+
 -- M02附件权限
 START TRANSACTION;
 
