@@ -27,6 +27,21 @@ public class SysUser extends BaseEntity
     @Excel(name = "用户序号", type = Type.EXPORT, cellType = ColumnType.NUMERIC, prompt = "用户编号")
     private Long userId;
 
+    /**
+     * 用户编号（M12 对外业务编号）
+     * 绑定二维码的内容只放这个值，按纯文本处理以保留前导零（如 0003）。
+     */
+    private String userNo;
+
+    /** 是否档案员（0否 1是，M12 增补字段） */
+    private String arcArchivist;
+
+    /**
+     * 密级上限引用（M12 增补字段）
+     * 这里只保存密级代码引用，密级判定规则由 M13（成员1）实现，本模块不参与判定。
+     */
+    private String arcSecretLevel;
+
     /** 部门ID */
     @Excel(name = "部门编号", type = Type.IMPORT)
     private Long deptId;
@@ -102,6 +117,9 @@ public class SysUser extends BaseEntity
     /** 岗位组 */
     private Long[] postIds;
 
+    /** 微信绑定状态（查询回显用：1 已绑定，0 未绑定；不落 sys_user 表） */
+    private String wxBound;
+
     public SysUser()
     {
 
@@ -120,6 +138,49 @@ public class SysUser extends BaseEntity
     public void setUserId(Long userId)
     {
         this.userId = userId;
+    }
+
+    @Xss(message = "用户编号不能包含脚本字符")
+    @Size(min = 0, max = 64, message = "用户编号长度不能超过64个字符")
+    public String getUserNo()
+    {
+        return userNo;
+    }
+
+    public void setUserNo(String userNo)
+    {
+        this.userNo = userNo;
+    }
+
+    public String getArcArchivist()
+    {
+        return arcArchivist;
+    }
+
+    public void setArcArchivist(String arcArchivist)
+    {
+        this.arcArchivist = arcArchivist;
+    }
+
+    @Size(min = 0, max = 20, message = "密级上限长度不能超过20个字符")
+    public String getArcSecretLevel()
+    {
+        return arcSecretLevel;
+    }
+
+    public void setArcSecretLevel(String arcSecretLevel)
+    {
+        this.arcSecretLevel = arcSecretLevel;
+    }
+
+    public String getWxBound()
+    {
+        return wxBound;
+    }
+
+    public void setWxBound(String wxBound)
+    {
+        this.wxBound = wxBound;
     }
 
     public boolean isAdmin()
@@ -355,6 +416,9 @@ public class SysUser extends BaseEntity
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
             .append("userId", getUserId())
+            .append("userNo", getUserNo())
+            .append("arcArchivist", getArcArchivist())
+            .append("arcSecretLevel", getArcSecretLevel())
             .append("deptId", getDeptId())
             .append("loginName", getLoginName())
             .append("userName", getUserName())
