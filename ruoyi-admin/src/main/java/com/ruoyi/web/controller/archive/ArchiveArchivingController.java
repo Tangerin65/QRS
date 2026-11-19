@@ -202,10 +202,16 @@ public class ArchiveArchivingController extends BaseController {
     @PostMapping("/batch/list")
     @ResponseBody
     @RequiresPermissions(BATCH_QUERY)
-    public AjaxResult batchList(String keyword, String status, String from, String to,
-                                Integer pageNum, Integer pageSize) {
-        return AjaxResult.success(archiving.listBatches(keyword, status, from, to,
-            pageNum == null ? 1 : pageNum, pageSize == null ? 20 : pageSize));
+    public Map<String, Object> batchList(String keyword, String status, String from, String to,
+                                         Integer pageNum, Integer pageSize) {
+        Map<String, Object> data = archiving.listBatches(keyword, status, from, to,
+            pageNum == null ? 1 : pageNum, pageSize == null ? 20 : pageSize);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("code", 0);
+        result.put("msg", "查询成功");
+        result.put("rows", data.get("rows"));
+        result.put("total", data.get("total"));
+        return result;
     }
 
     @GetMapping("/batch/detail/{batchId}")

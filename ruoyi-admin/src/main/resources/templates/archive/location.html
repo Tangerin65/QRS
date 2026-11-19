@@ -23,7 +23,7 @@
                         <li>状态：<select name="status" aria-label="按状态筛选">
                             <option value="">全部</option><option value="0">启用</option><option value="1">停用</option></select></li>
                         <li>
-                            <a class="btn btn-primary btn-rounded btn-sm" onclick="location.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                            <a class="btn btn-primary btn-rounded btn-sm" onclick="locationPage.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
                             <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
                         </li>
                     </ul>
@@ -32,10 +32,10 @@
         </div>
         <div class="m10-metrics" id="metrics"></div>
         <div class="btn-group-sm" id="toolbar" role="group">
-            <a class="btn btn-success" shiro:hasPermission="archiveLocationManage" onclick="location.openAdd()"><i class="fa fa-plus"></i> 新增库位</a>
-            <a class="btn btn-info" shiro:hasPermission="archiveLocationManage" onclick="location.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
-            <a class="btn btn-warning" onclick="location.exportRows()"><i class="fa fa-download"></i> 导出</a>
-            <a class="btn btn-default" onclick="location.printRows()"><i class="fa fa-print"></i> 打印</a>
+            <a class="btn btn-success" shiro:hasPermission="archiveLocationManage" onclick="locationPage.openAdd()"><i class="fa fa-plus"></i> 新增库位</a>
+            <a class="btn btn-info" shiro:hasPermission="archiveLocationManage" onclick="locationPage.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
+            <a class="btn btn-warning" onclick="locationPage.exportRows()"><i class="fa fa-download"></i> 导出</a>
+            <a class="btn btn-default" onclick="locationPage.printRows()"><i class="fa fa-print"></i> 打印</a>
             <span class="text-muted" id="summary" style="margin-left:12px"></span>
         </div>
         <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
@@ -71,7 +71,7 @@
             </form>
         </div>
         <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button>
-            <button class="btn btn-primary" onclick="location.save()">保存</button></div>
+            <button class="btn btn-primary" onclick="locationPage.save()">保存</button></div>
     </div></div>
 </div>
 
@@ -84,7 +84,7 @@
             <div id="import-result" style="margin-top:10px"></div>
         </div>
         <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button>
-            <button class="btn btn-primary" onclick="location.doImport()">开始导入</button></div>
+            <button class="btn btn-primary" onclick="locationPage.doImport()">开始导入</button></div>
     </div></div>
 </div>
 
@@ -92,6 +92,6 @@
 <script th:inline="javascript">
     var locationFlags = { canManage: /*[[${canManage}]]*/ false };
 </script>
-<script th:src="@{/js/archive/location.js}"></script>
+<script th:src="@{/js/archive/location.js(v=2)}"></script>
 </body>
 </html>

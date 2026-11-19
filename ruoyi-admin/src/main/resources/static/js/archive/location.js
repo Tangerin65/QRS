@@ -1,4 +1,4 @@
-var location = (function () {
+var locationPage = (function () {
     var prefix = ctx + "records/location";
     var treeCache = [];
 
@@ -184,4 +184,4 @@ var location = (function () {
     };
 })();
 
-$(function () { location.init(); });
+$(function () { locationPage.init(); });
