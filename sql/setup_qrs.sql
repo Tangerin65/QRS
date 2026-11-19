@@ -862,6 +862,9 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     summary VARCHAR(1000) NOT NULL DEFAULT '',
     metadata_json JSON NOT NULL,
     archive_status VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+    archive_date DATE DEFAULT NULL,
+    retention_end_date DATE DEFAULT NULL,
+    location_id BIGINT DEFAULT NULL,
     version INT NOT NULL DEFAULT 1,
     dept_id BIGINT NOT NULL,
     create_by VARCHAR(64) NOT NULL,
@@ -874,7 +877,9 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     KEY idx_arc_archive_category (category_id, del_flag, archive_status),
     KEY idx_arc_archive_owner (create_by, del_flag, archive_status),
     KEY idx_arc_archive_dept (dept_id, del_flag, archive_status),
-    KEY idx_arc_archive_forming_date (forming_date)
+    KEY idx_arc_archive_forming_date (forming_date),
+    KEY idx_arc_archive_retention_end (retention_end_date),
+    KEY idx_arc_archive_location (location_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案登记信息';
 
 CREATE TABLE IF NOT EXISTS arc_audit_event (
@@ -944,6 +949,64 @@ JOIN sys_dict_data d ON d.dict_type COLLATE utf8mb4_0900_ai_ci = _utf8mb4'arc_re
     AND d.dict_value COLLATE utf8mb4_0900_ai_ci = a.retention_code COLLATE utf8mb4_0900_ai_ci
 SET a.retention_name = d.dict_label
 WHERE a.retention_name = '';
+
+
+-- M10归档字段迁移（归档日期、保管到期日、库位）
+
+SET @has_archive_date = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'archive_date'
+);
+SET @archive_date_sql = IF(@has_archive_date = 0,
+    'ALTER TABLE arc_archive ADD COLUMN archive_date DATE DEFAULT NULL AFTER archive_status',
+    'SELECT 1');
+PREPARE archive_date_stmt FROM @archive_date_sql;
+EXECUTE archive_date_stmt;
+DEALLOCATE PREPARE archive_date_stmt;
+
+SET @has_retention_end_date = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'retention_end_date'
+);
+SET @retention_end_date_sql = IF(@has_retention_end_date = 0,
+    'ALTER TABLE arc_archive ADD COLUMN retention_end_date DATE DEFAULT NULL AFTER archive_date',
+    'SELECT 1');
+PREPARE retention_end_date_stmt FROM @retention_end_date_sql;
+EXECUTE retention_end_date_stmt;
+DEALLOCATE PREPARE retention_end_date_stmt;
+
+SET @has_location_id = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'location_id'
+);
+SET @location_id_sql = IF(@has_location_id = 0,
+    'ALTER TABLE arc_archive ADD COLUMN location_id BIGINT DEFAULT NULL AFTER retention_end_date',
+    'SELECT 1');
+PREPARE location_id_stmt FROM @location_id_sql;
+EXECUTE location_id_stmt;
+DEALLOCATE PREPARE location_id_stmt;
+
+SET @has_idx_retention_end = (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND index_name = 'idx_arc_archive_retention_end'
+);
+SET @idx_retention_end_sql = IF(@has_idx_retention_end = 0,
+    'ALTER TABLE arc_archive ADD KEY idx_arc_archive_retention_end (retention_end_date)',
+    'SELECT 1');
+PREPARE idx_retention_end_stmt FROM @idx_retention_end_sql;
+EXECUTE idx_retention_end_stmt;
+DEALLOCATE PREPARE idx_retention_end_stmt;
+
+SET @has_idx_location = (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND index_name = 'idx_arc_archive_location'
+);
+SET @idx_location_sql = IF(@has_idx_location = 0,
+    'ALTER TABLE arc_archive ADD KEY idx_arc_archive_location (location_id)',
+    'SELECT 1');
+PREPARE idx_location_stmt FROM @idx_location_sql;
+EXECUTE idx_location_stmt;
+DEALLOCATE PREPARE idx_location_stmt;
 
 
 -- M01档案登记权限
