@@ -3,8 +3,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32rpx 28rpx;
-  border-radius: 16rpx;
+  padding: 24rpx;
+  border-radius: 6rpx;
   color: #8a95a5;
   font-size: 25rpx;
   text-align: center;
@@ -30,12 +30,6 @@
   animation: spin .9s linear infinite;
 }
 
-.state-icon {
-  width: 56rpx;
-  height: 56rpx;
-  margin-bottom: 18rpx;
-}
-
 .state-message {
   max-width: 560rpx;
   line-height: 1.7;
@@ -46,7 +40,7 @@
   margin: 24rpx 0 0;
   padding: 14rpx 26rpx;
   border: 1rpx solid #dbe3ef;
-  border-radius: 10rpx;
+  border-radius: 6rpx;
   background: #fff;
   color: #4779e8;
   font-size: 24rpx;
