@@ -26,7 +26,10 @@ import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -40,6 +43,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/records")
 public class ArchiveController extends BaseController {
     private static final String QUERY = "archiveQuery";
+    private static final String SEARCH = "archiveSearch";
     private final IArchiveService archives;/*档案业务*/
     private final ArchiveCatalogService catalog;/*分类*/
     private final ISysDictTypeService dictTypes;/*字典*/
@@ -74,6 +78,54 @@ public class ArchiveController extends BaseController {
         query.setAllowedCategoryIds(scope.categoryIds());
         query.setMaxSecretLevel(scope.maxSecretLevel());
         return query;
+    }
+
+    @InitBinder("searchQuery")
+    public void bindSearchQuery(WebDataBinder binder) {
+        binder.setAllowedFields("archiveCode", "title", "keyword", "categoryId", "secretLevel",
+                "archiveStatus", "dateFrom", "dateTo", "pageNum", "pageSize", "orderByColumn", "isAsc");
+    }
+
+    @GetMapping("/search")
+    @RequiresPermissions(SEARCH)
+    public String searchPage(Model model) {
+        var subject = SecurityUtils.getSubject();
+        var session = subject.getSession();
+        if (session.getAttribute(ShiroConstants.CSRF_TOKEN) == null) {
+            session.setAttribute(ShiroConstants.CSRF_TOKEN, ServletUtils.generateToken());
+        }
+        model.addAttribute("csrfToken", session.getAttribute(ShiroConstants.CSRF_TOKEN));
+        AccessScope scope = accessScope();
+        model.addAttribute("categories", catalog.registrationChoices("", scope.categoryAllowed()));
+        model.addAttribute("secretOptions", secretLevels.options());
+        model.addAttribute("canView", subject.isPermitted("archiveView"));
+        return "archive/search";
+    }
+
+    @PostMapping("/search/list")
+    @ResponseBody
+    @RequiresPermissions(SEARCH)
+    public TableDataInfo searchList(@ModelAttribute("searchQuery") ArchiveQuery query) {
+        List<ArchiveRecord> rows = archives.selectArchiveList(scopedQuery(query));
+        TableDataInfo table = getDataTable(rows);
+        table.setRows(rows.stream().map(SearchRow::from).toList());
+        return table;
+    }
+
+    private record SearchRow(String archiveId, String archiveCode, String title, String categoryName,
+            LocalDate formingDate, String secretName, String archiveStatus, String summary, String createBy) {
+        static SearchRow from(ArchiveRecord record) {
+            return new SearchRow(record.getArchiveId().toString(), record.getArchiveCode(), record.getTitle(),
+                    record.getCategoryName(), record.getFormingDate(), record.getSecretName(),
+                    record.getArchiveStatus(), record.getSummary(), record.getCreateBy());
+        }
+    }
+
+    @GetMapping("/search/export")
+    @RequiresPermissions({SEARCH, "archiveExport"})
+    @Log(title = "档案检索", businessType = BusinessType.EXPORT)
+    public void exportSearch(@ModelAttribute("searchQuery") ArchiveQuery query, HttpServletResponse response) throws IOException {
+        export(query, response);
     }
 
     @GetMapping("/register")

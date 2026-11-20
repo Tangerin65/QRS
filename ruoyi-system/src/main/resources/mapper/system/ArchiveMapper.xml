@@ -39,6 +39,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="!admin">and a.create_by=#{ownerName}</if>
             <if test="archiveCode != null and archiveCode != ''">and a.archive_code like concat('%',#{archiveCode},'%')</if>
             <if test="title != null and title != ''">and a.title like concat('%',#{title},'%')</if>
+            <if test="keyword != null and keyword != ''">
+                and (locate(#{keyword}, a.archive_code) &gt; 0 or locate(#{keyword}, a.title) &gt; 0
+                    or locate(#{keyword}, a.summary) &gt; 0)
+            </if>
             <if test="categoryId != null">and a.category_id=#{categoryId}</if>
             <if test="secretLevel != null">and a.secret_level=#{secretLevel}</if>
             <if test="archiveStatus != null and archiveStatus != ''">and a.archive_status=#{archiveStatus}</if>
@@ -140,6 +144,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="!admin">and a.create_by=#{ownerName}</if>
             <if test="archiveCode != null and archiveCode != ''">and a.archive_code like concat('%',#{archiveCode},'%')</if>
             <if test="title != null and title != ''">and a.title like concat('%',#{title},'%')</if>
+            <if test="keyword != null and keyword != ''">
+                and (locate(#{keyword}, a.archive_code) &gt; 0 or locate(#{keyword}, a.title) &gt; 0
+                    or locate(#{keyword}, a.summary) &gt; 0)
+            </if>
             <if test="categoryId != null">and a.category_id=#{categoryId}</if>
             <if test="secretLevel != null">and a.secret_level=#{secretLevel}</if>
             <if test="archiveStatus != null and archiveStatus != ''">and a.archive_status=#{archiveStatus}</if>
