@@ -862,6 +862,9 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     summary VARCHAR(1000) NOT NULL DEFAULT '',
     metadata_json JSON NOT NULL,
     archive_status VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+    archive_date DATE DEFAULT NULL,
+    retention_end_date DATE DEFAULT NULL,
+    location_id BIGINT DEFAULT NULL,
     version INT NOT NULL DEFAULT 1,
     dept_id BIGINT NOT NULL,
     create_by VARCHAR(64) NOT NULL,
@@ -874,7 +877,9 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     KEY idx_arc_archive_category (category_id, del_flag, archive_status),
     KEY idx_arc_archive_owner (create_by, del_flag, archive_status),
     KEY idx_arc_archive_dept (dept_id, del_flag, archive_status),
-    KEY idx_arc_archive_forming_date (forming_date)
+    KEY idx_arc_archive_forming_date (forming_date),
+    KEY idx_arc_archive_retention_end (retention_end_date),
+    KEY idx_arc_archive_location (location_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案登记信息';
 
 CREATE TABLE IF NOT EXISTS arc_audit_event (
@@ -944,6 +949,64 @@ JOIN sys_dict_data d ON d.dict_type COLLATE utf8mb4_0900_ai_ci = _utf8mb4'arc_re
     AND d.dict_value COLLATE utf8mb4_0900_ai_ci = a.retention_code COLLATE utf8mb4_0900_ai_ci
 SET a.retention_name = d.dict_label
 WHERE a.retention_name = '';
+
+
+-- M10归档字段迁移（归档日期、保管到期日、库位）
+
+SET @has_archive_date = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'archive_date'
+);
+SET @archive_date_sql = IF(@has_archive_date = 0,
+    'ALTER TABLE arc_archive ADD COLUMN archive_date DATE DEFAULT NULL AFTER archive_status',
+    'SELECT 1');
+PREPARE archive_date_stmt FROM @archive_date_sql;
+EXECUTE archive_date_stmt;
+DEALLOCATE PREPARE archive_date_stmt;
+
+SET @has_retention_end_date = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'retention_end_date'
+);
+SET @retention_end_date_sql = IF(@has_retention_end_date = 0,
+    'ALTER TABLE arc_archive ADD COLUMN retention_end_date DATE DEFAULT NULL AFTER archive_date',
+    'SELECT 1');
+PREPARE retention_end_date_stmt FROM @retention_end_date_sql;
+EXECUTE retention_end_date_stmt;
+DEALLOCATE PREPARE retention_end_date_stmt;
+
+SET @has_location_id = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'location_id'
+);
+SET @location_id_sql = IF(@has_location_id = 0,
+    'ALTER TABLE arc_archive ADD COLUMN location_id BIGINT DEFAULT NULL AFTER retention_end_date',
+    'SELECT 1');
+PREPARE location_id_stmt FROM @location_id_sql;
+EXECUTE location_id_stmt;
+DEALLOCATE PREPARE location_id_stmt;
+
+SET @has_idx_retention_end = (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND index_name = 'idx_arc_archive_retention_end'
+);
+SET @idx_retention_end_sql = IF(@has_idx_retention_end = 0,
+    'ALTER TABLE arc_archive ADD KEY idx_arc_archive_retention_end (retention_end_date)',
+    'SELECT 1');
+PREPARE idx_retention_end_stmt FROM @idx_retention_end_sql;
+EXECUTE idx_retention_end_stmt;
+DEALLOCATE PREPARE idx_retention_end_stmt;
+
+SET @has_idx_location = (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND index_name = 'idx_arc_archive_location'
+);
+SET @idx_location_sql = IF(@has_idx_location = 0,
+    'ALTER TABLE arc_archive ADD KEY idx_arc_archive_location (location_id)',
+    'SELECT 1');
+PREPARE idx_location_stmt FROM @idx_location_sql;
+EXECUTE idx_location_stmt;
+DEALLOCATE PREPARE idx_location_stmt;
 
 
 -- M01档案登记权限
@@ -1028,6 +1091,89 @@ CREATE TABLE IF NOT EXISTS arc_file (
     KEY idx_arc_file_archive (archive_id, file_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案附件';
 
+
+
+-- M10归档与库位
+
+CREATE TABLE IF NOT EXISTS arc_location (
+    location_id   BIGINT NOT NULL AUTO_INCREMENT,
+    parent_id     BIGINT DEFAULT NULL,
+    location_level VARCHAR(16) NOT NULL DEFAULT 'RACK',
+    location_code VARCHAR(32) NOT NULL,
+    location_name VARCHAR(120) NOT NULL,
+    capacity      INT DEFAULT NULL,
+    status        TINYINT NOT NULL DEFAULT 0,
+    sort_no       INT NOT NULL DEFAULT 0,
+    remark        VARCHAR(500) NOT NULL DEFAULT '',
+    create_by     VARCHAR(64) NOT NULL DEFAULT '',
+    create_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by     VARCHAR(64) DEFAULT NULL,
+    update_time   DATETIME DEFAULT NULL,
+    PRIMARY KEY (location_id),
+    UNIQUE KEY uk_arc_location_code (location_code),
+    KEY idx_arc_location_parent (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案库位';
+
+CREATE TABLE IF NOT EXISTS arc_archive_batch (
+    batch_id       BIGINT NOT NULL AUTO_INCREMENT,
+    batch_no       VARCHAR(32) NOT NULL,
+    applicant_id   BIGINT NOT NULL,
+    applicant_name VARCHAR(64) NOT NULL DEFAULT '',
+    total_count    INT NOT NULL DEFAULT 0,
+    success_count  INT NOT NULL DEFAULT 0,
+    fail_count     INT NOT NULL DEFAULT 0,
+    batch_status   VARCHAR(16) NOT NULL DEFAULT 'RUNNING',
+    location_id    BIGINT DEFAULT NULL,
+    submit_time    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finish_time    DATETIME DEFAULT NULL,
+    remark         VARCHAR(500) NOT NULL DEFAULT '',
+    PRIMARY KEY (batch_id),
+    UNIQUE KEY uk_arc_batch_no (batch_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次';
+
+CREATE TABLE IF NOT EXISTS arc_archive_batch_item (
+    item_id      BIGINT NOT NULL AUTO_INCREMENT,
+    batch_id     BIGINT NOT NULL,
+    archive_id   BIGINT NOT NULL,
+    archive_code VARCHAR(96) NOT NULL DEFAULT '',
+    title        VARCHAR(200) NOT NULL DEFAULT '',
+    item_result  VARCHAR(8) NOT NULL,
+    reason_code  VARCHAR(32) NOT NULL DEFAULT '',
+    reason       VARCHAR(200) NOT NULL DEFAULT '',
+    PRIMARY KEY (item_id),
+    KEY idx_arc_batch_item_batch (batch_id, item_result)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次明细';
+
+
+-- M10归档与库位权限
+START TRANSACTION;
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '档案归档',0,7,'/records/archiving','menuItem','C','0','1','archiveArchivingQuery','fa fa-archive','admin',NOW(),'M10 档案归档'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/archiving');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '归档批次',0,8,'/records/batch','menuItem','C','0','1','archiveBatchQuery','fa fa-list-alt','admin',NOW(),'M10 归档批次'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/batch');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '库位管理',0,9,'/records/location','menuItem','C','0','1','archiveLocationQuery','fa fa-cubes','admin',NOW(),'M10 库位管理'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/location');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT action.menu_name,parent.menu_id,action.order_num,'#','','F','0','1',action.perms,'#','admin',NOW(),'M10 归档操作权限'
+FROM (SELECT '提交归档' menu_name,1 order_num,'archiveArchivingSubmit' perms UNION ALL
+      SELECT '归档退回补正',2,'archiveArchivingReturn') action
+JOIN (SELECT menu_id FROM sys_menu WHERE url='/records/archiving' ORDER BY menu_id LIMIT 1) parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu existing WHERE existing.parent_id=parent.menu_id AND existing.perms=action.perms);
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT action.menu_name,parent.menu_id,action.order_num,'#','','F','0','1',action.perms,'#','admin',NOW(),'M10 库位操作权限'
+FROM (SELECT '维护库位' menu_name,1 order_num,'archiveLocationManage' perms) action
+JOIN (SELECT menu_id FROM sys_menu WHERE url='/records/location' ORDER BY menu_id LIMIT 1) parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu existing WHERE existing.parent_id=parent.menu_id AND existing.perms=action.perms);
+
+COMMIT;
 
 -- M02附件权限
 START TRANSACTION;

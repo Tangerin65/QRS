@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('库位管理')" />
+    <style>
+        .m10-metrics { display: flex; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+        .m10-metric { background: #fff; border: 1px solid #e7eaec; border-radius: 3px; padding: 8px 14px; min-width: 100px; }
+        .m10-metric span { display: block; color: #999; font-size: 12px; }
+        .m10-metric strong { font-size: 20px; color: #1ab394; }
+    </style>
+</head>
+<body class="gray-bg">
+<div class="container-div">
+    <div class="row">
+        <div class="col-sm-12 search-collapse">
+            <form id="location-form">
+                <div class="select-list">
+                    <ul>
+                        <li>编码/名称：<input name="keyword" maxlength="64" aria-label="按库位编码或名称筛选"></li>
+                        <li>层级：<select name="level" aria-label="按层级筛选">
+                            <option value="">全部</option><option value="WAREHOUSE">库房</option>
+                            <option value="AREA">区域</option><option value="RACK">柜架</option></select></li>
+                        <li>状态：<select name="status" aria-label="按状态筛选">
+                            <option value="">全部</option><option value="0">启用</option><option value="1">停用</option></select></li>
+                        <li>
+                            <a class="btn btn-primary btn-rounded btn-sm" onclick="locationPage.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                            <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+        <div class="m10-metrics" id="metrics"></div>
+        <div class="btn-group-sm" id="toolbar" role="group">
+            <a class="btn btn-success" shiro:hasPermission="archiveLocationManage" onclick="locationPage.openAdd()"><i class="fa fa-plus"></i> 新增库位</a>
+            <a class="btn btn-info" shiro:hasPermission="archiveLocationManage" onclick="locationPage.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
+            <a class="btn btn-warning" onclick="locationPage.exportRows()"><i class="fa fa-download"></i> 导出</a>
+            <a class="btn btn-default" onclick="locationPage.printRows()"><i class="fa fa-print"></i> 打印</a>
+            <span class="text-muted" id="summary" style="margin-left:12px"></span>
+        </div>
+        <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
+    </div>
+</div>
+
+<div class="modal fade" id="editor-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title" id="editor-title">新增库位</h4></div>
+        <div class="modal-body">
+            <form id="location-editor">
+                <input type="hidden" name="locationId">
+                <div class="form-group"><label for="editor-level">层级 <span class="text-danger">*</span></label>
+                    <select id="editor-level" class="form-control" name="locationLevel" required>
+                        <option value="WAREHOUSE">库房</option><option value="AREA">区域</option><option value="RACK">柜架</option>
+                    </select></div>
+                <div class="form-group"><label for="editor-parent">上级库位</label>
+                    <select id="editor-parent" class="form-control" name="parentId"><option value="">无（库房）</option></select></div>
+                <div class="form-group"><label for="editor-code">库位编码 <span class="text-danger">*</span></label>
+                    <input id="editor-code" class="form-control" name="locationCode" maxlength="32" required></div>
+                <div class="form-group"><label for="editor-name">库位名称 <span class="text-danger">*</span></label>
+                    <input id="editor-name" class="form-control" name="locationName" maxlength="120" required></div>
+                <div class="row">
+                    <div class="col-sm-4 form-group"><label for="editor-capacity">容量</label>
+                        <input id="editor-capacity" class="form-control" name="capacity" type="number" min="0"></div>
+                    <div class="col-sm-4 form-group"><label for="editor-sort">排序</label>
+                        <input id="editor-sort" class="form-control" name="sortNo" type="number" value="0"></div>
+                    <div class="col-sm-4 form-group"><label for="editor-status">状态</label>
+                        <select id="editor-status" class="form-control" name="status"><option value="0">启用</option><option value="1">停用</option></select></div>
+                </div>
+                <div class="form-group"><label for="editor-remark">备注</label>
+                    <textarea id="editor-remark" class="form-control" name="remark" rows="2" maxlength="500"></textarea></div>
+            </form>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button>
+            <button class="btn btn-primary" onclick="locationPage.save()">保存</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="import-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">库位导入</h4></div>
+        <div class="modal-body">
+            <p><a th:href="@{/records/location/template}">下载导入模板</a>（先填上级再填下级，单次最多 500 行）</p>
+            <input type="file" id="import-file" accept=".xlsx" aria-label="选择库位导入文件">
+            <div id="import-result" style="margin-top:10px"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button>
+            <button class="btn btn-primary" onclick="locationPage.doImport()">开始导入</button></div>
+    </div></div>
+</div>
+
+<th:block th:include="include :: footer" />
+<script th:inline="javascript">
+    var locationFlags = { canManage: /*[[${canManage}]]*/ false };
+</script>
+<script th:src="@{/js/archive/location.js(v=2)}"></script>
+</body>
+</html>
