@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.ArchiveFileMapper">
+    <resultMap id="FileResult" type="com.ruoyi.system.domain.ArchiveFile">
+        <id property="fileId" column="file_id"/>
+        <result property="archiveId" column="archive_id"/>
+        <result property="displayName" column="display_name"/>
+        <result property="relativePath" column="relative_path"/>
+        <result property="storeKey" column="store_key"/>
+        <result property="fileType" column="file_type"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="sha256" column="sha256"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectFiles" resultMap="FileResult">
+        select file_id,archive_id,display_name,relative_path,store_key,file_type,file_size,sha256,create_by,create_time
+        from arc_file where archive_id=#{archiveId} order by relative_path,file_id
+    </select>
+
+    <select id="lockArchive" resultType="java.lang.Long">
+        select archive_id from arc_archive where archive_id=#{archiveId} and del_flag='0' for update
+    </select>
+
+    <insert id="insertFile" useGeneratedKeys="true" keyProperty="fileId">
+        insert into arc_file(archive_id,display_name,relative_path,store_key,file_type,file_size,sha256,create_by)
+        values(#{archiveId},#{displayName},#{relativePath},#{storeKey},#{fileType},#{fileSize},#{sha256},#{createBy})
+    </insert>
+
+    <delete id="deleteFile">
+        delete from arc_file where file_id=#{fileId} and archive_id=#{archiveId}
+    </delete>
+</mapper>
