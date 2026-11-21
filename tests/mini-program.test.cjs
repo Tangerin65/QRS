@@ -246,15 +246,19 @@ test('绑定操作防重复点击，成功后令牌不出现在页面 data 中',
   page.onLoad({ mode: 'bind' });
   page.startScan();
   h.scan('0003');
+  // M12-B：首次绑定需校验平台账号口令（后端强制），未填口令不会发请求
+  page.setBindPassword('secret-pass');
   page.confirmBind();
   page.confirmBind();
   await h.flush();
   assert.equal(h.requests.length, 1);
   assert.equal(h.requests[0].data.userNo, '0003');
+  assert.equal(h.requests[0].data.password, 'secret-pass');
   h.reply(0, h.identity());
   await h.flush();
   assert.equal(h.session.snapshot().status, 'authenticated');
   assert.equal(JSON.stringify(page.data).includes('token-3'), false);
+  assert.equal(JSON.stringify(page.data).includes('secret-pass'), false);
   assert.equal(h.calls.routes.at(-1), '/pages/home/home');
   page.onUnload();
 });
@@ -337,6 +341,8 @@ test('页面退出后延迟绑定响应不建立会话', async () => {
   page.onLoad({ mode: 'bind' });
   page.startScan();
   h.scan('3');
+  // M12-B：需先填口令才会真正提交绑定请求
+  page.setBindPassword('secret-pass');
   page.confirmBind();
   await h.flush();
   page.onUnload();

@@ -31,6 +31,8 @@
         <poi.version>6.0.0</poi.version>
         <velocity.version>2.4.1</velocity.version>
         <springdoc.version>3.2.0</springdoc.version>
+        <!-- 二维码生成（M12 绑定二维码），仅用 core，不引入 javase 以免带进 jcommander/jai-imageio -->
+        <zxing.version>3.5.3</zxing.version>
     </properties>
 
     <!-- 依赖声明 -->
@@ -155,6 +157,15 @@
                 <groupId>com.alibaba.fastjson2</groupId>
                 <artifactId>fastjson2</artifactId>
                 <version>${fastjson.version}</version>
+            </dependency>
+
+            <!-- 二维码生成（ZXing，Apache-2.0）。只引 core：
+                 javase 会额外带进 jcommander 与 jai-imageio，本项目用不到，
+                 图片渲染直接用 JDK 的 ImageIO，避免多余依赖。 -->
+            <dependency>
+                <groupId>com.google.zxing</groupId>
+                <artifactId>core</artifactId>
+                <version>${zxing.version}</version>
             </dependency>
 
             <!-- 定时任务-->

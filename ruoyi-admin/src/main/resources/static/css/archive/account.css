@@ -1,0 +1,60 @@
+/* M12-A 账号与组织底座页面样式。
+   与 M03 分类页共用同一套视觉变量和组件类名，保持全站一致：
+   页面结构 class（workspace / panel / filters / dialog 等）与 catalog.css 对齐，
+   只额外补本页特有的图表区、角色多选、二维码预览三块。 */
+:root { color-scheme:light; --ink:#172630; --muted:#4d6473; --line:#d9e4ea; --accent:#146756; --wash:#edf7f4; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; color:var(--ink); background:#f3f7fa; font:14px/1.55 Inter,"Microsoft YaHei",system-ui,sans-serif; }
+button,input,select,textarea { font:inherit; }
+:focus-visible { outline:3px solid #288675; outline-offset:2px; }
+.workspace { max-width:1320px; margin:auto; padding:30px clamp(16px,4vw,44px); }
+h1,h2,p,figure { margin:0; } h1 { font-size:29px; } h2 { font-size:17px; }
+.page-header,.panel-heading,.dialog-header,.dialog-footer,.pagination { display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+.metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin:20px 0; }
+.metrics article,.panel { padding:13px 17px; background:white; border:1px solid var(--line); border-radius:10px; }
+.metrics span { color:var(--muted); } .metrics strong { display:block; font-size:25px; }
+.panel { padding:0; overflow:hidden; margin-bottom:18px; }
+.panel-heading,.filters,.pagination { padding:14px 18px; }
+.actions,.filters { display:flex; align-items:end; gap:8px; flex-wrap:wrap; }
+.filters { border-block:1px solid var(--line); background:#f8fafb; }
+label { display:grid; gap:4px; font-weight:600; }
+input:not([type=file]):not([type=checkbox]),select,textarea { width:100%; padding:6px 9px; min-height:36px; color:var(--ink); background:#fff; border:1px solid #c5d4dd; border-radius:6px; }
+textarea { resize:vertical; }
+.button { display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:6px 11px; border-radius:6px; border:1px solid #c5d4dd; color:var(--ink); background:white; cursor:pointer; white-space:nowrap; text-decoration:none; }
+.button:hover { background:#eef4f7; } .button:disabled { opacity:.55; cursor:default; }
+.button.primary { background:var(--accent); color:white; border-color:var(--accent); } .button.primary:hover { background:#0f5648; }
+.button.small { min-height:27px; padding:3px 8px; }
+.feedback { padding:9px 12px; margin-bottom:12px; background:var(--wash); color:#125948; border-radius:6px; white-space:pre-wrap; }
+.feedback.error { background:#fff0ee; color:#832525; }
+.status { display:inline-block; border-radius:17px; padding:2px 8px; background:#edf3f7; color:#365164; white-space:nowrap; }
+.status.active { color:#155b48; background:var(--wash); }
+.status.disabled { color:#832525; background:#fff0ee; }
+.empty { padding:26px 18px; color:var(--muted); }
+.content { overflow:auto; }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; text-align:left; }
+td,th { padding:10px 13px; border-bottom:1px solid var(--line); vertical-align:middle; overflow-wrap:anywhere; }
+th { color:var(--muted); background:#f8fafb; white-space:nowrap; }
+dialog { width:min(720px,calc(100vw - 22px)); max-height:calc(100vh - 24px); padding:0; border:1px solid var(--line); border-radius:10px; color:var(--ink); overflow:auto; }
+dialog::backdrop { background:#13283370; }
+.dialog-header,.dialog-footer { border-bottom:1px solid var(--line); padding:12px 18px; position:sticky; top:0; background:#fff; z-index:1; }
+.dialog-footer { border-top:1px solid var(--line); border-bottom:0; justify-content:end; position:sticky; bottom:0; }
+.dialog-body { padding:15px 18px; display:grid; gap:12px; }
+dialog .feedback { margin:0 18px 12px; }
+dl { margin:0; display:grid; grid-template-columns:105px minmax(0,1fr); gap:8px 12px; }
+dt,small,.hint { color:var(--muted); } dd { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.hint { font-size:13px; line-height:1.6; }
+.role-boxes { display:flex; flex-wrap:wrap; gap:8px; }
+.role-chip { display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid #c5d4dd; border-radius:20px; font-weight:400; background:#fff; cursor:pointer; }
+.role-chip input { margin:0; }
+.charts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:14px 18px 18px; }
+.charts figure { display:grid; gap:8px; }
+.charts figcaption { color:var(--muted); font-size:13px; }
+.chart { width:100%; height:220px; }
+.qr-holder { display:flex; align-items:center; justify-content:center; min-height:180px; color:var(--muted); }
+.qr-holder img { width:240px; height:240px; image-rendering:pixelated; border:1px solid var(--line); border-radius:8px; background:#fff; }
+.print-view { display:none; }
+@media(max-width:1080px) { .metrics { grid-template-columns:repeat(3,minmax(0,1fr)); } .charts { grid-template-columns:1fr; } }
+@media(max-width:610px) { .workspace { padding-top:18px; } .metrics { gap:6px; grid-template-columns:repeat(2,minmax(0,1fr)); } .metrics article { padding:8px 10px; } .filters label { flex:1 1 130px; } }
+@media print { body { background:#fff; } .workspace,dialog { display:none !important; } .print-view { display:block; } .print-view table { margin-top:12px; } tr { break-inside:avoid; } }

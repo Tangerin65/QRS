@@ -10,7 +10,9 @@ Page({
     busy: false, scanning: false, configured: Boolean(config.baseUrl),
     pcReady: false, pcDone: false, pcCancelled: false,
     deviceName: '', location: '', expiresText: '', secondsLeft: 0,
-    accountName: '', bound: false
+    accountName: '', bound: false,
+    // 绑定口令是否已填（只用于控制按钮可点状态，口令本身不进 data）
+    passwordFilled: false
   },
 
   onLoad(options = {}) {
@@ -33,11 +35,13 @@ Page({
     this._closed = true;
     this._operation += 1;
     this.clearTicket();
+    this.clearPassword();
     if (this._unsubscribe) this._unsubscribe();
   },
 
   setMode(mode) {
     this.clearTicket();
+    this.clearPassword();
     this.setData({
       mode, status: 'idle', message: '', userNo: '',
       pcDone: false, pcCancelled: false
@@ -49,6 +53,12 @@ Page({
     if (this.data.busy || this.data.scanning) return;
     this._operation += 1;
     this.setMode(event.currentTarget.dataset.mode === 'pc' ? 'pc' : 'bind');
+  },
+
+  // 清掉绑定时输入的口令，切换模式、重新扫码、页面卸载时都要调用
+  clearPassword() {
+    this._bindPassword = '';
+    if (this.data.passwordFilled) this.setData({ passwordFilled: false });
   },
 
   clearTicket() {
@@ -82,6 +92,8 @@ Page({
   startScan() {
     if (this.data.busy || this.data.scanning) return;
     this.clearTicket();
+    // 重新扫码可能对应另一个账号，必须清掉上一次输入的口令
+    this.clearPassword();
     this.setData({ userNo: '', status: 'idle', message: '', pcDone: false, pcCancelled: false });
     if (this.data.mode === 'bind' && session.snapshot().status === 'authenticated') {
       this.fail(new Error('当前账号已登录。如需切换绑定，请先到个人中心退出并联系管理员解除旧绑定。'));
@@ -130,6 +142,8 @@ Page({
       this.fail(new Error('服务尚未接入，暂不能绑定账号'));
       return;
     }
+    // 首次绑定必须校验平台账号口令（后端强制要求）。
+    if (!this.requirePassword()) return;
     wx.showModal({
       title: '确认绑定本人账号',
       content: '平台账号：' + this.data.userNo + '。请确认这是管理员为你本人生成的二维码。',
@@ -140,12 +154,46 @@ Page({
     });
   },
 
+  // 口令输入：只存在实例字段上，避免出现在 data / 日志 / 页面源码里
+  onPasswordInput(event) {
+    this._bindPassword = String((event.detail && event.detail.value) || '');
+    const filled = Boolean(this._bindPassword);
+    if (this.data.passwordFilled !== filled) {
+      this.setData({ passwordFilled: filled });
+    }
+  },
+
+  // 校验口令是否已填写；未填写时给出明确提示并返回 false
+  requirePassword() {
+    const password = String(this._bindPassword || '');
+    if (password) return true;
+    this.setData({ status: 'error', message: '请先输入该账号的登录口令，再确认绑定' });
+    return false;
+  },
+
+  /**
+   * 以编程方式设置绑定口令。
+   *
+   * 仅供页面内部与自动化测试使用；用户侧入口是 WXML 的 onPasswordInput。
+   * 这样测试不必模拟输入事件就能覆盖绑定主流程，也避免测试去改页面私有字段。
+   */
+  setBindPassword(value) {
+    this._bindPassword = String(value == null ? '' : value);
+    const filled = Boolean(this._bindPassword);
+    if (this.data.passwordFilled !== filled) {
+      this.setData({ passwordFilled: filled });
+    }
+    return filled;
+  },
+
   bindAccount() {
     if (this.data.busy) return;
     if (session.snapshot().status === 'authenticated') {
       this.fail(new Error('当前已有登录账号，请先退出后再绑定'));
       return;
     }
+    if (!this.requirePassword()) return;
+    const password = String(this._bindPassword || '');
     const revision = session.revision();
     const operation = ++this._operation;
     const userNo = this.data.userNo;
@@ -154,9 +202,12 @@ Page({
       if (this._closed || operation !== this._operation || revision !== session.revision()) {
         throw new Error('登录状态已变化，请重新操作');
       }
-      return request.post(config.api.bindAccount, { code, userNo }, { auth: false });
+      // password 由后端用 MD5(loginName + password + salt) 校验，前端不做任何处理
+      return request.post(config.api.bindAccount, { code, userNo, password }, { auth: false });
     }).then((data) => {
       if (this._closed || operation !== this._operation) return;
+      // 绑定成功后立即丢弃口令，不留在内存里
+      this.clearPassword();
       app.setSession(data, revision);
       wx.showToast({ title: '绑定成功', icon: 'success' });
       wx.reLaunch({ url: '/pages/home/home' });

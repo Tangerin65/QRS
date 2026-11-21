@@ -6,6 +6,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
 	<resultMap type="SysUser" id="SysUserResult">
 		<id     property="userId"        column="user_id"         />
+		<result property="userNo"        column="user_no"         />
+		<result property="arcArchivist"  column="arc_archivist"   />
+		<result property="arcSecretLevel" column="arc_secret_level" />
 		<result property="deptId"        column="dept_id"         />
 		<result property="loginName"     column="login_name"      />
 		<result property="userName"      column="user_name"       />
@@ -50,7 +53,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	</resultMap>
 	
 	<sql id="selectUserVo">
-        select  u.user_id, u.dept_id, u.login_name, u.user_name, u.user_type, u.email, u.avatar, u.phonenumber, u.sex, u.password, u.salt, u.status, u.del_flag, u.login_ip, u.login_date, u.pwd_update_date, u.create_by, u.create_time, u.update_by, u.update_time, u.remark,
+        select  u.user_id, u.user_no, u.arc_archivist, u.arc_secret_level, u.dept_id, u.login_name, u.user_name, u.user_type, u.email, u.avatar, u.phonenumber, u.sex, u.password, u.salt, u.status, u.del_flag, u.login_ip, u.login_date, u.pwd_update_date, u.create_by, u.create_time, u.update_by, u.update_time, u.remark,
        		    d.dept_id, d.parent_id, d.ancestors, d.dept_name, d.order_num, d.leader, d.status as dept_status,
        		    r.role_id, r.role_name, r.role_key, r.role_sort, r.data_scope, r.status as role_status
 		from sys_user u
@@ -60,17 +63,26 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </sql>
 	
 	<select id="selectUserList" parameterType="SysUser" resultMap="SysUserResult">
-		select u.user_id, u.dept_id, u.login_name, u.user_name, u.user_type, u.email, u.avatar, u.phonenumber, u.password, u.sex, u.salt, u.status, u.del_flag, u.login_ip, u.login_date, u.create_by, u.create_time, u.remark, d.dept_name, d.leader from sys_user u
+		select u.user_id, u.user_no, u.arc_archivist, u.arc_secret_level, u.dept_id, u.login_name, u.user_name, u.user_type, u.email, u.avatar, u.phonenumber, u.password, u.sex, u.salt, u.status, u.del_flag, u.login_ip, u.login_date, u.create_by, u.create_time, u.remark, d.dept_name, d.leader from sys_user u
 		left join sys_dept d on u.dept_id = d.dept_id
 		where u.del_flag = '0'
 		<if test="userId != null and userId != 0">
 			AND u.user_id = #{userId}
 		</if>
+		<if test="userNo != null and userNo != ''">
+			AND u.user_no = #{userNo}
+		</if>
 		<if test="loginName != null and loginName != ''">
 			AND u.login_name like concat('%', #{loginName}, '%')
 		</if>
+		<if test="userName != null and userName != ''">
+			AND u.user_name like concat('%', #{userName}, '%')
+		</if>
 		<if test="status != null and status != ''">
 			AND u.status = #{status}
+		</if>
+		<if test="arcArchivist != null and arcArchivist != ''">
+			AND u.arc_archivist = #{arcArchivist}
 		</if>
 		<if test="phonenumber != null and phonenumber != ''">
 			AND u.phonenumber like concat('%', #{phonenumber}, '%')
@@ -83,6 +95,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		</if>
 		<if test="deptId != null and deptId != 0">
 			AND (u.dept_id = #{deptId} OR u.dept_id IN ( SELECT t.dept_id FROM sys_dept t WHERE FIND_IN_SET (#{deptId},ancestors) ))
+		</if>
+		<!-- 角色条件：按角色ID筛选，需配合 DISTINCT 使用以避免多角色重复行 -->
+		<if test="roleId != null and roleId != 0">
+			AND u.user_id IN ( SELECT ur2.user_id FROM sys_user_role ur2 WHERE ur2.role_id = #{roleId} )
 		</if>
 		<!-- 数据范围过滤 -->
 		${params.dataScope}
@@ -149,6 +165,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	<select id="checkEmailUnique" parameterType="String" resultMap="SysUserResult">
 		select user_id, email from sys_user where email=#{email} and del_flag = '0' limit 1
 	</select>
+
+	<!-- M12：用户编号唯一性校验（含已逻辑删除的账号，避免编号被回收后再分配） -->
+	<select id="checkUserNoUnique" parameterType="String" resultMap="SysUserResult">
+		select user_id, user_no from sys_user where user_no=#{userNo} limit 1
+	</select>
+
+	<!-- M12：按用户编号精确查询，用于绑定二维码核对与小程序绑定 -->
+	<select id="selectUserByUserNo" parameterType="String" resultMap="SysUserResult">
+		<include refid="selectUserVo"/>
+		where u.user_no = #{userNo} and u.del_flag = '0'
+	</select>
 	
 	<select id="selectUserById" parameterType="Long" resultMap="SysUserResult">
 		<include refid="selectUserVo"/>
@@ -185,6 +212,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
  	<update id="updateUser" parameterType="SysUser">
  		update sys_user
  		<set>
+ 			<if test="userNo != null and userNo != ''">user_no = #{userNo},</if>
+ 			<if test="arcArchivist != null and arcArchivist != ''">arc_archivist = #{arcArchivist},</if>
+ 			<if test="arcSecretLevel != null">arc_secret_level = #{arcSecretLevel},</if>
  			<if test="deptId != 0">dept_id = #{deptId},</if>
  			<if test="userName != null and userName != ''">user_name = #{userName},</if>
  			<if test="userType != null and userType != ''">user_type = #{userType},</if>
@@ -208,6 +238,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
  	<insert id="insertUser" parameterType="SysUser" useGeneratedKeys="true" keyProperty="userId">
  		insert into sys_user(
  			<if test="userId != null and userId != 0">user_id,</if>
+ 			<if test="userNo != null and userNo != ''">user_no,</if>
+ 			<if test="arcArchivist != null and arcArchivist != ''">arc_archivist,</if>
+ 			<if test="arcSecretLevel != null and arcSecretLevel != ''">arc_secret_level,</if>
  			<if test="deptId != null and deptId != 0">dept_id,</if>
  			<if test="loginName != null and loginName != ''">login_name,</if>
  			<if test="userName != null and userName != ''">user_name,</if>
@@ -225,6 +258,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
  			create_time
  		)values(
  			<if test="userId != null and userId != ''">#{userId},</if>
+ 			<if test="userNo != null and userNo != ''">#{userNo},</if>
+ 			<if test="arcArchivist != null and arcArchivist != ''">#{arcArchivist},</if>
+ 			<if test="arcSecretLevel != null and arcSecretLevel != ''">#{arcSecretLevel},</if>
  			<if test="deptId != null and deptId != ''">#{deptId},</if>
  			<if test="loginName != null and loginName != ''">#{loginName},</if>
  			<if test="userName != null and userName != ''">#{userName},</if>

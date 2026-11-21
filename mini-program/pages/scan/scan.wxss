@@ -2,6 +2,43 @@
   padding-top: 20rpx;
 }
 
+/* M12-B 绑定口令输入区：首次绑定要校验平台账号口令，避免仅凭编号占用他人账号 */
+.password-field {
+  margin-top: 30rpx;
+  padding: 24rpx;
+  border: 1rpx solid #e3e9f2;
+  border-radius: 16rpx;
+  background: #f8fafd;
+  text-align: left;
+}
+
+.password-label {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #46536a;
+  font-size: 25rpx;
+  font-weight: 500;
+}
+
+.password-input {
+  width: 100%;
+  height: 82rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid #d7dfeb;
+  border-radius: 12rpx;
+  background: #fff;
+  color: #2c3a4f;
+  font-size: 27rpx;
+}
+
+.password-note {
+  display: block;
+  margin-top: 12rpx;
+  color: #9aa4b4;
+  font-size: 21rpx;
+  line-height: 1.6;
+}
+
 .mode-tabs {
   display: flex;
   padding: 8rpx;
