@@ -10,6 +10,7 @@ module.exports = {
     bindAccount: '/api/mobile/account/bind',
     pcInspect: '/api/mobile/auth/pc/inspect',
     pcConfirm: '/api/mobile/auth/pc/confirm',
-    pcCancel: '/api/mobile/auth/pc/cancel'
+    pcCancel: '/api/mobile/auth/pc/cancel',
+    archiveSearch: '/api/mobile/archives/search'
   }
 };

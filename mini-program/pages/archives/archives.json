@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "档案查询",
   "usingComponents": {
-    "app-tabbar": "/components/app-tabbar/app-tabbar"
+    "app-tabbar": "/components/app-tabbar/app-tabbar",
+    "request-state": "/components/request-state/request-state"
   }
 }
