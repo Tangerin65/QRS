@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('归档批次')" />
+    <style>
+        .m10-metrics { display: flex; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+        .m10-metric { background: #fff; border: 1px solid #e7eaec; border-radius: 3px; padding: 8px 14px; min-width: 110px; }
+        .m10-metric span { display: block; color: #999; font-size: 12px; }
+        .m10-metric strong { font-size: 20px; color: #1ab394; }
+    </style>
+</head>
+<body class="gray-bg">
+<div class="container-div">
+    <div class="row">
+        <div class="col-sm-12 search-collapse">
+            <form id="batch-form">
+                <div class="select-list">
+                    <ul>
+                        <li>批次号/申请人：<input name="keyword" maxlength="64" aria-label="按批次号或申请人筛选"></li>
+                        <li>状态：<select name="status" aria-label="按批次状态筛选">
+                            <option value="">全部</option><option value="SUCCESS">成功</option>
+                            <option value="PARTIAL">部分成功</option><option value="FAILED">失败</option>
+                            <option value="RUNNING">执行中</option></select></li>
+                        <li>提交日期：<input name="from" placeholder="yyyy-mm-dd" maxlength="10" aria-label="起始日期">
+                            ~ <input name="to" placeholder="yyyy-mm-dd" maxlength="10" aria-label="结束日期"></li>
+                        <li>
+                            <a class="btn btn-primary btn-rounded btn-sm" onclick="batch.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                            <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+        <div class="m10-metrics" id="metrics"></div>
+        <div class="btn-group-sm" id="toolbar" role="group">
+            <a class="btn btn-warning" onclick="batch.printRows()"><i class="fa fa-print"></i> 打印</a>
+            <span class="text-muted" id="summary" style="margin-left:12px"></span>
+        </div>
+        <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
+    </div>
+</div>
+
+<div class="modal fade" id="detail-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">批次详情</h4></div>
+        <div class="modal-body">
+            <p id="batch-summary" class="text-info"></p>
+            <div class="table-responsive" style="max-height:380px;overflow:auto">
+                <table class="table table-bordered table-condensed">
+                    <thead><tr><th>档号</th><th>题名</th><th>结果</th><th>原因</th></tr></thead>
+                    <tbody id="batch-items"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+
+<th:block th:include="include :: footer" />
+<script th:src="@{/js/archive/batch.js(v=2)}"></script>
+</body>
+</html>

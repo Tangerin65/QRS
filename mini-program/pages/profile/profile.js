@@ -9,7 +9,7 @@ const session = require('../../utils/session');
 // 资料取自后端 /api/mobile/auth/profile，服务端每次都会重新校验令牌与账号状态。
 Page({
   data: {
-    bound: false, avatarText: '档', profileName: '未登录',
+    bound: false, profileName: '未登录',
     profileRole: '绑定后使用已授权的业务功能',
     busy: false, message: '', configured: Boolean(config.baseUrl),
     // 基础资料（未登录或读取失败时为空，页面按空态显示，不显示假数据）
@@ -24,7 +24,6 @@ Page({
       const bound = state.status === 'authenticated' && Boolean(state.user);
       this.setData({
         bound,
-        avatarText: bound ? state.user.userName.slice(0, 1) : '档',
         profileName: bound ? state.user.userName : '未登录',
         profileRole: bound ? state.user.roleName :
           state.status === 'expired' ? '登录已失效，请重新登录' : '绑定后使用已授权的业务功能',

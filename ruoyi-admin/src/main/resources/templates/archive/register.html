@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('档案登记')" />
+    <th:block th:include="include :: datetimepicker-css" />
+</head>
+<body class="gray-bg">
+<div class="container-div">
+    <div class="row">
+        <div class="col-sm-12 search-collapse">
+            <form id="archive-form">
+                <div class="select-list">
+                    <ul>
+                        <li>档号：<input name="archiveCode" maxlength="80" aria-label="按档号筛选"></li>
+                        <li>题名：<input name="title" maxlength="200" aria-label="按题名筛选"></li>
+                        <li>分类：<select id="filter-category" name="categoryId" aria-label="按分类筛选"><option value="">全部分类</option></select></li>
+                        <li>密级：<select id="filter-secret" name="secretLevel" aria-label="按密级筛选"><option value="">全部</option><option th:each="item : ${secretOptions}" th:value="${item.key}" th:text="${item.value}"></option></select></li>
+                        <li>状态：<select name="archiveStatus" aria-label="按状态筛选"><option value="">全部</option><option value="DRAFT">草稿</option><option value="SUBMITTED">已提交</option></select></li>
+                        <li>日期：<input class="archive-date" name="dateFrom" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="形成日期起始"> 至 <input class="archive-date" name="dateTo" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="形成日期结束"></li>
+                        <li>
+                            <a class="btn btn-primary btn-rounded btn-sm" onclick="archive.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                            <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+        <div class="btn-group-sm" id="toolbar" role="group">
+            <a class="btn btn-success" shiro:hasPermission="archiveAdd" onclick="archive.openAdd()"><i class="fa fa-plus"></i> 新建草稿</a>
+            <a class="btn btn-primary multiple disabled" shiro:hasPermission="archiveEdit" onclick="archive.openBatch()"><i class="fa fa-edit"></i> 批量修改</a>
+            <a class="btn btn-info" shiro:hasPermission="archiveImport" onclick="archive.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
+            <a class="btn btn-warning" shiro:hasPermission="archiveExport" onclick="archive.export()"><i class="fa fa-download"></i> 导出</a>
+            <span class="text-muted" id="summary" style="margin-left:12px"></span>
+            <span class="text-muted" id="statistics" style="margin-left:12px"></span>
+        </div>
+        <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
+    </div>
+</div>
+
+<div class="modal fade" id="archive-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title" id="archive-modal-title">档案登记</h4></div>
+        <div class="modal-body">
+            <form id="archive-editor">
+                <input type="hidden" name="archiveId"><input type="hidden" name="version">
+                <div class="row">
+                    <div class="col-sm-6 form-group"><label for="archive-title">题名 <span class="text-danger">*</span></label><input id="archive-title" class="form-control" name="title" maxlength="200" required></div>
+                    <div class="col-sm-6 form-group"><label for="archive-forming-date">形成日期 <span class="text-danger">*</span></label><input id="archive-forming-date" class="form-control archive-date" name="formingDate" placeholder="yyyy-mm-dd" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" autocomplete="off" required></div>
+                    <div class="col-sm-6 form-group"><label for="archive-category">档案分类 <span class="text-danger">*</span></label><select id="archive-category" class="form-control" name="categoryId" required></select></div>
+                    <div class="col-sm-6 form-group"><label for="archive-secret">密级 <span class="text-danger">*</span></label><select id="archive-secret" class="form-control" name="secretLevel" required><option value="">请选择密级</option><option th:each="item : ${secretOptions}" th:value="${item.key}" th:text="${item.value}"></option></select></div>
+                    <div class="col-sm-6 form-group"><label for="archive-retention">保管期限 <span class="text-danger">*</span></label><select id="archive-retention" class="form-control" name="retentionCode" required><option value="">请选择保管期限</option><option th:each="item : ${retentionOptions}" th:if="${item.status == '0'}" th:value="${item.dictValue}" th:text="${item.dictLabel}"></option></select></div>
+                    <div class="col-sm-12 form-group"><label for="archive-summary">摘要</label><textarea id="archive-summary" class="form-control" name="summary" maxlength="1000" rows="3"></textarea></div>
+                    <div class="col-sm-12 form-group"><label for="archive-metadata">其他元数据</label><textarea id="archive-metadata" class="form-control" name="metadataJson" rows="3" placeholder="{}"></textarea></div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button><button class="btn btn-primary" onclick="archive.save()">保存草稿</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="batch-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">批量修改所选草稿</h4></div>
+        <div class="modal-body">
+            <p>只更新当前用户有权修改的草稿</p>
+            <div class="form-group"><label for="batch-secret">密级</label><select id="batch-secret" class="form-control"><option value="">保持不变</option><option th:each="item : ${secretOptions}" th:value="${item.key}" th:text="${item.value}"></option></select></div>
+            <div class="form-group"><label for="batch-retention">保管期限</label><select id="batch-retention" class="form-control"><option value="">保持不变</option><option th:each="item : ${retentionOptions}" th:if="${item.status == '0'}" th:value="${item.dictValue}" th:text="${item.dictLabel}"></option></select></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button><button class="btn btn-primary" onclick="archive.saveBatch()">批量保存</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="detail-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">档案详情</h4></div>
+        <div class="modal-body"><pre id="archive-detail" style="white-space:pre-wrap"></pre><h5>操作记录</h5><table class="table table-bordered"><thead><tr><th>操作</th><th>操作人</th><th>时间</th><th>说明</th></tr></thead><tbody id="audit-events"></tbody></table></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="import-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">Excel导入预览</h4></div>
+        <div class="modal-body">
+            <p><a th:href="@{/records/import/template}">下载导入模板</a>　</p>
+            <input type="file" id="import-file" accept=".xlsx,.xls" aria-label="选择Excel导入文件">
+            <button class="btn btn-default" onclick="archive.previewImport()">校验并预览</button>
+            <div class="table-responsive" style="margin-top:12px;max-height:360px;overflow:auto"><table class="table table-bordered table-condensed"><thead><tr><th>行</th><th>题名</th><th>分类编码</th><th>结果</th></tr></thead><tbody id="import-rows"></tbody></table></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button><button id="import-confirm" class="btn btn-primary" disabled onclick="archive.confirmImport()">确认导入</button></div>
+    </div></div>
+</div>
+<th:block th:include="include :: footer" />
+<th:block th:include="include :: datetimepicker-js" />
+<script th:inline="javascript">
+    var archiveFlags = {
+        canEdit: /*[[${canEdit}]]*/ false,
+        canSubmit: /*[[${canSubmit}]]*/ false,
+        canDelete: /*[[${canDelete}]]*/ false,
+        canFiles: /*[[${@permission.isPermitted('archiveFileView')}]]*/ false,
+        canView: /*[[${@permission.isPermitted('archiveView')}]]*/ false
+    };
+</script>
+<script th:src="@{/js/archive/register.js(v='20261118-dicts-date')}"></script>
+</body>
+</html>

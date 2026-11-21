@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.ArchiveMapper">
+    <resultMap id="ArchiveResult" type="com.ruoyi.system.domain.ArchiveRecord">
+        <id property="archiveId" column="archive_id"/>
+        <result property="archiveCode" column="archive_code"/>
+        <result property="title" column="title"/>
+        <result property="formingDate" column="forming_date"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="categoryCode" column="category_code"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="secretLevel" column="secret_level"/>
+        <result property="retentionCode" column="retention_code"/>
+        <result property="retentionName" column="retention_name"/>
+        <result property="summary" column="summary"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="archiveStatus" column="archive_status"/>
+        <result property="version" column="version"/>
+        <result property="deptId" column="dept_id"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="archiveColumns">
+        a.archive_id,a.archive_code,a.title,a.forming_date,a.category_id,a.category_code,
+        c.category_name,a.secret_level,a.retention_code,a.retention_name,a.summary,a.metadata_json,a.archive_status,
+        a.version,a.dept_id,a.create_by,a.create_time,a.update_by,a.update_time
+    </sql>
+
+    <select id="selectArchiveList" parameterType="com.ruoyi.system.domain.ArchiveQuery" resultMap="ArchiveResult">
+        select <include refid="archiveColumns"/>
+        from arc_archive a left join arc_category c on c.category_id=a.category_id
+        <where>
+            a.del_flag='0'
+            <if test="!admin">and a.create_by=#{ownerName}</if>
+            <if test="archiveCode != null and archiveCode != ''">and a.archive_code like concat('%',#{archiveCode},'%')</if>
+            <if test="title != null and title != ''">and a.title like concat('%',#{title},'%')</if>
+            <if test="keyword != null and keyword != ''">
+                and (locate(#{keyword}, a.archive_code) &gt; 0 or locate(#{keyword}, a.title) &gt; 0
+                    or locate(#{keyword}, a.summary) &gt; 0)
+            </if>
+            <if test="categoryId != null">and a.category_id=#{categoryId}</if>
+            <if test="secretLevel != null">and a.secret_level=#{secretLevel}</if>
+            <if test="archiveStatus != null and archiveStatus != ''">and a.archive_status=#{archiveStatus}</if>
+            <if test="dateFrom != null">and a.forming_date &gt;=#{dateFrom}</if>
+            <if test="dateTo != null">and a.forming_date &lt;=#{dateTo}</if>
+            <if test="allowedCategoryIds != null">and a.category_id in
+                <foreach collection="allowedCategoryIds" item="categoryId" open="(" separator="," close=")">#{categoryId}</foreach>
+            </if>
+            and a.secret_level &lt;=#{maxSecretLevel}
+        </where>
+        <choose>
+            <when test="sortBy == 'archiveCode'">order by a.archive_code</when>
+            <when test="sortBy == 'title'">order by a.title</when>
+            <when test="sortBy == 'formingDate'">order by a.forming_date</when>
+            <otherwise>order by a.create_time</otherwise>
+        </choose>
+        <choose><when test="sortOrder == 'asc'">asc</when><otherwise>desc</otherwise></choose>,a.archive_id desc
+    </select>
+
+    <select id="selectArchiveById" resultMap="ArchiveResult">
+        select <include refid="archiveColumns"/>
+        from arc_archive a left join arc_category c on c.category_id=a.category_id
+        where a.archive_id=#{archiveId} and a.del_flag='0'
+        <if test="!admin">and a.create_by=#{ownerName}</if>
+    </select>
+
+    <select id="selectAuditEvents" resultType="map">
+        select event_type eventType,actor_name actorName,event_time eventTime,detail
+        from arc_audit_event where archive_id=#{archiveId} order by event_time desc,event_id desc
+    </select>
+
+    <insert id="insertArchive" parameterType="com.ruoyi.system.domain.ArchiveRecord" useGeneratedKeys="true" keyProperty="archiveId">
+        insert into arc_archive(archive_code,title,forming_date,category_id,category_code,secret_level,
+            retention_code,retention_name,summary,metadata_json,archive_status,version,dept_id,create_by)
+        values(#{archiveCode},#{title},#{formingDate},#{categoryId},#{categoryCode},#{secretLevel},
+            #{retentionCode},#{retentionName},#{summary},#{metadataJson},#{archiveStatus},#{version},#{deptId},#{createBy})
+    </insert>
+
+    <update id="updateArchive" parameterType="com.ruoyi.system.domain.ArchiveRecord">
+        update arc_archive set title=#{title},forming_date=#{formingDate},category_id=#{categoryId},
+            category_code=#{categoryCode},secret_level=#{secretLevel},retention_code=#{retentionCode},
+            retention_name=#{retentionName},summary=#{summary},metadata_json=#{metadataJson},version=version+1,update_by=#{updateBy},update_time=now()
+        where archive_id=#{archiveId} and version=#{version} and archive_status='DRAFT' and del_flag='0'
+        <if test="createBy != null">and create_by=#{createBy}</if>
+    </update>
+
+    <update id="submitDraft">
+        update arc_archive set archive_status='SUBMITTED',version=version+1,update_by=#{updateBy},update_time=now()
+        where archive_id=#{archiveId} and version=#{version} and archive_status='DRAFT' and del_flag='0'
+        <if test="!admin">and create_by=#{ownerName}</if>
+    </update>
+
+    <update id="batchEditDraft">
+        update arc_archive
+        <set>
+            <if test="secretLevel != null">secret_level=#{secretLevel},</if>
+            <if test="retentionCode != null">retention_code=#{retentionCode},retention_name=#{retentionName},</if>
+            version=version+1,update_by=#{updateBy},update_time=now()
+        </set>
+        where archive_id=#{archiveId} and version=#{version} and archive_status='DRAFT' and del_flag='0'
+        <if test="!admin">and create_by=#{ownerName}</if>
+    </update>
+
+    <update id="softDeleteArchive">
+        update arc_archive set del_flag='1',version=version+1,update_by=#{updateBy},update_time=now()
+        where archive_id=#{archiveId} and version=#{version} and archive_status='DRAFT' and del_flag='0'
+        <if test="!admin">and create_by=#{ownerName}</if>
+    </update>
+
+    <insert id="insertSequence">
+        insert ignore into arc_archive_sequence(category_id,forming_year,next_value) values(#{categoryId},#{formingYear},1)
+    </insert>
+
+    <select id="selectNextSequence" resultType="int">
+        select next_value from arc_archive_sequence where category_id=#{categoryId} and forming_year=#{formingYear} for update
+    </select>
+
+    <update id="incrementSequence">
+        update arc_archive_sequence set next_value=next_value+1 where category_id=#{categoryId} and forming_year=#{formingYear}
+    </update>
+
+    <select id="selectSequence" resultType="java.lang.Integer">
+        select next_value from arc_archive_sequence where category_id=#{categoryId} and forming_year=#{formingYear}
+    </select>
+
+    <select id="selectIdByCode" resultType="java.lang.Long">
+        select archive_id from arc_archive where archive_code=#{archiveCode} and del_flag='0'
+    </select>
+
+    <insert id="insertAudit">
+        insert into arc_audit_event(archive_id,archive_code,event_type,actor_id,actor_name,detail)
+        values(#{archiveId},#{archiveCode},#{eventType},#{actorId},#{actorName},#{detail})
+    </insert>
+
+    <select id="selectStatistics" parameterType="com.ruoyi.system.domain.ArchiveQuery" resultType="map">
+        select archive_status status,count(*) total from arc_archive a
+        <where>
+            a.del_flag='0'
+            <if test="!admin">and a.create_by=#{ownerName}</if>
+            <if test="archiveCode != null and archiveCode != ''">and a.archive_code like concat('%',#{archiveCode},'%')</if>
+            <if test="title != null and title != ''">and a.title like concat('%',#{title},'%')</if>
+            <if test="keyword != null and keyword != ''">
+                and (locate(#{keyword}, a.archive_code) &gt; 0 or locate(#{keyword}, a.title) &gt; 0
+                    or locate(#{keyword}, a.summary) &gt; 0)
+            </if>
+            <if test="categoryId != null">and a.category_id=#{categoryId}</if>
+            <if test="secretLevel != null">and a.secret_level=#{secretLevel}</if>
+            <if test="archiveStatus != null and archiveStatus != ''">and a.archive_status=#{archiveStatus}</if>
+            <if test="dateFrom != null">and a.forming_date &gt;=#{dateFrom}</if>
+            <if test="dateTo != null">and a.forming_date &lt;=#{dateTo}</if>
+            <if test="allowedCategoryIds != null">and a.category_id in
+                <foreach collection="allowedCategoryIds" item="categoryId" open="(" separator="," close=")">#{categoryId}</foreach>
+            </if>
+            and a.secret_level &lt;=#{maxSecretLevel}
+        </where>
+        group by archive_status order by archive_status
+    </select>
+</mapper>

@@ -1,34 +1,11 @@
 .profile-header {
-  display: flex;
-  align-items: center;
-  gap: 22rpx;
-  padding: 30rpx 4rpx 46rpx;
-}
-
-.avatar {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 106rpx;
-  height: 106rpx;
-  border: 6rpx solid #fff;
-  border-radius: 32rpx;
-  background: #dfeaff;
-  color: #4779e8;
-  font-size: 43rpx;
-  font-weight: 600;
-}
-
-.profile-copy {
-  flex: 1;
-  min-width: 0;
+  padding: 0 0 24rpx;
 }
 
 .profile-name {
   display: block;
   color: #26354c;
-  font-size: 36rpx;
+  font-size: 32rpx;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -36,30 +13,13 @@
 .profile-role {
   display: block;
   margin-top: 10rpx;
-  color: #8390a3;
+  color: #666;
   font-size: 23rpx;
   line-height: 1.6;
 }
 
-.profile-badge {
-  flex-shrink: 0;
-  padding: 7rpx 14rpx;
-  border: 1rpx solid #dce4f1;
-  border-radius: 8rpx;
-  color: #7e8da2;
-  font-size: 21rpx;
-}
-
 .profile-action {
   padding: 30rpx;
-}
-
-.profile-action-desc {
-  display: block;
-  margin: 14rpx 0 28rpx;
-  color: #8a95a5;
-  font-size: 24rpx;
-  line-height: 1.7;
 }
 
 .spaced-button {
@@ -82,9 +42,8 @@
 .profile-row {
   display: flex;
   align-items: center;
-  gap: 20rpx;
   width: calc(100% - 56rpx);
-  min-height: 116rpx;
+  min-height: 88rpx;
   margin: 0 28rpx;
   padding: 20rpx 0;
   border-bottom: 1rpx solid #f0f2f6;
@@ -114,7 +73,7 @@
 }
 
 .row-hint {
-  color: #949dab;
+  color: #666;
   font-size: 23rpx;
   text-align: right;
 }

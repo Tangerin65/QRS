@@ -1,16 +1,13 @@
 <view class="page profile-page">
   <view class="profile-header">
-    <view class="avatar">{{avatarText}}</view>
     <view class="profile-copy"><text class="profile-name">{{profileName}}</text><text class="profile-role">{{profileRole}}</text></view>
-    <text class="profile-badge">{{bound ? '已登录' : '未登录'}}</text>
   </view>
 
   <view wx:if="{{!bound}}" class="profile-action card">
-    <text class="section-title">登录档案服务</text>
-    <text class="profile-action-desc">已绑定账号可直接登录，首次使用请扫码绑定。</text>
     <button class="primary-button" loading="{{busy}}" disabled="{{busy || !configured}}" bindtap="resumeLogin">微信登录</button>
     <button class="secondary-button spaced-button" disabled="{{busy}}" bindtap="goScan">扫码绑定账号</button>
   </view>
+
 
   <block wx:else>
     <!-- 基础资料：来自 /api/mobile/auth/profile，手机号由服务端掩码 -->
@@ -58,6 +55,7 @@
     <view class="info-row"><text>账号管理</text><text class="row-hint">资料与权限由管理员维护</text></view>
     <view class="info-row"><text>解绑说明</text><text class="row-hint">换绑需管理员解除旧绑定</text></view>
     <view class="info-row"><text>当前版本</text><text class="row-hint">v0.4.0</text></view>
+
   </view>
   <text wx:if="{{!configured}}" class="service-note">服务暂未接入，登录与绑定待开放</text>
   <app-tabbar active="profile"></app-tabbar>

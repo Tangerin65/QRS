@@ -3,24 +3,13 @@
     <button class="mode-tab {{mode === 'bind' ? 'selected' : ''}}" data-mode="bind" disabled="{{busy || scanning}}" bindtap="changeMode">账号绑定</button>
     <button class="mode-tab {{mode === 'pc' ? 'selected' : ''}}" data-mode="pc" disabled="{{busy || scanning}}" bindtap="changeMode">电脑登录</button>
   </view>
-  <view class="scan-heading">
-    <text class="page-title">{{mode === 'pc' ? '安全登录电脑端' : '绑定你的平台账号'}}</text>
-    <text class="page-subtitle">{{mode === 'pc' ? '扫描电脑端动态二维码，核对后确认' : '扫描管理员提供的个人账号二维码'}}</text>
-  </view>
   <view wx:if="{{!configured}}" class="connection-note">服务暂未接入，暂不能完成绑定或登录。</view>
   <view class="scan-card card">
     <block wx:if="{{!pcReady && !pcDone && !pcCancelled && !userNo}}">
-      <view class="scan-frame">
-        <view class="corner corner-tl"></view><view class="corner corner-tr"></view>
-        <view class="corner corner-bl"></view><view class="corner corner-br"></view>
-        <image class="scan-frame-icon" src="/assets/icons/scan.png" mode="aspectFit" />
-        <text class="scan-frame-text">{{mode === 'pc' ? '电脑端登录二维码' : '个人账号二维码'}}</text>
-      </view>
+      <text class="scan-instruction">{{mode === 'pc' ? '请扫描电脑登录页上的二维码。' : '请扫描管理员提供的个人账号二维码。'}}</text>
       <button class="primary-button" bindtap="startScan" loading="{{busy || scanning}}" disabled="{{busy || scanning}}">打开扫一扫</button>
-      <text class="camera-note">点击后使用相机扫描二维码</text>
     </block>
     <view wx:if="{{mode === 'bind' && userNo}}" class="bind-result">
-      <view class="result-icon tone-scan"><image src="/assets/icons/profile.png" mode="aspectFit" /></view>
       <text class="pc-title">确认绑定此账号？</text>
       <view class="account-number"><text class="result-label">平台账号</text><text class="result-value">{{userNo}}</text></view>
       <text class="result-description">请核对编号，确认二维码属于本人。</text>
@@ -36,7 +25,6 @@
       <button class="text-button" bindtap="startScan" disabled="{{busy}}">重新扫描</button>
     </view>
     <view wx:if="{{pcReady}}" class="pc-request">
-      <view class="result-icon tone-pc"><image src="/assets/icons/pc.png" mode="aspectFit" /></view>
       <text class="pc-title">是否允许电脑登录？</text>
       <view class="device-info">
         <view class="device-row"><text class="device-label">账号</text><text class="device-value">{{accountName}}</text></view>
@@ -49,7 +37,6 @@
       <button class="secondary-button confirm-button" disabled="{{busy}}" bindtap="cancelPc">拒绝登录</button>
     </view>
     <view wx:if="{{pcDone || pcCancelled}}" class="pc-request">
-      <view class="result-icon {{pcDone ? 'tone-pc' : 'tone-logout'}}"><image src="/assets/icons/{{pcDone ? 'success' : 'cancel'}}.png" mode="aspectFit" /></view>
       <text class="pc-title">{{pcDone ? '已确认电脑登录' : '已拒绝本次登录'}}</text>
       <text class="result-description">{{pcDone ? '请返回电脑端继续使用。' : '本次请求已取消，可重新扫描其他二维码。'}}</text>
       <button class="secondary-button confirm-button" bindtap="startScan">扫描其他二维码</button>

@@ -48,10 +48,12 @@ public class SysIndexController extends BaseController
     @GetMapping("/index")
     public String index(ModelMap mmap, HttpServletRequest request)
     {
-        // 取身份信息
+        //加载系统导航与档案工作台首页
         SysUser user = getSysUser();
         // 根据用户id取出菜单
         List<SysMenu> menus = menuService.selectMenusByUser(user);
+        menus.removeIf(menu -> "/records/workbench".equals(menu.getUrl()) || "若依官网".equals(menu.getMenuName())
+            || (menu.getUrl() != null && menu.getUrl().matches("https?://(www\\.)?ruoyi\\.vip/?")));
         mmap.put("menus", menus);
         mmap.put("user", user);
         mmap.put("sideTheme", configService.selectConfigByKey("sys.index.sideTheme"));
@@ -129,12 +131,12 @@ public class SysIndexController extends BaseController
         CookieUtils.setCookie(response, "nav-style", style);
     }
 
-    // 系统介绍
+    // 兼容原首页地址
     @GetMapping("/system/main")
-    public String main(ModelMap mmap)
+    public String main()
     {
-        mmap.put("version", RuoYiConfig.getVersion());
-        return "main";
+        //将原首页入口转到档案工作台
+        return "redirect:/records/workbench";
     }
 
     // content-main class
