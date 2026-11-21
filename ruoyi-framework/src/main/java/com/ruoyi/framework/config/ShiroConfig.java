@@ -300,6 +300,10 @@ public class ShiroConfig
         filterChainDefinitionMap.put("/login", "anon,captchaValidate");
         // 注册相关
         filterChainDefinitionMap.put("/register", "anon,captchaValidate");
+        // M12-B 小程序 REST 接口：小程序没有 Shiro 会话，按 Bearer 令牌自行鉴权。
+        // 这里必须整段放行，否则 /api/mobile/** 会被 user 过滤器重定向到登录页，
+        // 小程序端只会收到一段 HTML 而不是 JSON。控制器内部逐次校验令牌与账号状态。
+        filterChainDefinitionMap.put("/api/mobile/**", "anon");
         // 系统权限列表
         // filterChainDefinitionMap.putAll(SpringUtils.getBean(IMenuService.class).selectPermsAll());
 

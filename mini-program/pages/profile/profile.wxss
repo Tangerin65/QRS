@@ -126,3 +126,29 @@
   font-size: 24rpx;
   line-height: 1.7;
 }
+
+/* M12-B 基础资料区：与账号服务区共用 .info-row / .row-hint，这里只补顶部间距与错误态 */
+.profile-detail {
+  margin-top: 0;
+}
+
+.profile-detail .section-heading {
+  padding-bottom: 2rpx;
+}
+
+.profile-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 8rpx 28rpx 30rpx;
+  color: #aa7634;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.text-button {
+  flex-shrink: 0;
+  color: #4779e8;
+  font-size: 24rpx;
+}
