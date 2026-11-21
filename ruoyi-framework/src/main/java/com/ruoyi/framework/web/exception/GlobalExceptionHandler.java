@@ -13,6 +13,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.ModelAndView;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.text.Convert;
+import com.ruoyi.common.exception.ArchiveBizException;
 import com.ruoyi.common.exception.DemoModeException;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.ServletUtils;
@@ -97,6 +98,20 @@ public class GlobalExceptionHandler
         {
             return new ModelAndView("error/service", "errorMessage", e.getMessage());
         }
+    }
+
+    /**
+     * 档案业务码异常（M12 起引入）
+     *
+     * 与 ServiceException 的区别：本异常需要把明确业务码带回前端（例如 3001 越权改他人资料），
+     * 前端按 code != 0 显示提示并区分处理，所以不能统一压成 500。
+     */
+    @ExceptionHandler(ArchiveBizException.class)
+    public AjaxResult handleArchiveBizException(ArchiveBizException e, HttpServletRequest request)
+    {
+        String requestURI = request.getRequestURI();
+        log.warn("请求地址'{}'，业务校验未通过，业务码'{}'：{}", requestURI, e.getCode(), e.getMessage());
+        return AjaxResult.error(e.getMessage()).put("bizCode", e.getCode()).put("code", e.getCode());
     }
 
     /**

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" th:content="${session.csrf_token}">
+    <title>档案账号管理</title>
+    <link rel="stylesheet" th:href="@{/css/archive/account.css}">
+    <script src="/ajax/libs/report/echarts/echarts-all.min.js" th:src="@{/ajax/libs/report/echarts/echarts-all.min.js}"></script>
+    <script defer th:src="@{/js/archive/account.js}"></script>
+</head>
+<body th:attr="data-base=@{/archive/account/},data-manage=${canManage}">
+<main class="workspace">
+    <header class="page-header">
+        <h1>档案账号管理</h1>
+        <div class="actions">
+            <a id="template" th:if="${canManage}" class="button" th:href="@{/archive/account/template}">下载模板</a>
+            <button id="import" th:if="${canManage}" class="button" type="button">Excel 导入</button>
+            <button id="add" th:if="${canManage}" class="button primary" type="button">新增账号</button>
+        </div>
+    </header>
+
+    <!-- 账号统计：数字与图表使用与明细完全相同的查询条件，保证图表数字 = 表格数字 -->
+    <section class="metrics" aria-label="当前查询统计">
+        <article><span>账号总数</span><strong id="metric-total">—</strong></article>
+        <article><span>正常</span><strong id="metric-active">—</strong></article>
+        <article><span>停用</span><strong id="metric-disabled">—</strong></article>
+        <article><span>档案员</span><strong id="metric-archivist">—</strong></article>
+        <article><span>已绑定微信</span><strong id="metric-bound">—</strong></article>
+    </section>
+
+    <p id="feedback" class="feedback" role="status" hidden></p>
+
+    <section class="panel" aria-labelledby="chart-title">
+        <header class="panel-heading">
+            <h2 id="chart-title">账号统计</h2>
+            <span class="section-meta">口径：按当前查询条件统计；一个账号可挂多个角色，故角色分布之和大于账号总数</span>
+        </header>
+        <div class="charts">
+            <figure><figcaption>按部门</figcaption><div id="chart-dept" class="chart"></div></figure>
+            <figure><figcaption>按角色</figcaption><div id="chart-role" class="chart"></div></figure>
+            <figure><figcaption>按状态</figcaption><div id="chart-status" class="chart"></div></figure>
+        </div>
+    </section>
+
+    <section class="panel" aria-labelledby="list-title">
+        <header class="panel-heading">
+            <h2 id="list-title">账号清单</h2>
+            <div class="actions">
+                <button id="export" class="button" type="button">导出结果</button>
+                <button id="print" class="button" type="button">打印结果</button>
+            </div>
+        </header>
+        <form id="filters" class="filters">
+            <label>姓名<input name="userName" placeholder="如 张" maxlength="30"></label>
+            <label>用户编号<input name="userNo" placeholder="如 0003" maxlength="64"></label>
+            <label>部门<select name="deptId" id="dept-filter"><option value="">全部部门</option></select></label>
+            <label>角色<select name="roleId" id="role-filter"><option value="">全部角色</option></select></label>
+            <label>状态<select name="status"><option value="">全部状态</option><option value="0">正常</option><option value="1">停用</option></select></label>
+            <label>档案员<select name="arcArchivist"><option value="">全部</option><option value="1">是</option><option value="0">否</option></select></label>
+            <button class="button primary" type="submit">查询</button>
+            <button id="clear" class="button" type="button">重置</button>
+        </form>
+        <div id="account-content" class="content" aria-live="polite"></div>
+        <div id="pagination" class="pagination" aria-label="分页" hidden></div>
+    </section>
+</main>
+
+<section id="print-view" class="print-view" aria-label="账号清单打印"></section>
+
+<dialog id="editor-dialog" aria-labelledby="dialog-title">
+    <form id="editor">
+        <header class="dialog-header"><h2 id="dialog-title"></h2><button id="close-dialog" class="button" type="button" aria-label="关闭">×</button></header>
+        <div id="dialog-content" class="dialog-body"></div>
+        <p id="dialog-error" class="feedback error" role="alert" hidden></p>
+        <footer class="dialog-footer"><button id="cancel-dialog" type="button" class="button">关闭</button><button id="save" type="submit" class="button primary">保存</button></footer>
+    </form>
+</dialog>
+</body>
+</html>

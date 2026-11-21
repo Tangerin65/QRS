@@ -161,4 +161,20 @@ public interface SysUserMapper
      * @return 结果
      */
     public SysUser checkEmailUnique(String email);
+
+    /**
+     * 校验用户编号是否唯一（M12）
+     *
+     * @param userNo 用户编号
+     * @return 结果
+     */
+    public SysUser checkUserNoUnique(String userNo);
+
+    /**
+     * 通过用户编号查询用户（M12，含状态与角色，用于绑定核对）
+     *
+     * @param userNo 用户编号
+     * @return 用户对象信息
+     */
+    public SysUser selectUserByUserNo(String userNo);
 }
