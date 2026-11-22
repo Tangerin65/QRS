@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('借阅管理')" />
+    <th:block th:include="include :: datetimepicker-css" />
+</head>
+<body class="gray-bg">
+<div class="container-div">
+    <div class="row">
+        <div class="col-sm-12 search-collapse">
+            <form id="borrow-form">
+                <div class="select-list">
+                    <ul>
+                        <li>借阅单号：<input name="borrowNo" maxlength="32" aria-label="按借阅单号筛选"></li>
+                        <li>档案题名：<input name="archiveTitle" maxlength="200" aria-label="按档案题名筛选"></li>
+                        <li>申请人：<input name="applicantName" maxlength="64" aria-label="按申请人筛选"></li>
+                        <li>状态：<select name="borrowStatus" aria-label="按状态筛选">
+                            <option value="">全部</option>
+                            <option value="PENDING">待审批</option>
+                            <option value="APPROVED">已批准</option>
+                            <option value="REJECTED">已驳回</option>
+                            <option value="WITHDRAWN">已撤回</option>
+                            <option value="LENT">已借出</option>
+                            <option value="RETURNED">已归还</option>
+                        </select></li>
+                        <li>应归还日：<input class="borrow-date" name="dateFrom" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="应归还日起"> 至 <input class="borrow-date" name="dateTo" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="应归还日止"></li>
+                        <li>
+                            <a class="btn btn-primary btn-rounded btn-sm" onclick="borrow.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                            <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+        <div class="btn-group-sm" id="toolbar" role="group">
+            <a class="btn btn-success" shiro:hasPermission="borrowApply" onclick="borrow.openApply()"><i class="fa fa-plus"></i> 申请借阅</a>
+            <span class="text-muted" id="summary" style="margin-left:12px"></span>
+        </div>
+        <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
+    </div>
+</div>
+
+<div class="modal fade" id="apply-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">申请借阅</h4></div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="apply-keyword">查找档案</label>
+                <div class="input-group">
+                    <input id="apply-keyword" class="form-control" placeholder="题名或档号关键字" maxlength="64">
+                    <span class="input-group-btn"><button class="btn btn-default" type="button" onclick="borrow.searchArchives()">查询</button></span>
+                </div>
+            </div>
+            <div class="form-group"><label for="apply-archive">档案 <span class="text-danger">*</span></label><select id="apply-archive" class="form-control"></select></div>
+            <div class="form-group"><label for="apply-reason">借阅事由 <span class="text-danger">*</span></label><textarea id="apply-reason" class="form-control" rows="3" maxlength="500"></textarea></div>
+            <div class="row">
+                <div class="col-sm-6 form-group"><label for="apply-start">借期开始 <span class="text-danger">*</span></label><input id="apply-start" class="form-control borrow-date" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off"></div>
+                <div class="col-sm-6 form-group"><label for="apply-end">应归还日 <span class="text-danger">*</span></label><input id="apply-end" class="form-control borrow-date" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off"></div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button><button class="btn btn-primary" onclick="borrow.submitApply()">提交申请</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="approve-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">审批借阅申请</h4></div>
+        <div class="modal-body">
+            <input type="hidden" id="approve-borrow-id">
+            <p id="approve-summary" class="text-muted"></p>
+            <div class="form-group"><label for="approve-opinion">审批意见</label><textarea id="approve-opinion" class="form-control" rows="3" maxlength="500" placeholder="驳回时必须填写"></textarea></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" data-dismiss="modal">取消</button>
+            <a class="btn btn-danger" onclick="borrow.decide('REJECTED')">驳回</a>
+            <a class="btn btn-primary" onclick="borrow.decide('APPROVED')">批准</a>
+        </div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="detail-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">借阅单详情</h4></div>
+        <div class="modal-body">
+            <pre id="borrow-detail" style="white-space:pre-wrap"></pre>
+            <h5>审批记录</h5>
+            <table class="table table-bordered"><thead><tr><th>审批人</th><th>结论</th><th>意见</th><th>时间</th></tr></thead><tbody id="approval-rows"></tbody></table>
+        </div>
+    </div></div>
+</div>
+
+<th:block th:include="include :: footer" />
+<th:block th:include="include :: datetimepicker-js" />
+<script th:inline="javascript">
+    window.borrowFlags = {
+        canApply: /*[[${canApply}]]*/ false,
+        canApprove: /*[[${canApprove}]]*/ false,
+        canLend: /*[[${canLend}]]*/ false,
+        canReturn: /*[[${canReturn}]]*/ false
+    };
+</script>
+<script th:src="@{/js/borrow/list.js(v='20261121-a')}"></script>
+</body>
+</html>
