@@ -129,7 +129,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         values (#{borrowId}, #{approvalLevel}, #{approverId}, #{approverName}, #{result}, #{opinion}, #{handledAt})
     </insert>
 
-    <select id="selectApprovals" resultType="com.ruoyi.system.domain.ApprovalRecord">
+    <resultMap id="ApprovalResult" type="com.ruoyi.system.domain.ApprovalRecord">
+        <id property="recordId" column="record_id"/>
+        <result property="borrowId" column="borrow_id"/>
+        <result property="approvalLevel" column="approval_level"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="approverName" column="approver_name"/>
+        <result property="result" column="result"/>
+        <result property="opinion" column="opinion"/>
+        <result property="handledAt" column="handled_at"/>
+    </resultMap>
+
+    <select id="selectApprovals" resultMap="ApprovalResult">
         select record_id, borrow_id, approval_level, approver_id, approver_name, result, opinion, handled_at
         from arc_approval_record where borrow_id = #{borrowId} order by handled_at, record_id
     </select>

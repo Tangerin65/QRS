@@ -11,6 +11,10 @@ var borrow = (function () {
         return $('<div>').text(value == null ? "" : value).html();
     }
 
+    function dateTime(value) {
+        return (value == null ? "" : String(value)).replace("T", " ").replace(/\.\d+$/, "");
+    }
+
     function post(url, data, done) {
         $.post(prefix + url, data, function (res) {
             if (res.code === 0) {
@@ -182,15 +186,15 @@ var borrow = (function () {
                     "借期：" + (d.startDate || "") + " 至 " + (d.endDate || ""),
                     "状态：" + (LABELS[d.borrowStatus] || d.borrowStatus || ""),
                     "事由：" + (d.reason || ""),
-                    "借出时间：" + (d.lendAt || ""),
-                    "归还时间：" + (d.returnAt || "")
+                    "借出时间：" + dateTime(d.lendAt),
+                    "归还时间：" + dateTime(d.returnAt)
                 ];
                 $("#borrow-detail").text(lines.join("\n"));
                 var rows = ((d.params || {}).approvals) || [];
                 $("#approval-rows").html(rows.map(function (a) {
                     return "<tr><td>" + escape(a.approverName) + "</td><td>" +
                         (a.result === "APPROVED" ? "批准" : "驳回") + "</td><td>" +
-                        escape(a.opinion) + "</td><td>" + escape(a.handledAt) + "</td></tr>";
+                        escape(a.opinion) + "</td><td>" + escape(dateTime(a.handledAt)) + "</td></tr>";
                 }).join(""));
                 $("#detail-modal").modal("show");
             });
