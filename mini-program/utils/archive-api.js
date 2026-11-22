@@ -1,47 +1,41 @@
 const request = require('./request');
-//接口继承于此
-const BASE = '/records';
-const FILES = '/records/files';
+
+const BASE = '/api/mobile/archives/drafts';
+
+function draftBody({ title, formingDate, categoryId, secretLevel, retentionCode, summary, metadataJson }) {
+  return { title, formingDate, categoryId, secretLevel, retentionCode, summary, metadataJson };
+}
 
 module.exports = {
-  list(page) {
-    return request.get(BASE + '/list', {
-      pageNum: page,
-      pageSize: 20,
-      archiveStatus: 'DRAFT'
-    });
+  list(pageNum) {
+    return request.get(BASE, { pageNum });
   },
 
-  categories() {
-    return request.get(BASE + '/categories');
-  },
-
-  retentions() {
-    return request.get(BASE + '/retentions');
+  options() {
+    return request.get(BASE + '/options');
   },
 
   detail(archiveId) {
-    return request.get(BASE + '/edit/' + archiveId);
+    return request.get(BASE + '/' + archiveId);
   },
 
   create(record) {
-    return request.post(BASE + '/add', record);
+    return request.post(BASE, draftBody(record));
   },
 
   update(record) {
-    return request.post(BASE + '/edit', record);
+    return request.put(BASE + '/' + record.archiveId, { ...draftBody(record), version: record.version });
   },
 
   remove(archiveId, version) {
-    return request.post(BASE + '/remove', { archiveId, version });
+    return request.remove(BASE + '/' + archiveId, { version });
   },
 
-  upload(archiveId, filePath, fileName, relativePath, onProgress) {
+  upload(archiveId, file, onProgress) {
     return request.upload({
-      url: FILES + '/' + archiveId + '/upload',
-      filePath,
-      name: 'file',
-      formData: { relativePath: relativePath || fileName },
+      url: BASE + '/' + archiveId + '/files',
+      filePath: file.path,
+      formData: file.name ? { fileName: file.name } : {},
       onProgress
     });
   }

@@ -9,7 +9,7 @@
   <block wx:elif="{{mode === 'list'}}">
     <request-state wx:if="{{error}}" status="error" message="{{error}}" bind:retry="refresh" />
     <block wx:else>
-      <button class="primary-button" bindtap="newDraft">新建档案</button>
+      <button wx:if="{{canAdd}}" class="primary-button" bindtap="newDraft">新建档案</button>
       <request-state wx:if="{{!rows.length}}" status="empty" message="当前没有草稿" />
       <view wx:else class="card archive-card">
         <button wx:for="{{rows}}" wx:key="archiveId" class="archive-row"
@@ -21,6 +21,7 @@
           <text class="row-arrow">›</text>
         </button>
       </view>
+      <button wx:if="{{hasMore}}" class="secondary-button" bindtap="nextPage">加载更多</button>
     </block>
   </block>
 
@@ -81,14 +82,17 @@
       </view>
       <text wx:if="{{error}}" class="archive-error">{{error}}</text>
       <view class="archive-actions">
-        <button class="primary-button archive-small-button" bindtap="saveDraft" loading="{{saving}}"
+        <button wx:if="{{form.archiveId ? canEdit : canAdd}}" class="primary-button archive-small-button"
+                bindtap="saveDraft" loading="{{saving}}"
                 disabled="{{saving || uploading}}">{{form.archiveId ? '保存修改' : '保存草稿'}}</button>
+        <button wx:if="{{form.archiveId && canDelete}}" class="secondary-button archive-small-button"
+                bindtap="removeDraft" disabled="{{saving || uploading}}">删除草稿</button>
       </view>
     </view>
 
     <view class="card archive-card">
       <text class="section-title">档案附件</text>
-      <view class="archive-actions">
+      <view wx:if="{{canUpload}}" class="archive-actions">
         <button class="secondary-button archive-small-button" bindtap="takePhoto" disabled="{{saving || uploading}}">拍照</button>
         <button class="secondary-button archive-small-button" bindtap="chooseFiles" disabled="{{saving || uploading}}">选文件</button>
         <button wx:if="{{form.archiveId && files.length}}" class="primary-button archive-small-button"
@@ -96,9 +100,13 @@
       </view>
       <text wx:if="{{!form.archiveId && files.length}}" class="archive-note">保存草稿后上传所选文件。</text>
       <progress wx:if="{{uploading}}" percent="{{uploadProgress || 0}}" show-info />
-      <view wx:for="{{files}}" wx:key="index" class="archive-row">
-        <text class="archive-copy archive-title">{{item.name || '附件'}}</text>
-        <text class="archive-note">待上传</text>
+      <view wx:for="{{files}}" wx:key="path" class="archive-row">
+        <view class="archive-copy">
+          <text class="archive-title">{{item.name || '附件'}}</text>
+          <text class="archive-note">待上传</text>
+        </view>
+        <button class="secondary-button archive-small-button" data-index="{{index}}" bindtap="removePending"
+                disabled="{{saving || uploading}}">移除</button>
       </view>
       <view wx:for="{{uploaded}}" wx:key="fileId" class="archive-row">
         <text class="archive-copy archive-title">{{item.displayName}}</text>

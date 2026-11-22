@@ -1,11 +1,11 @@
 const session = require('./session');
 
-// 权限名与后端确认后在此统一调整。
 const draftPermissions = {
-  view: 'archiveAdd',
+  view: 'archiveQuery',
   add: 'archiveAdd',
   edit: 'archiveEdit',
   delete: 'archiveDelete',
+  fileView: 'archiveFileView',
   upload: 'archiveFileUpload'
 };
 

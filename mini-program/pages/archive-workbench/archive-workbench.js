@@ -1,13 +1,14 @@
-//档案登记
 const app = getApp();
 const navigation = require('../../utils/navigation');
+const session = require('../../utils/session');
 const api = require('../../utils/archive-api');
 
-const P = navigation.draftPermissions;//权限常量
+const P = navigation.draftPermissions;
 
 function emptyForm() {
   return {
     archiveId: '',
+    archiveCode: '',
     version: 1,
     title: '',
     formingDate: '',
@@ -19,342 +20,265 @@ function emptyForm() {
   };
 }
 
+function emptyEditor() {
+  return { form: emptyForm(), files: [], uploaded: [], categories: [], secretLevels: [], retentions: [] };
+}
+
 Page({
   data: {
+    ...emptyEditor(),
     mode: 'list',
     loading: true,
     saving: false,
     uploading: false,
+    uploadProgress: 0,
     error: '',
     rows: [],
-    categories: [],
-    secretLevels: [],
-    retentions: [],
-    form: emptyForm(),
-    files: [],
-    uploaded: [],
     page: 1,
-    hasMore: false
+    hasMore: false,
+    canAdd: false,
+    canEdit: false,
+    canDelete: false,
+    canUpload: false
   },
 
   onLoad() {
     this._closed = false;
-
+    app.refreshSession().catch(() => {});
     this._unsubscribe = app.subscribeSession((state) => {
-      if (state.status === 'authenticated' && navigation.can(P.view)) {
-        this.loadList(1);
-      } else if (state.status !== 'loading') {
-        this.setData({
-          loading: false,
-          rows: [],
-          error: '没有权限打开此页面'
-        });
-      }
+      const canView = state.status === 'authenticated' && navigation.can(P.view);
+      this.setData({
+        ...emptyEditor(),
+        mode: 'list',
+        loading: state.status === 'loading' || canView,
+        saving: false,
+        uploading: false,
+        uploadProgress: 0,
+        error: canView || state.status === 'loading' ? '' : '请登录并确认档案登记权限',
+        rows: [],
+        page: 1,
+        hasMore: false,
+        canAdd: canView && navigation.can(P.add),
+        canEdit: canView && navigation.can(P.edit),
+        canDelete: canView && navigation.can(P.delete),
+        canUpload: canView && navigation.can(P.fileView) && navigation.can(P.upload)
+      });
+      if (canView) this.loadList(1);
     });
-
-    app.refreshSession().catch(() => {});//登陆状态刷新
   },
 
   onUnload() {
     this._closed = true;
+    if (this._unsubscribe) this._unsubscribe();
+  },
 
-    if (this._unsubscribe) {
-      this._unsubscribe();
-    }
+  isCurrent(revision) {
+    return !this._closed && revision === session.revision() && navigation.can(P.view);
+  },
+
+  busy() {
+    return this.data.loading || this.data.saving || this.data.uploading;
   },
 
   async loadList(page) {
-    //超高列表加载
     if (!navigation.can(P.view)) return;
-
-    this.setData({
-      loading: true,
-      error: ''
-    });
-
+    const revision = session.revision();
+    this.setData({ loading: true, error: '' });
     try {
-      const result = await api.list(page);
-
-      if (this._closed) return;
-
-      this.setData({
-        rows: result.rows || result.items || [],
-        page,
-        hasMore: Boolean(result.hasMore),
-        loading: false
-      });
-    } catch (error) {
-      if (!this._closed) {
-        this.setData({
-          loading: false,
-          error: error.message
-        });
+      const { rows, hasMore } = await api.list(page);
+      if (this.isCurrent(revision)) {
+        this.setData({ rows: page === 1 ? rows : this.data.rows.concat(rows), page, hasMore });
       }
+    } catch (error) {
+      if (this.isCurrent(revision)) this.setData({ error: error.message });
+    } finally {
+      if (this.isCurrent(revision)) this.setData({ loading: false });
     }
   },
 
-  loadOptions() {
-    //加载表单
-    return Promise.all([
-      api.categories(),
-      api.retentions()
-    ]).then(([categories, retentions]) => {
-      this.setData({
-        categories: categories || [],
-        retentions: retentions || [],
-        secretLevels: [
-          { value: 0, label: '公开' },
-          { value: 1, label: '内部' },
-          { value: 2, label: '秘密' },
-          { value: 3, label: '机密' }
-        ]
-      });
-    });
+  refresh() {
+    if (!this.busy()) this.loadList(1);
+  },
+
+  nextPage() {
+    if (!this.busy() && this.data.hasMore) this.loadList(this.data.page + 1);
   },
 
   newDraft() {
-    //新建档案
-    if (!navigation.can(P.add)) return;
-
-    this.setData({
-      mode: 'editor',
-      form: emptyForm(),
-      files: [],
-      uploaded: [],
-      error: ''
-    });
-
-    this.loadOptions().catch((error) => {
-      this.setData({ error: error.message });
-    });
+    if (this.data.canAdd) return this.openEditor();
   },
 
   openDraft(event) {
-    const archiveId = String(event.currentTarget.dataset.id);
+    return this.openEditor(String(event.currentTarget.dataset.id));
+  },
 
-    this.setData({
-      loading: true,
-      error: ''
-    });
-
-    Promise.all([
-      api.detail(archiveId),
-      this.loadOptions()
-    ]).then(([record]) => {
+  async openEditor(archiveId) {
+    if (this.busy() || !navigation.can(P.view)) return;
+    const revision = session.revision();
+    this.setData({ loading: true, error: '' });
+    try {
+      const [options, record] = await Promise.all([
+        api.options(),
+        archiveId ? api.detail(archiveId) : null
+      ]);
+      if (!this.isCurrent(revision)) return;
+      const { files, ...fields } = record || {};
       this.setData({
+        ...emptyEditor(),
+        ...options,
         mode: 'editor',
-        form: Object.assign(emptyForm(), record),
-        uploaded: record.files || [],
-        loading: false
+        form: { ...emptyForm(), ...fields },
+        uploaded: files || []
       });
-    }).catch((error) => {
-      this.setData({
-        loading: false,
-        error: error.message
-      });
-    });
+    } catch (error) {
+      if (this.isCurrent(revision)) this.setData({ error: error.message });
+    } finally {
+      if (this.isCurrent(revision)) this.setData({ loading: false });
+    }
+  },
+
+  backToList() {
+    if (this.busy()) return;
+    this.setData({ ...emptyEditor(), mode: 'list', error: '' });
+    this.loadList(1);
   },
 
   setInput(event) {
-    const field = event.currentTarget.dataset.field;
-
-    this.setData({
-      ['form.' + field]: event.detail.value
-    });
+    this.setData({ ['form.' + event.currentTarget.dataset.field]: event.detail.value });
   },
 
   setPicker(event) {
-    //下拉框
     const field = event.currentTarget.dataset.field;
-    const index = Number(event.detail.value);
-
-    const values = {
-      categoryId: this.data.categories,
-      secretLevel: this.data.secretLevels,
-      retentionCode: this.data.retentions
+    const choices = {
+      categoryId: [this.data.categories, 'categoryId'],
+      secretLevel: [this.data.secretLevels, 'value'],
+      retentionCode: [this.data.retentions, 'code']
     };
-
-    const selected = values[field][index];
-
-    const valueField = field === 'categoryId'
-      ? 'categoryId'
-      : field === 'secretLevel'
-        ? 'value'
-        : 'code';
-
-    this.setData({
-      ['form.' + field]: selected[valueField]
-    });
+    const [items, key] = choices[field];
+    const selected = items[Number(event.detail.value)];
+    if (selected) this.setData({ ['form.' + field]: selected[key] });
   },
 
   setDate(event) {
-    this.setData({
-      'form.formingDate': event.detail.value
-    });
+    this.setData({ 'form.formingDate': event.detail.value });
   },
 
   chooseFiles() {
-    if (!navigation.can(P.upload)) return;
-
+    if (this.busy() || !this.data.canUpload) return;
+    const revision = session.revision();
     wx.chooseMessageFile({
       count: 9,
       type: 'all',
-      success: (result) => {
-        this.setData({
-          files: this.data.files.concat(result.tempFiles || [])
-        });
-      }
+      success: ({ tempFiles }) => this.queueFiles(tempFiles.map(({ path, name }) => ({ path, name })), revision),
+      fail: (error) => this.pickerError(error, revision, '无法选择文件')
     });
   },
 
   takePhoto() {
-    //拍照上传
-    if (!navigation.can(P.upload)) return;
-
+    if (this.busy() || !this.data.canUpload) return;
+    const revision = session.revision();
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['camera'],
-      success: (result) => {
-        const file = (result.tempFiles || [])[0];
-
-        if (file) {
-          this.setData({
-            files: this.data.files.concat([{
-              path: file.tempFilePath,
-              name: '照片.jpg',
-              size: file.size
-            }])
-          });
-        }
-      }
+      success: ({ tempFiles }) => this.queueFiles(tempFiles.map(({ tempFilePath }) => {
+        const extension = /\.[a-z0-9]+$/i.exec(tempFilePath);
+        return { path: tempFilePath, name: '照片' + (extension ? extension[0] : '.jpg') };
+      }), revision),
+      fail: (error) => this.pickerError(error, revision, '无法拍照，请检查相机授权')
     });
   },
 
+  queueFiles(files, revision) {
+    if (this.isCurrent(revision) && this.data.mode === 'editor' && !this.busy()) {
+      this.setData({ files: this.data.files.concat(files) });
+    }
+  },
+
+  pickerError(error, revision, message) {
+    if (this.isCurrent(revision) && this.data.mode === 'editor' && !/cancel/i.test(error.errMsg || '')) {
+      this.setData({ error: message });
+    }
+  },
+
+  removePending(event) {
+    if (this.busy()) return;
+    const index = Number(event.currentTarget.dataset.index);
+    this.setData({ files: this.data.files.filter((_, i) => i !== index), error: '' });
+  },
+
   async saveDraft() {
-    if (this.data.saving) return;
-
-    const hasArchive = Boolean(this.data.form.archiveId);
-    const permission = hasArchive ? P.edit : P.add;
-    //有ID编辑，没有ID新建
-
-    if (!navigation.can(permission)) return;
-
-    const form = Object.assign({}, this.data.form);
-
-    if (!form.title ||
-        !form.categoryId ||
-        !form.formingDate ||
-        !form.retentionCode ||
-        form.secretLevel === '') {
-      wx.showToast({
-        title: '请填写必填项目',
-        icon: 'none'
-      });
+    if (this.busy() || !navigation.can(P.view)) return;
+    const form = { ...this.data.form, title: this.data.form.title.trim() };
+    if (!navigation.can(form.archiveId ? P.edit : P.add)) return;
+    if (!form.title || !form.categoryId || !form.formingDate || !form.retentionCode || form.secretLevel === '') {
+      this.setData({ error: '请填写必填项目' });
       return;
     }
 
-    this.setData({
-      saving: true,
-      error: ''
-    });
-
+    const revision = session.revision();
+    this.setData({ saving: true, error: '' });
     try {
-      const result = hasArchive
-        ? await api.update(form)
-        : await api.create(form);
-
-      const record = result.data || result;
-
-      form.archiveId = String(record.archiveId);
-      form.version = record.version || form.version + 1;
-
-      this.setData({
-        form,
-        saving: false
-      });
-
-      if (this.data.files.length) {
-        await this.uploadFiles();
-      } else {
-        wx.showToast({
-          title: '草稿已保存',
-          icon: 'success'
-        });
-      }
+      const saved = form.archiveId ? await api.update(form) : await api.create(form);
+      if (!this.isCurrent(revision)) return;
+      this.setData({ form: { ...form, ...saved } });
     } catch (error) {
-      this.setData({
-        saving: false,
-        error: error.message
-      });
+      if (this.isCurrent(revision)) this.setData({ error: error.message });
+      return;
+    } finally {
+      if (this.isCurrent(revision)) this.setData({ saving: false });
+    }
+    if (this.data.files.length && this.data.canUpload) {
+      await this.uploadFiles();
+    } else {
+      wx.showToast({ title: '草稿已保存', icon: 'success' });
     }
   },
 
   async uploadFiles() {
-    //上传附件
-    if (!this.data.form.archiveId) return;
-    if (!navigation.can(P.upload)) return;
-
-    this.setData({
-      uploading: true
-    });
-
-    const pending = this.data.files.slice();//待上传
-    const uploaded = this.data.uploaded.slice();//已上传文件列表
-
-    for (const file of pending) {
-      try {
-        const result = await api.upload(
-          this.data.form.archiveId,
-          file.path || file.tempFilePath,
-          file.name || '附件',
-          file.name || '附件',
-          (progress) => {
-            this.setData({
-              uploadProgress: progress//显示进度
-            });
-          }
-        );
-
-        uploaded.push(result.data || result);
-
-        this.setData({
-          uploaded
+    const { archiveId } = this.data.form;
+    if (this.busy() || !archiveId || !this.data.canUpload || !this.data.files.length) return;
+    const revision = session.revision();
+    this.setData({ uploading: true, uploadProgress: 0, error: '' });
+    try {
+      for (const file of this.data.files.slice()) {
+        this.setData({ uploadProgress: 0 });
+        const saved = await api.upload(archiveId, file, (progress) => {
+          if (this.isCurrent(revision)) this.setData({ uploadProgress: progress });
         });
-      } catch (error) {
-        this.setData({
-          uploading: false,
-          uploaded,
-          error: error.message
-        });
-
-        return;
+        if (!this.isCurrent(revision)) return;
+        this.setData({ files: this.data.files.slice(1), uploaded: this.data.uploaded.concat(saved) });
       }
+      wx.showToast({ title: '附件已上传', icon: 'success' });
+    } catch (error) {
+      if (this.isCurrent(revision)) {
+        this.setData({ error: '草稿已保存，附件上传失败。' + error.message });
+      }
+    } finally {
+      if (this.isCurrent(revision)) this.setData({ uploading: false });
     }
-
-    this.setData({
-      files: [],
-      uploading: false,
-      uploaded
-    });
-
-    wx.showToast({
-      title: '档案和附件已保存',
-      icon: 'success'
-    });
   },
 
-  backToList() {
-    this.setData({
-      mode: 'list',
-      files: [],
-      error: ''
+  removeDraft() {
+    if (this.busy() || !this.data.form.archiveId || !this.data.canDelete) return;
+    const { archiveId, version } = this.data.form;
+    const revision = session.revision();
+    wx.showModal({
+      title: '删除草稿',
+      content: '确认删除这份草稿？',
+      success: async ({ confirm }) => {
+        if (!confirm || !this.isCurrent(revision) || this.busy()) return;
+        this.setData({ saving: true, error: '' });
+        try {
+          await api.remove(archiveId, version);
+        } catch (error) {
+          if (this.isCurrent(revision)) this.setData({ error: error.message });
+          return;
+        } finally {
+          if (this.isCurrent(revision)) this.setData({ saving: false });
+        }
+        if (this.isCurrent(revision)) this.backToList();
+      }
     });
-
-    this.loadList(1);
-  },
-
-  refresh() {
-    this.loadList(this.data.page);
   }
 });
