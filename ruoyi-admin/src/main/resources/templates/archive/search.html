@@ -10,7 +10,8 @@
             <form id="search-form">
                 <div class="select-list">
                     <ul>
-                        <li><label for="archive-keyword">关键词：</label><input id="archive-keyword" name="keyword" maxlength="200" placeholder="档号、题名或摘要"></li>
+                        <li><label for="archive-keyword">关键词：</label><input id="archive-keyword" name="keyword" maxlength="200"
+                            th:placeholder="${canSearchAttachments ? '档号、题名、摘要、附件正文' : '档号、题名或摘要'}"></li>
                         <li><label for="archive-code">档号：</label><input id="archive-code" name="archiveCode" maxlength="80"></li>
                         <li><label for="title">题名：</label><input id="title" name="title" maxlength="200"></li>
                         <li><label for="category">分类：</label><select id="category" name="categoryId">
@@ -35,6 +36,9 @@
             </form>
         </div>
         <div class="btn-group-sm" id="toolbar" role="group">
+            <button class="btn btn-default" id="open-plans" type="button"><i class="fa fa-bookmark"></i> 检索方案</button>
+            <button class="btn btn-default" id="search-statistics" type="button"><i class="fa fa-bar-chart"></i> 结果统计</button>
+            <button class="btn btn-default" id="print-search" type="button"><i class="fa fa-print"></i> 打印结果</button>
             <button class="btn btn-warning" id="export-search" type="button" shiro:hasPermission="archiveExport">
                 <i class="fa fa-download"></i> 导出结果
             </button>
@@ -55,6 +59,29 @@
     </div></div>
 </div>
 <th:block th:include="include :: footer" />
+<div class="modal fade" id="search-plans" tabindex="-1" role="dialog" aria-label="个人检索方案">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h4 class="modal-title">个人检索方案</h4></div>
+        <div class="modal-body">
+            <div class="form-group"><label for="plan-select">已保存方案</label><select id="plan-select" class="form-control"></select></div>
+            <div class="form-group"><label for="plan-name">方案名称</label><input id="plan-name" class="form-control" maxlength="60"></div>
+            <button id="apply-plan" type="button" class="btn btn-default">应用方案</button>
+            <button id="save-plan" type="button" class="btn btn-primary">另存当前条件</button>
+            <button id="update-plan" type="button" class="btn btn-default">更新为当前条件</button>
+            <button id="disable-plan" type="button" class="btn btn-warning">停用</button>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+<div class="modal fade" id="statistics-modal" tabindex="-1" role="dialog" aria-label="结果统计">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h4 class="modal-title">结果统计</h4></div>
+        <div class="modal-body"><table class="table table-bordered">
+            <thead><tr><th>状态</th><th>档案数</th></tr></thead><tbody id="statistics-rows"></tbody>
+        </table></div>
+        <div class="modal-footer"><button type="button" class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
 <script th:inline="javascript">var canViewSearchDetail = /*[[${canView}]]*/ false;</script>
 <script th:src="@{/js/archive/search.js}"></script>
 </body>

@@ -1,3 +1,74 @@
-.placeholder-page {
-  background: #f4f6f9;
+.archive-filters {
+  margin-top: 20rpx;
+  padding: 20rpx;
+}
+
+.archive-input, .archive-picker {
+  border: 1rpx solid #dbe3ef;
+  border-radius: 6rpx;
+  padding: 12rpx 16rpx;
+}
+
+.archive-input {
+  height: 72rpx;
+}
+
+.archive-pickers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12rpx;
+  margin: 12rpx 0;
+}
+
+.archive-picker {
+  line-height: 1.4;
+  font-size: 25rpx;
+  overflow-wrap: anywhere;
+}
+
+.archive-count, .archive-title, .archive-meta, .archive-source, .archive-summary {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.archive-count {
+  margin: 20rpx 0 10rpx;
+  color: #667080;
+  font-size: 25rpx;
+}
+
+.archive-row {
+  padding: 20rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.archive-row:last-child {
+  border-bottom: 0;
+}
+
+.archive-title {
+  font-weight: 600;
+}
+
+.archive-meta, .archive-source, .archive-summary {
+  margin-top: 8rpx;
+  color: #555f6c;
+  font-size: 25rpx;
+  line-height: 1.5;
+}
+
+.archive-source {
+  color: #2e65af;
+}
+
+.archive-pages {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.archive-pages button {
+  min-height: 70rpx;
 }
