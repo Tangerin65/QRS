@@ -1,0 +1,109 @@
+<view class="page archive-page">
+  <view class="archive-heading">
+    <text class="page-title">{{mode === 'list' ? '我的草稿' : (form.archiveId ? '编辑草稿' : '新建档案')}}</text>
+    <button wx:if="{{mode === 'editor'}}" class="secondary-button archive-small-button"
+            disabled="{{saving || uploading}}" bindtap="backToList">返回列表</button>
+  </view>
+
+  <request-state wx:if="{{loading}}" status="loading" />
+  <block wx:elif="{{mode === 'list'}}">
+    <request-state wx:if="{{error}}" status="error" message="{{error}}" bind:retry="refresh" />
+    <block wx:else>
+      <button class="primary-button" bindtap="newDraft">新建档案</button>
+      <request-state wx:if="{{!rows.length}}" status="empty" message="当前没有草稿" />
+      <view wx:else class="card archive-card">
+        <button wx:for="{{rows}}" wx:key="archiveId" class="archive-row"
+                data-id="{{item.archiveId}}" bindtap="openDraft">
+          <view class="archive-copy">
+            <text class="archive-title">{{item.title}}</text>
+            <text class="archive-note">{{item.archiveCode}} · {{item.formingDate}}</text>
+          </view>
+          <text class="row-arrow">›</text>
+        </button>
+      </view>
+    </block>
+  </block>
+
+  <block wx:else>
+    <view class="card archive-card">
+      <text wx:if="{{form.archiveCode}}" class="archive-note">档号：{{form.archiveCode}}</text>
+      <view class="archive-field">
+        <text class="archive-label">题名 *</text>
+        <input class="archive-control" value="{{form.title}}" maxlength="200" placeholder="请输入题名"
+               data-field="title" bindinput="setInput" disabled="{{saving || uploading}}" />
+      </view>
+      <view class="archive-field">
+        <text class="archive-label">分类 *</text>
+        <picker range="{{categories}}" range-key="name" data-field="categoryId" bindchange="setPicker"
+                disabled="{{saving || uploading || !categories.length}}">
+          <view class="archive-control">
+            <text wx:if="{{!form.categoryId}}">请选择分类</text>
+            <block wx:else>
+              <text wx:for="{{categories}}" wx:key="categoryId" wx:if="{{item.categoryId == form.categoryId}}">{{item.name}}</text>
+            </block>
+          </view>
+        </picker>
+      </view>
+      <view class="archive-field">
+        <text class="archive-label">形成日期 *</text>
+        <picker mode="date" value="{{form.formingDate}}" bindchange="setDate" disabled="{{saving || uploading}}">
+          <view class="archive-control">{{form.formingDate || '请选择日期'}}</view>
+        </picker>
+      </view>
+      <view class="archive-field">
+        <text class="archive-label">密级 *</text>
+        <picker range="{{secretLevels}}" range-key="label" data-field="secretLevel" bindchange="setPicker"
+                disabled="{{saving || uploading || !secretLevels.length}}">
+          <view class="archive-control">
+            <text wx:if="{{form.secretLevel === ''}}">请选择密级</text>
+            <block wx:else>
+              <text wx:for="{{secretLevels}}" wx:key="value" wx:if="{{item.value == form.secretLevel}}">{{item.label}}</text>
+            </block>
+          </view>
+        </picker>
+      </view>
+      <view class="archive-field">
+        <text class="archive-label">保管期限 *</text>
+        <picker range="{{retentions}}" range-key="label" data-field="retentionCode" bindchange="setPicker"
+                disabled="{{saving || uploading || !retentions.length}}">
+          <view class="archive-control">
+            <text wx:if="{{!form.retentionCode}}">请选择保管期限</text>
+            <block wx:else>
+              <text wx:for="{{retentions}}" wx:key="code" wx:if="{{item.code == form.retentionCode}}">{{item.label}}</text>
+            </block>
+          </view>
+        </picker>
+      </view>
+      <view class="archive-field">
+        <text class="archive-label">摘要</text>
+        <textarea class="archive-control archive-textarea" value="{{form.summary}}" maxlength="1000"
+                  data-field="summary" bindinput="setInput" disabled="{{saving || uploading}}" />
+      </view>
+      <text wx:if="{{error}}" class="archive-error">{{error}}</text>
+      <view class="archive-actions">
+        <button class="primary-button archive-small-button" bindtap="saveDraft" loading="{{saving}}"
+                disabled="{{saving || uploading}}">{{form.archiveId ? '保存修改' : '保存草稿'}}</button>
+      </view>
+    </view>
+
+    <view class="card archive-card">
+      <text class="section-title">档案附件</text>
+      <view class="archive-actions">
+        <button class="secondary-button archive-small-button" bindtap="takePhoto" disabled="{{saving || uploading}}">拍照</button>
+        <button class="secondary-button archive-small-button" bindtap="chooseFiles" disabled="{{saving || uploading}}">选文件</button>
+        <button wx:if="{{form.archiveId && files.length}}" class="primary-button archive-small-button"
+                bindtap="uploadFiles" disabled="{{saving || uploading}}">上传附件</button>
+      </view>
+      <text wx:if="{{!form.archiveId && files.length}}" class="archive-note">保存草稿后上传所选文件。</text>
+      <progress wx:if="{{uploading}}" percent="{{uploadProgress || 0}}" show-info />
+      <view wx:for="{{files}}" wx:key="index" class="archive-row">
+        <text class="archive-copy archive-title">{{item.name || '附件'}}</text>
+        <text class="archive-note">待上传</text>
+      </view>
+      <view wx:for="{{uploaded}}" wx:key="fileId" class="archive-row">
+        <text class="archive-copy archive-title">{{item.displayName}}</text>
+        <text class="archive-note">已上传</text>
+      </view>
+    </view>
+  </block>
+</view>

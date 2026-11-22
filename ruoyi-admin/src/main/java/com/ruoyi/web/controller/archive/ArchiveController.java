@@ -141,6 +141,7 @@ public class ArchiveController extends BaseController {
         model.addAttribute("canEdit", subject.isPermitted("archiveEdit"));
         model.addAttribute("canSubmit", subject.isPermitted("archiveSubmit"));
         model.addAttribute("canDelete", subject.isPermitted("archiveDelete"));
+        model.addAttribute("canDeleteSubmitted", ShiroUtils.isAdmin(getUserId()) && subject.isPermitted("archiveDelete"));
         model.addAttribute("canImport", subject.isPermitted("archiveImport"));
         model.addAttribute("canExport", subject.isPermitted("archiveExport"));
         model.addAttribute("canView", subject.isPermitted("archiveView"));
@@ -217,7 +218,7 @@ public class ArchiveController extends BaseController {
     @Log(title = "档案登记", businessType = BusinessType.DELETE)
     public AjaxResult remove(long archiveId, int version) {
         AccessScope scope = accessScope();
-        archives.deleteDraft(archiveId, version, getLoginName(), getUserId(), ShiroUtils.isAdmin(getUserId()),
+        archives.deleteArchive(archiveId, version, getLoginName(), getUserId(), ShiroUtils.isAdmin(getUserId()),
             scope.categoryAllowed(), scope.maxSecretLevel());
         return success();
     }

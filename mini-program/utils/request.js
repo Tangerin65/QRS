@@ -81,5 +81,51 @@ function request(options = {}) {
 }
 request.get = (url, data, options = {}) => request(Object.assign({}, options, { url, data, method: 'GET' }));
 request.post = (url, data, options = {}) => request(Object.assign({}, options, { url, data, method: 'POST' }));
+
+request.upload = function (options = {}) {
+  //文件上传
+  const base = (config.baseUrl || '').replace(/\/+$/, '');//地址拼接
+  const token = session.token();
+  const header = token ? { Authorization: 'Bearer ' + token } : {};
+
+  return new Promise((resolve, reject) => {
+    const task = wx.uploadFile({
+      url: base + options.url,
+      filePath: options.filePath,
+      name: options.name || 'file',
+      formData: options.formData || {},
+      header,
+
+      success(response) {
+        const payload = JSON.parse(response.data);
+
+        if (payload.code === 0 || payload.code === 200) {
+          resolve(payload.data);
+        } else {
+          reject(new RequestError(
+            payload.msg || '文件上传失败',
+            payload.code,
+            response.statusCode
+          ));
+        }
+      },
+
+      fail() {
+        reject(new RequestError(
+          '网络连接失败，请重试',
+          'NETWORK_ERROR'
+        ));
+      }
+    });
+
+    if (task && options.onProgress) {
+      task.onProgressUpdate((event) => {
+        options.onProgress(event.progress);
+      });
+    }
+  });
+};
+
+
 request.RequestError = RequestError;
 module.exports = request;

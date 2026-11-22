@@ -15,7 +15,7 @@
       <view class="section-heading"><text class="section-title">常用应用</text></view>
       <view class="application-grid">
         <button wx:for="{{quickActions}}" wx:key="key" class="application-item" data-target="{{item.key}}" bindtap="handleAction">
-          <image class="application-icon" src="/assets/icons/{{item.key}}.png" mode="aspectFit" />
+          <image class="application-icon" src="/assets/icons/{{item.icon || item.key}}.png" mode="aspectFit" />
           <text class="application-label">{{item.title}}</text>
         </button>
       </view>

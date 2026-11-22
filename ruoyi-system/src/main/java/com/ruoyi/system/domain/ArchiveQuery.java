@@ -24,6 +24,8 @@ public class ArchiveQuery extends BaseEntity {
     private String isAsc;
     private String sortBy;
     private String sortOrder;
+    /** 统计分组维度：status、secretLevel、category */
+    private String statisticBy = "status";
 
     public String getArchiveCode() { return archiveCode; }
     public void setArchiveCode(String archiveCode) { this.archiveCode = archiveCode; }
@@ -63,4 +65,6 @@ public class ArchiveQuery extends BaseEntity {
     public void setSortBy(String sortBy) { this.sortBy = sortBy; }
     public String getSortOrder() { return sortOrder; }
     public void setSortOrder(String sortOrder) { this.sortOrder = sortOrder; }
+    public String getStatisticBy() { return statisticBy; }
+    public void setStatisticBy(String statisticBy) { this.statisticBy = statisticBy; }
 }
