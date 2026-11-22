@@ -12,13 +12,13 @@
     <view wx:if="{{mode === 'bind' && userNo}}" class="bind-result">
       <text class="pc-title">确认绑定此账号？</text>
       <view class="account-number"><text class="result-label">平台账号</text><text class="result-value">{{userNo}}</text></view>
-      <text class="result-description">请核对编号，确认二维码属于本人。</text>
+      <text class="result-description">请核对编号，确认二维码属于本人。编号是管理员分配的对外编号，不是登录账号。</text>
       <!-- 首次绑定需校验平台账号口令，防止仅凭编号占用他人账号 -->
       <view class="password-field">
         <text class="password-label">平台账号口令</text>
-        <input class="password-input" password="{{true}}" placeholder="请输入该账号的登录口令"
+        <input class="password-input" password="{{true}}" placeholder="请输入该账号电脑端登录密码"
                disabled="{{busy}}" bindinput="onPasswordInput" />
-        <text class="password-note">口令只用于本次校验，不会保存在手机上。</text>
+        <text class="password-note">口令即该账号登录后台系统的密码（管理员新建账号时初始口令与登录账号相同）；只用于本次校验，不会保存在手机上。</text>
       </view>
       <button class="primary-button confirm-button" bindtap="confirmBind" loading="{{busy}}"
               disabled="{{busy || !passwordFilled}}">确认绑定本人账号</button>

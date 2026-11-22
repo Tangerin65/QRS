@@ -12,7 +12,7 @@ const draftPermissions = {
 const entries = [
   { key: 'home', label: '工作台', path: '/pages/home/home' },
   { key: 'archives', label: '查档', title: '档案检索', desc: '查询授权范围内的档案',
-    path: '/pages/archives/archives', permission: 'records:search:view' },
+    path: '/pages/archives/archives', permission: 'records:search:view', serverPermission: 'archiveSearch' },
   {
     key: 'archive-drafts',
     label: '档案登记',
@@ -33,9 +33,12 @@ function can(permission) {
   return state.status === 'authenticated' && state.user &&
     (state.user.permissions.includes(permission) || state.user.permissions.includes('*:*:*'));
 }
+function canOpen(entry) {
+  return can(entry.permission) || Boolean(entry.serverPermission && can(entry.serverPermission));
+}
 function visible({ workbench = false } = {}) {
   return entries
-    .filter((entry) => (!entry.workbenchOnly || workbench) && can(entry.permission))
+    .filter((entry) => (!entry.workbenchOnly || workbench) && canOpen(entry))
     .map((entry) => Object.assign({}, entry));
 }
 function go(key) {
@@ -44,7 +47,7 @@ function go(key) {
     return;
   }
   const entry = entries.find((item) => item.key === key);
-  if (!entry || !can(entry.permission)) {
+  if (!entry || !canOpen(entry)) {
     wx.showToast({ title: '当前账号暂无此功能权限', icon: 'none' });
     return;
   }
@@ -56,7 +59,7 @@ function go(key) {
 }
 function guard(key) {
   const entry = entries.find((item) => item.key === key);
-  if (entry && can(entry.permission)) return true;
+  if (entry && canOpen(entry)) return true;
   wx.showToast({ title: '请先登录并取得访问权限', icon: 'none' });
   wx.reLaunch({ url: '/pages/home/home' });
   return false;

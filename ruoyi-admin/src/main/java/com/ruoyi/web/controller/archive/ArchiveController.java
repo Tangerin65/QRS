@@ -6,11 +6,13 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.ServletUtils;
 import com.ruoyi.common.utils.ShiroUtils;
 import com.ruoyi.system.domain.ArchiveBatchEdit;
 import com.ruoyi.system.domain.ArchiveQuery;
 import com.ruoyi.system.domain.ArchiveRecord;
+import com.ruoyi.system.service.ArchiveAttachmentIndexer;
 import com.ruoyi.system.service.ArchiveCatalogService.Choice;
 import com.ruoyi.system.service.ArchiveCatalogService;
 import com.ruoyi.system.service.IArchiveService;
@@ -48,15 +50,20 @@ public class ArchiveController extends BaseController {
     private final ArchiveCatalogService catalog;/*分类*/
     private final ISysDictTypeService dictTypes;/*字典*/
     private final ArchiveSecretLevels secretLevels;
+    private final ArchiveAttachmentIndexer attachmentIndex;
+    private final ArchiveSearchPlans searchPlans;
 
     private record AccessScope(LongPredicate categoryAllowed, List<Long> categoryIds, int maxSecretLevel) {}
 
     public ArchiveController(IArchiveService archives, ArchiveCatalogService catalog, ISysDictTypeService dictTypes,
-                             ArchiveSecretLevels secretLevels) {
+                             ArchiveSecretLevels secretLevels, ArchiveAttachmentIndexer attachmentIndex,
+                             ArchiveSearchPlans searchPlans) {
         this.archives = archives;
         this.catalog = catalog;
         this.dictTypes = dictTypes;
         this.secretLevels = secretLevels;
+        this.attachmentIndex = attachmentIndex;
+        this.searchPlans = searchPlans;
     }
 
     private AccessScope accessScope() {
@@ -77,7 +84,21 @@ public class ArchiveController extends BaseController {
         query.setAdmin(ShiroUtils.isAdmin(getUserId()));
         query.setAllowedCategoryIds(scope.categoryIds());
         query.setMaxSecretLevel(scope.maxSecretLevel());
+        query.setSearchAttachments(false);
         return query;
+    }
+
+    private ArchiveQuery scopedSearch(ArchiveQuery query) {
+        scopedQuery(query);
+        String keyword = query.getKeyword();
+        if (keyword == null || keyword.isBlank()) return query;
+        if (keyword.length() > 200) throw new ServiceException("关键词最长为200个字符");
+        query.setSearchAttachments(canSearchAttachments());
+        return query;
+    }
+
+    private boolean canSearchAttachments() {
+        return SecurityUtils.getSubject().isPermitted("archiveFileView") && attachmentIndex.isAvailable();
     }
 
     @InitBinder("searchQuery")
@@ -99,6 +120,7 @@ public class ArchiveController extends BaseController {
         model.addAttribute("categories", catalog.registrationChoices("", scope.categoryAllowed()));
         model.addAttribute("secretOptions", secretLevels.options());
         model.addAttribute("canView", subject.isPermitted("archiveView"));
+        model.addAttribute("canSearchAttachments", canSearchAttachments());
         return "archive/search";
     }
 
@@ -106,18 +128,20 @@ public class ArchiveController extends BaseController {
     @ResponseBody
     @RequiresPermissions(SEARCH)
     public TableDataInfo searchList(@ModelAttribute("searchQuery") ArchiveQuery query) {
-        List<ArchiveRecord> rows = archives.selectArchiveList(scopedQuery(query));
+        List<ArchiveRecord> rows = archives.selectArchiveList(scopedSearch(query));
         TableDataInfo table = getDataTable(rows);
         table.setRows(rows.stream().map(SearchRow::from).toList());
         return table;
     }
 
-    private record SearchRow(String archiveId, String archiveCode, String title, String categoryName,
-            LocalDate formingDate, String secretName, String archiveStatus, String summary, String createBy) {
+    record SearchRow(String archiveId, String archiveCode, String title, String categoryName,
+            LocalDate formingDate, String secretName, String archiveStatus, String summary, String createBy,
+            String matchedAttachment, String attachmentExcerpt) {
         static SearchRow from(ArchiveRecord record) {
             return new SearchRow(record.getArchiveId().toString(), record.getArchiveCode(), record.getTitle(),
                     record.getCategoryName(), record.getFormingDate(), record.getSecretName(),
-                    record.getArchiveStatus(), record.getSummary(), record.getCreateBy());
+                    record.getArchiveStatus(), record.getSummary(), record.getCreateBy(),
+                    record.getMatchedAttachment(), record.getAttachmentExcerpt());
         }
     }
 
@@ -125,7 +149,48 @@ public class ArchiveController extends BaseController {
     @RequiresPermissions({SEARCH, "archiveExport"})
     @Log(title = "档案检索", businessType = BusinessType.EXPORT)
     public void exportSearch(@ModelAttribute("searchQuery") ArchiveQuery query, HttpServletResponse response) throws IOException {
-        export(query, response);
+        writeExport(scopedSearch(query), response);
+    }
+
+    @PostMapping("/search/statistics")
+    @ResponseBody
+    @RequiresPermissions(SEARCH)
+    public AjaxResult searchStatistics(@ModelAttribute("searchQuery") ArchiveQuery query) {
+        return AjaxResult.success(archives.statistics(scopedSearch(query)));
+    }
+
+    @GetMapping("/search/print")
+    @RequiresPermissions(SEARCH)
+    public String printSearch(@ModelAttribute("searchQuery") ArchiveQuery query, Model model, HttpServletResponse response) {
+        scopedSearch(query);
+        query.setMaxRows(1000);
+        model.addAttribute("rows", archives.selectArchiveList(query));
+        model.addAttribute("statistics", archives.statistics(query));
+        response.setHeader("Cache-Control", "no-store");
+        return "archive/search-print";
+    }
+
+    @GetMapping("/search/plans")
+    @ResponseBody
+    @RequiresPermissions(SEARCH)
+    public AjaxResult plans() {
+        return AjaxResult.success(searchPlans.list(getUserId()));
+    }
+
+    @PostMapping("/search/plans")
+    @ResponseBody
+    @RequiresPermissions(SEARCH)
+    public AjaxResult savePlan(@RequestParam(required = false) Long planId, @RequestParam String name,
+            @ModelAttribute("searchQuery") ArchiveQuery query) {
+        searchPlans.save(getUserId(), planId, name, query);
+        return success();
+    }
+
+    @PostMapping("/search/plans/{id}/disable")
+    @ResponseBody
+    @RequiresPermissions(SEARCH)
+    public AjaxResult disablePlan(@PathVariable long id) {
+        return searchPlans.disable(getUserId(), id) ? success() : error("方案不存在或已停用");
     }
 
     @GetMapping("/register")
@@ -288,7 +353,10 @@ public class ArchiveController extends BaseController {
     @RequiresPermissions("archiveExport")
     @Log(title = "档案登记", businessType = BusinessType.EXPORT)
     public void export(ArchiveQuery query, HttpServletResponse response) throws IOException {
-        scopedQuery(query);
+        writeExport(scopedQuery(query), response);
+    }
+
+    private void writeExport(ArchiveQuery query, HttpServletResponse response) throws IOException {
         query.setMaxRows(10000);
         List<ArchiveRecord> rows = archives.selectArchiveList(query);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
