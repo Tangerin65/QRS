@@ -1,0 +1,96 @@
+.archive-page {
+  padding-bottom: calc(36rpx + env(safe-area-inset-bottom));
+}
+
+.archive-heading,
+.archive-actions,
+.archive-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.archive-heading {
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.archive-card {
+  margin-top: 20rpx;
+  padding: 24rpx;
+}
+
+.archive-row {
+  width: 100%;
+  min-height: 96rpx;
+  border-bottom: 1rpx solid #edf0f5;
+  text-align: left;
+}
+
+.archive-row:last-child {
+  border-bottom: 0;
+}
+
+.archive-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.archive-title,
+.archive-note {
+  display: block;
+  overflow-wrap: break-word;
+}
+
+.archive-title {
+  font-weight: 500;
+}
+
+.archive-note {
+  margin-top: 8rpx;
+  color: #667387;
+  font-size: 24rpx;
+}
+
+.archive-field {
+  margin-top: 22rpx;
+}
+
+.archive-label {
+  display: block;
+  margin-bottom: 10rpx;
+  font-weight: 500;
+}
+
+.archive-control {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 76rpx;
+  padding: 16rpx;
+  border: 1rpx solid #dae2ec;
+  border-radius: 6rpx;
+  background: #fff;
+  line-height: 1.5;
+}
+
+.archive-textarea {
+  height: 150rpx;
+}
+
+.archive-actions {
+  flex-wrap: wrap;
+  margin-top: 20rpx;
+}
+
+.archive-small-button {
+  min-height: 64rpx;
+  padding: 12rpx 20rpx;
+  font-size: 25rpx;
+}
+
+.archive-error {
+  display: block;
+  margin-top: 16rpx;
+  color: #925415;
+  line-height: 1.5;
+}

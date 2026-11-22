@@ -3,6 +3,16 @@
 <head>
     <th:block th:include="include :: header('档案登记')" />
     <th:block th:include="include :: datetimepicker-css" />
+    <style media="print">
+        @page { size: landscape; margin: 12mm; }
+        body { background: #fff !important; }
+        .search-collapse, #toolbar, .fixed-table-toolbar, .fixed-table-pagination, .pagination-detail, .pagination { display: none !important; }
+        .container-div, .row, .select-table { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        .fixed-table-container { border: 0 !important; }
+        table { width: 100% !important; border-collapse: collapse !important; }
+        th, td { border: 1px solid #333 !important; color: #000 !important; background: #fff !important; }
+        .no-print, #statistics-chart { display: none !important; }
+    </style>
 </head>
 <body class="gray-bg">
 <div class="container-div">
@@ -11,15 +21,16 @@
             <form id="archive-form">
                 <div class="select-list">
                     <ul>
-                        <li>档号：<input name="archiveCode" maxlength="80" aria-label="按档号筛选"></li>
-                        <li>题名：<input name="title" maxlength="200" aria-label="按题名筛选"></li>
-                        <li>分类：<select id="filter-category" name="categoryId" aria-label="按分类筛选"><option value="">全部分类</option></select></li>
-                        <li>密级：<select id="filter-secret" name="secretLevel" aria-label="按密级筛选"><option value="">全部</option><option th:each="item : ${secretOptions}" th:value="${item.key}" th:text="${item.value}"></option></select></li>
-                        <li>状态：<select name="archiveStatus" aria-label="按状态筛选"><option value="">全部</option><option value="DRAFT">草稿</option><option value="SUBMITTED">已提交</option></select></li>
-                        <li>日期：<input class="archive-date" name="dateFrom" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="形成日期起始"> 至 <input class="archive-date" name="dateTo" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="形成日期结束"></li>
+                        <li><label class="sr-only" for="filter-archive-code">档号</label>档号：<input id="filter-archive-code" name="archiveCode" maxlength="80" aria-label="按档号筛选"></li>
+                        <li><label class="sr-only" for="filter-title">题名</label>题名：<input id="filter-title" name="title" maxlength="200" aria-label="按题名筛选"></li>
+                        <li><label class="sr-only" for="filter-category">分类</label>分类：<select id="filter-category" name="categoryId" aria-label="按分类筛选"><option value="">全部分类</option></select></li>
+                        <li><label class="sr-only" for="filter-secret">密级</label>密级：<select id="filter-secret" name="secretLevel" aria-label="按密级筛选"><option value="">全部</option><option th:each="item : ${secretOptions}" th:value="${item.key}" th:text="${item.value}"></option></select></li>
+                        <li><label class="sr-only" for="filter-status">状态</label>状态：<select id="filter-status" name="archiveStatus" aria-label="按状态筛选"><option value="">全部</option><option value="DRAFT">草稿</option><option value="SUBMITTED">已提交</option></select></li>
+                        <li>日期：<label class="sr-only" for="filter-date-from">形成日期起始</label><input id="filter-date-from" class="archive-date" name="dateFrom" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="形成日期起始"> 至 <label class="sr-only" for="filter-date-to">形成日期结束</label><input id="filter-date-to" class="archive-date" name="dateTo" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="形成日期结束"></li>
+                        <li><label for="statistics-by">统计维度：</label><select id="statistics-by" name="statisticBy" aria-label="统计分组维度"><option value="status">状态</option><option value="secretLevel">密级</option><option value="category">分类</option></select></li>
                         <li>
                             <a class="btn btn-primary btn-rounded btn-sm" onclick="archive.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
-                            <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                            <a class="btn btn-info btn-rounded btn-sm" onclick="archive.statistics()"><i class="fa fa-bar-chart"></i>&nbsp;统计</a>
                         </li>
                     </ul>
                 </div>
@@ -27,13 +38,14 @@
         </div>
         <div class="btn-group-sm" id="toolbar" role="group">
             <a class="btn btn-success" shiro:hasPermission="archiveAdd" onclick="archive.openAdd()"><i class="fa fa-plus"></i> 新建草稿</a>
-            <a class="btn btn-primary multiple disabled" shiro:hasPermission="archiveEdit" onclick="archive.openBatch()"><i class="fa fa-edit"></i> 批量修改</a>
             <a class="btn btn-info" shiro:hasPermission="archiveImport" onclick="archive.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
             <a class="btn btn-warning" shiro:hasPermission="archiveExport" onclick="archive.export()"><i class="fa fa-download"></i> 导出</a>
+            <a class="btn btn-default" onclick="archive.printPreview()"><i class="fa fa-print"></i> 打印</a>
             <span class="text-muted" id="summary" style="margin-left:12px"></span>
             <span class="text-muted" id="statistics" style="margin-left:12px"></span>
         </div>
         <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
+        <div class="col-sm-12" id="statistics-chart" aria-label="档案状态统计图"></div>
     </div>
 </div>
 
@@ -96,10 +108,11 @@
         canEdit: /*[[${canEdit}]]*/ false,
         canSubmit: /*[[${canSubmit}]]*/ false,
         canDelete: /*[[${canDelete}]]*/ false,
+        canDeleteSubmitted: /*[[${canDeleteSubmitted}]]*/ false,
         canFiles: /*[[${@permission.isPermitted('archiveFileView')}]]*/ false,
         canView: /*[[${@permission.isPermitted('archiveView')}]]*/ false
     };
 </script>
-<script th:src="@{/js/archive/register.js(v='20261118-dicts-date')}"></script>
+<script th:src="@{/js/archive/register.js(v='20261119-statistic-dimension')}"></script>
 </body>
 </html>

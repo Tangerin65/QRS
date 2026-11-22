@@ -1,10 +1,27 @@
 const session = require('./session');
 
-// 权限名与后端确认后在此统一调整。
+const draftPermissions = {
+  view: 'archiveQuery',
+  add: 'archiveAdd',
+  edit: 'archiveEdit',
+  delete: 'archiveDelete',
+  fileView: 'archiveFileView',
+  upload: 'archiveFileUpload'
+};
+
 const entries = [
   { key: 'home', label: '工作台', path: '/pages/home/home' },
   { key: 'archives', label: '查档', title: '档案检索', desc: '查询授权范围内的档案',
     path: '/pages/archives/archives', permission: 'records:search:view', serverPermission: 'archiveSearch' },
+  {
+    key: 'archive-drafts',
+    label: '档案登记',
+    title: '档案登记',
+    icon: 'archives',
+    path: '/pages/archive-workbench/archive-workbench',
+    permission: draftPermissions.view,
+    workbenchOnly: true
+  },
   { key: 'messages', label: '待办', title: '我的待办', desc: '查看个人待办与业务消息',
     path: '/pages/messages/messages', permission: 'records:message:view' },
   { key: 'profile', label: '我的', title: '个人中心', desc: '账号状态与登录管理',
@@ -19,8 +36,10 @@ function can(permission) {
 function canOpen(entry) {
   return can(entry.permission) || Boolean(entry.serverPermission && can(entry.serverPermission));
 }
-function visible() {
-  return entries.filter(canOpen).map((entry) => Object.assign({}, entry));
+function visible({ workbench = false } = {}) {
+  return entries
+    .filter((entry) => (!entry.workbenchOnly || workbench) && canOpen(entry))
+    .map((entry) => Object.assign({}, entry));
 }
 function go(key) {
   if (key === 'scan' || key === 'pc') {
@@ -32,6 +51,10 @@ function go(key) {
     wx.showToast({ title: '当前账号暂无此功能权限', icon: 'none' });
     return;
   }
+  if (entry.workbenchOnly) {
+    wx.navigateTo({ url: entry.path });
+    return;
+  }
   wx.reLaunch({ url: entry.path });
 }
 function guard(key) {
@@ -41,4 +64,4 @@ function guard(key) {
   wx.reLaunch({ url: '/pages/home/home' });
   return false;
 }
-module.exports = { can, visible, go, guard };
+module.exports = { can, visible, go, guard, draftPermissions };

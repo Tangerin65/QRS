@@ -62,13 +62,19 @@ public class ArchiveFileService {
     @Transactional(rollbackFor = Exception.class)
     public ArchiveFile upload(long archiveId, MultipartFile upload, String relativePath, String actor, long actorId,
         boolean admin, LongPredicate categoryAllowed, int maxSecretLevel) throws IOException, NoSuchAlgorithmException {
+        return upload(archiveId, upload, relativePath, actor, actorId, admin, categoryAllowed, maxSecretLevel, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ArchiveFile upload(long archiveId, MultipartFile upload, String relativePath, String actor, long actorId,
+        boolean admin, LongPredicate categoryAllowed, int maxSecretLevel, String fileName) throws IOException, NoSuchAlgorithmException {
         //上传单个附件并生成唯一存储名称
         //锁住档案行，避免上传期间档案被修改
         if (files.lockArchive(archiveId) == null) throw new ServiceException("档案不存在或无权访问");
         ArchiveRecord archive = requireArchive(archiveId, actor, admin, categoryAllowed, maxSecretLevel);
         if (!"DRAFT".equals(archive.getArchiveStatus())) throw new ServiceException("只有草稿可以上传附件");
         if (upload.isEmpty()) throw new ServiceException("请选择非空文件");
-        String name = upload.getOriginalFilename();
+        String name = fileName == null || fileName.isBlank() ? upload.getOriginalFilename() : fileName;
         name = name == null ? "" : name.replace('\\', '/');
         name = name.substring(name.lastIndexOf('/') + 1);
         if (name.isBlank() || name.length() > 255) throw new ServiceException("文件名须为1至255个字符");

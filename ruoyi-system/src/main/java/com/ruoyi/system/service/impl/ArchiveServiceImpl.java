@@ -134,11 +134,20 @@ public class ArchiveServiceImpl implements IArchiveService {
 
     @Override
     @Transactional
-    public void deleteDraft(long archiveId, int version, String actorName, long actorId, boolean admin,
-                            java.util.function.LongPredicate allowedCategory, int maxSecretLevel) {
+    public void deleteArchive(long archiveId, int version, String actorName, long actorId, boolean admin,
+                             java.util.function.LongPredicate allowedCategory, int maxSecretLevel) {
         ArchiveRecord existing = requireVisible(archiveId, actorName, admin);
         requireRecordAccess(existing, allowedCategory, maxSecretLevel);
-        if (!"DRAFT".equals(existing.getArchiveStatus())) throw new ServiceException("仅草稿档案可以撤销");
+        String status = existing.getArchiveStatus();
+        if ("SUBMITTED".equals(status)) {
+            if (!admin) throw new ServiceException("仅管理员可以删除已提交档案");
+            if (mapper.softDeleteSubmittedArchive(archiveId, version, actorName) == 0)
+                throw new ServiceException("档案已被修改，刷新后重试");
+            mapper.insertAudit(archiveId, existing.getArchiveCode(), "DELETE_SUBMITTED", actorId, actorName,
+                "管理员逻辑删除已提交档案");
+            return;
+        }
+        if (!"DRAFT".equals(status)) throw new ServiceException("当前档案状态不允许删除");
         if (mapper.softDeleteArchive(archiveId, actorName, admin, version, actorName) == 0)
             throw new ServiceException("档案已被修改，刷新后重试");
         mapper.insertAudit(archiveId, existing.getArchiveCode(), "CANCEL_DRAFT", actorId, actorName, "撤销档案草稿");
@@ -312,6 +321,8 @@ public class ArchiveServiceImpl implements IArchiveService {
             throw new ServiceException("起始日期不能晚于结束日期");
         if (query.getSecretLevel() != null && (query.getSecretLevel() < 0 || query.getSecretLevel() > Byte.MAX_VALUE))
             throw new ServiceException("密级编码须为0至127的整数");
+        if (!List.of("status", "secretLevel", "category").contains(query.getStatisticBy()))
+            query.setStatisticBy("status");
         String sort = query.getSortBy();
         if (!List.of("", "archiveCode", "title", "formingDate", "createTime").contains(sort == null ? "" : sort))
             query.setSortBy("createTime");

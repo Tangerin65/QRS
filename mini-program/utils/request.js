@@ -18,6 +18,7 @@ const messages = {
   404: '服务接口尚未接入，请联系管理员',
   409: '此二维码已处理或账号已绑定，请重新扫码',
   410: '二维码已过期，请刷新电脑端二维码后重新扫描',
+  413: '文件超过服务端大小限制',
   429: '操作过于频繁，请稍后重试',
   // 认证与令牌（M12-B）
   TOKEN_INVALID: '登录已失效，请重新登录',
@@ -42,66 +43,103 @@ const messages = {
   INVALID_QR: '二维码无效，请重新扫描本系统二维码'
 };
 
-function request(options = {}) {
+function buildUrl(path, query = {}) {
   const base = (config.baseUrl || '').replace(/\/+$/, '');
-  if (!base) return Promise.reject(new RequestError('服务尚未接入，请稍后重试', 'NOT_CONFIGURED'));
+  if (!base) throw new RequestError('服务尚未接入，请稍后重试', 'NOT_CONFIGURED');
   // 公网地址仍强制 HTTPS；仅放行本机与内网的 http，便于开发者工具本地联调（端口不限）
   const isHttps = /^https:\/\/[^/?#]+(?:\/[^?#]*)?$/i.test(base);
   const isLocalHttp = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d{1,5})?(?:\/[^?#]*)?$/i.test(base);
   if (!isHttps && !isLocalHttp) {
-    return Promise.reject(new RequestError('服务地址需要使用 HTTPS（本地调试允许 http://localhost:端口）', 'CONFIG_ERROR'));
+    throw new RequestError('服务地址需要使用 HTTPS（本地调试允许 http://localhost:端口）', 'CONFIG_ERROR');
   }
-  if (typeof options.url !== 'string' || !/^\/[\w/-]+$/.test(options.url)) {
-    return Promise.reject(new RequestError('请求地址不正确', 'INVALID_PATH'));
+  if (typeof path !== 'string' || !/^\/[\w/-]+$/.test(path)) {
+    throw new RequestError('请求地址不正确', 'INVALID_PATH');
   }
+  const params = Object.entries(query).map(([key, value]) =>
+    encodeURIComponent(key) + '=' + encodeURIComponent(value)).join('&');
+  return base + path + (params ? '?' + params : '');
+}
+
+function finish(response, token, revision, resolve, reject) {
+  let payload = response.data;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      payload = null;
+    }
+  }
+  const validPayload = payload && typeof payload === 'object' && !Array.isArray(payload);
+  const code = validPayload ? payload.code : undefined;
+  const numericCode = typeof code === 'number' || /^\d+$/.test(String(code)) ? Number(code) : null;
+  const status = response.statusCode;
+  if (status >= 200 && status < 300 && (numericCode === 0 || numericCode === 200)) {
+    resolve(payload.data);
+    return;
+  }
+  const errorCode = numericCode || code || status;
+  const authExpired = status === 401 || errorCode === 401 || errorCode === 'TOKEN_INVALID' ||
+    errorCode === 'ACCOUNT_DISABLED' || errorCode === 'ACCOUNT_UNBOUND';
+  // 旧请求不会清除新会话。
+  if (authExpired && token && revision === session.revision()) {
+    session.clear('expired');
+  }
+  let message = messages[errorCode] || messages[status];
+  if (!message && status === 400 && validPayload && typeof payload.msg === 'string') {
+    message = payload.msg;
+  }
+  reject(new RequestError(message || (status >= 500 ? '服务暂时不可用，请稍后重试' :
+    '操作未完成，请稍后重试或联系管理员'), errorCode, status));
+}
+
+function networkError(error) {
+  const timeout = error && /timeout/i.test(error.errMsg || '');
+  return new RequestError(timeout ? '请求超时，请检查网络后重试' : '网络连接失败，请检查网络后重试',
+    timeout ? 'TIMEOUT' : 'NETWORK_ERROR');
+}
+
+function request(options = {}) {
   const token = options.auth === false ? '' : session.token();
   const revision = session.revision();
   const headers = { 'content-type': 'application/json' };
   if (token) headers.Authorization = 'Bearer ' + token;
   return new Promise((resolve, reject) => {
     wx.request({
-      url: base + options.url,
+      url: buildUrl(options.url, options.query),
       method: options.method || 'GET',
       data: options.data || {},
       header: headers,
       timeout: config.requestTimeout,
-      success(response) {
-        const payload = response.data;
-        const validPayload = payload && typeof payload === 'object' && !Array.isArray(payload);
-        const code = validPayload ? payload.code : undefined;
-        const numericCode = typeof code === 'number' || /^\d+$/.test(String(code))
-          ? Number(code) : null;
-        const success = numericCode === 0 || numericCode === 200;
-        if (response.statusCode >= 200 && response.statusCode < 300 && validPayload && success) {
-          resolve(payload.data);
-          return;
-        }
-        const errorCode = numericCode || code || response.statusCode;
-        const authExpired = response.statusCode === 401 || errorCode === 401 ||
-          errorCode === 'TOKEN_INVALID' || errorCode === 'ACCOUNT_DISABLED' ||
-          errorCode === 'ACCOUNT_UNBOUND';
-        // 旧请求不能清空切换账号后建立的新会话。
-        if (authExpired && token && revision === session.revision()) {
-          session.clear('expired');
-        }
-        let message = messages[errorCode] || messages[response.statusCode];
-        if (!message) {
-          message = response.statusCode >= 500 ? '服务暂时不可用，请稍后重试' :
-            '操作未完成，请稍后重试或联系管理员';
-        }
-        reject(new RequestError(message, errorCode, response.statusCode));
-      },
-      fail(error) {
-        const timeout = error && /timeout/i.test(error.errMsg || '');
-        reject(new RequestError(
-          timeout ? '请求超时，请检查网络后重试' : '网络连接失败，请检查网络后重试',
-          timeout ? 'TIMEOUT' : 'NETWORK_ERROR'
-        ));
-      }
+      success: (response) => finish(response, token, revision, resolve, reject),
+      fail: (error) => reject(networkError(error))
     });
   });
 }
 request.get = (url, data, options = {}) => request(Object.assign({}, options, { url, data, method: 'GET' }));
 request.post = (url, data, options = {}) => request(Object.assign({}, options, { url, data, method: 'POST' }));
+request.put = (url, data) => request({ url, data, method: 'PUT' });
+request.remove = (url, query) => request({ url, query, method: 'DELETE' });
+
+request.upload = function (options = {}) {
+  const token = session.token();
+  const revision = session.revision();
+  const header = token ? { Authorization: 'Bearer ' + token } : {};
+  return new Promise((resolve, reject) => {
+    const task = wx.uploadFile({
+      url: buildUrl(options.url),
+      filePath: options.filePath,
+      name: options.name || 'file',
+      formData: options.formData || {},
+      header,
+      timeout: config.requestTimeout,
+      success: (response) => finish(response, token, revision, resolve, reject),
+      fail: (error) => reject(networkError(error))
+    });
+    if (task && options.onProgress) {
+      task.onProgressUpdate((event) => options.onProgress(event.progress));
+    }
+  });
+};
+
 request.RequestError = RequestError;
 module.exports = request;

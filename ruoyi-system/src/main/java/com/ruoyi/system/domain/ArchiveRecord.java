@@ -25,6 +25,7 @@ public class ArchiveRecord extends BaseEntity {
     private Integer version;
     private Long deptId;
     private List<Map<String, Object>> auditEvents;
+    private Map<String, Object> revisionHistory;
 
     public Long getArchiveId() { return archiveId; }
     public void setArchiveId(Long archiveId) { this.archiveId = archiveId; }
@@ -64,4 +65,6 @@ public class ArchiveRecord extends BaseEntity {
     public void setDeptId(Long deptId) { this.deptId = deptId; }
     public List<Map<String, Object>> getAuditEvents() { return auditEvents; }
     public void setAuditEvents(List<Map<String, Object>> auditEvents) { this.auditEvents = auditEvents; }
+    public Map<String, Object> getRevisionHistory() { return revisionHistory; }
+    public void setRevisionHistory(Map<String, Object> revisionHistory) { this.revisionHistory = revisionHistory; }
 }

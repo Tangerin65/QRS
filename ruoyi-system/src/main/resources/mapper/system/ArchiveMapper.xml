@@ -127,6 +127,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="!admin">and create_by=#{ownerName}</if>
     </update>
 
+    <update id="softDeleteSubmittedArchive">
+        update arc_archive set del_flag='1',version=version+1,update_by=#{updateBy},update_time=now()
+        where archive_id=#{archiveId} and version=#{version} and archive_status='SUBMITTED' and del_flag='0'
+    </update>
+
     <insert id="insertSequence">
         insert ignore into arc_archive_sequence(category_id,forming_year,next_value) values(#{categoryId},#{formingYear},1)
     </insert>
@@ -153,7 +158,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </insert>
 
     <select id="selectStatistics" parameterType="com.ruoyi.system.domain.ArchiveQuery" resultType="map">
-        select archive_status status,count(*) total from arc_archive a
+        select
+        <choose>
+            <when test="statisticBy == 'secretLevel'">a.secret_level</when>
+            <when test="statisticBy == 'category'">a.category_id</when>
+            <otherwise>a.archive_status</otherwise>
+        </choose>
+        statisticKey,count(*) total from arc_archive a
         <where>
             a.del_flag='0'
             <if test="!admin">and a.create_by=#{ownerName}</if>
@@ -179,6 +190,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </if>
             and a.secret_level &lt;=#{maxSecretLevel}
         </where>
-        group by archive_status order by archive_status
+        <choose>
+            <when test="statisticBy == 'secretLevel'">group by a.secret_level order by a.secret_level</when>
+            <when test="statisticBy == 'category'">group by a.category_id order by a.category_id</when>
+            <otherwise>group by a.archive_status order by a.archive_status</otherwise>
+        </choose>
     </select>
 </mapper>

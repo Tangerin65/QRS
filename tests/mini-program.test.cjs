@@ -72,6 +72,67 @@ function harness() {
   };
 }
 
+test('档案登记先保存草稿，再逐个上传，失败后只重试队列中的附件', async () => {
+  const h = harness();
+  const uploads = [];
+  h.wx.uploadFile = (options) => { uploads.push(options); };
+  h.wx.chooseMessageFile = (options) => options.success({ tempFiles: [
+    { path: '/tmp/a.pdf', name: '甲.pdf' }, { path: '/tmp/b.txt', name: '乙.txt' }
+  ] });
+  const identity = h.identity('3', ['archiveQuery', 'archiveAdd', 'archiveFileView', 'archiveFileUpload']);
+  const page = h.page('pages/archive-workbench/archive-workbench.js');
+  h.session.set(identity);
+  page.onLoad();
+  h.reply(0, identity);
+  await h.flush();
+  assert.equal(h.requests[1].url, h.config.baseUrl + '/api/mobile/archives/drafts');
+  h.reply(1, { rows: [], hasMore: false });
+  await h.flush();
+  const editor = page.newDraft();
+  h.reply(2, { categories: [], secretLevels: [], retentions: [] });
+  await editor;
+  page.data.form = { ...page.data.form, title: '测试档案', formingDate: '2026-11-22',
+    categoryId: '1', secretLevel: 0, retentionCode: 'Y30' };
+  page.chooseFiles();
+  const save = page.saveDraft();
+  assert.equal(h.requests[3].method, 'POST');
+  assert.equal(uploads.length, 0);
+  h.reply(3, { archiveId: '93', archiveCode: 'A-2026-000001', version: 1 }, 0);
+  await h.flush();
+  assert.equal(uploads[0].url, h.config.baseUrl + '/api/mobile/archives/drafts/93/files');
+  assert.equal(uploads[0].header.Authorization, 'Bearer token-3');
+  assert.equal(uploads[0].formData.fileName, '甲.pdf');
+  uploads[0].success({ statusCode: 200, data: JSON.stringify({ code: 0, data: { fileId: '1' } }) });
+  await h.flush();
+  uploads[1].success({ statusCode: 400, data: JSON.stringify({ code: 400, msg: '文件类型无效' }) });
+  await save;
+  assert.equal(page.data.form.archiveId, '93');
+  assert.equal(page.data.uploaded.length, 1);
+  assert.equal(page.data.files.length, 1);
+  assert.match(page.data.error, /文件类型无效/);
+  const retry = page.uploadFiles();
+  assert.equal(uploads[2].formData.fileName, '乙.txt');
+  assert.equal(h.requests.length, 4);
+  uploads[2].success({ statusCode: 200, data: JSON.stringify({ code: 0, data: { fileId: '2' } }) });
+  await retry;
+  assert.equal(page.data.uploaded.length, 2);
+  assert.equal(page.data.files.length, 0);
+  page.onUnload();
+});
+
+test('附件请求的旧 401 不会清空当前账号，非 JSON 响应可正常报错', async () => {
+  const h = harness();
+  let upload;
+  h.wx.uploadFile = (options) => { upload = options; };
+  h.session.set(h.identity('3'));
+  const request = h.load('utils/request.js');
+  const pending = request.upload({ url: '/api/mobile/archives/drafts/93/files', filePath: '/tmp/a.pdf' });
+  h.session.set(h.identity('4'));
+  upload.success({ statusCode: 401, data: '<html/>' });
+  await assert.rejects(pending, (error) => error.statusCode === 401);
+  assert.equal(h.session.snapshot().user.userId, '4');
+});
+
 test('用户编号保留普通数字、前导零、长整数和文本编码', () => {
   const { parseUserNo } = harness().load('utils/qr.js');
   for (const code of ['0', '123', '0003', '900719925474099312345', 'member3-ZhaoBoyu']) {

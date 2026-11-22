@@ -30,7 +30,7 @@ Page({
   },
   applySession(state) {
     const bound = state.status === 'authenticated' && Boolean(state.user);
-    const actions = navigation.visible().filter((item) =>
+    const actions = navigation.visible({ workbench: true }).filter((item) =>
       item.key !== 'home' && item.key !== 'profile');
     actions.push(bound
       ? { key: 'pc', title: '电脑登录' }
