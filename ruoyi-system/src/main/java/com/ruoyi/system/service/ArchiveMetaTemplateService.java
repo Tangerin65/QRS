@@ -54,6 +54,7 @@ public class ArchiveMetaTemplateService {
             """, VERSION, categoryId, version).stream().findFirst().orElse(null);
         if (selected == null) {
             if (version != null) throw new ServiceException("模板版本不存在");
+            // 版本 0 表示尚未配置，首次保存时用它校验客户端读到的版本。
             return new Template(categoryId, 0, "", List.of());
         }
         List<Field> fields = jdbc.query("""
@@ -75,7 +76,7 @@ public class ArchiveMetaTemplateService {
         List<Field> fields = checkFields(change.fields());
         if (!allowed.test(categoryId)) throw new ServiceException("没有此分类的维护权限");
 
-        // 首次保存也锁定分类行，保证同一分类的版本连续递增。
+        // 模板尚未创建时也有分类行可锁，用它串行化同一分类的保存。
         jdbc.queryForList("select category_id from arc_category where category_id=? for update", Long.class, categoryId);
         catalog.requireRegistrationCategory(categoryId, allowed);
         Version latest = latestVersion(categoryId);

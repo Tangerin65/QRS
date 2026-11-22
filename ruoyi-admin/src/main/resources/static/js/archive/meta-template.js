@@ -288,6 +288,7 @@ byId("template-preview").addEventListener("submit", event => {
         for (const input of inputs) {
             const message = byId(input.getAttribute("aria-describedby"));
             message.textContent = Object.hasOwn(errors, input.dataset.key) ? errors[input.dataset.key] : "";
+            // 浏览器可能把无法解析的输入读成空字符串，用 badInput 区分无效输入和留空。
             if (input.validity.badInput) {
                 message.textContent = input.type === "date" ? "请输入有效日期" : "请输入有效数字";
             }

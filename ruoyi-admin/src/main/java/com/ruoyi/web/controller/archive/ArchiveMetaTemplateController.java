@@ -71,10 +71,12 @@ public class ArchiveMetaTemplateController extends BaseController {
     @RequiresPermissions(VIEW)
     public AjaxResult validate(@PathVariable long categoryId, @RequestBody Preview preview) {
         catalog.requireRegistrationCategory(categoryId, categoryScope());
+        // 预览使用页面提交的字段定义，未保存的改动也可以试填。
         return AjaxResult.success(templates.validateValues(preview));
     }
 
     private LongPredicate categoryScope() {
+        // 分类范围沿用档案登记的权限标识，模板维护权限由菜单单独授予。
         var subject = SecurityUtils.getSubject();
         boolean all = ShiroUtils.isAdmin(getUserId()) || subject.isPermitted("archiveCategoryAll");
         return id -> all || subject.isPermitted("archiveCategory_" + id);

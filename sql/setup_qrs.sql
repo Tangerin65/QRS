@@ -1192,6 +1192,7 @@ WHERE url='/records/workbench' OR menu_name='若依官网' OR url IN ('http://ru
 COMMIT;
 
 -- M04 元数据模板
+-- 同一分类的版本各占一行，字段通过 template_id 关联到具体版本。
 CREATE TABLE IF NOT EXISTS arc_meta_template (
     template_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     category_id BIGINT NOT NULL,
