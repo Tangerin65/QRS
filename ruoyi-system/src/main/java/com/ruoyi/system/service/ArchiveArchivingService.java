@@ -71,7 +71,7 @@ public class ArchiveArchivingService {
         return archives.selectArchiveDetail(archiveId, actor, actorId, admin, categoryAllowed, maxSecretLevel);
     }
 
-    /** 逐项校验：状态、档号、题名、分类末级、保管期限、附件、未结销毁。 */
+    /** 逐项校验：状态、档号、题名、分类末级、附件、未结销毁。 */
     public List<CheckItem> check(ArchiveRecord record, LongPredicate categoryAllowed) {
         List<CheckItem> items = new ArrayList<>();
         boolean statusOk = SUBMITTED.equals(record.getArchiveStatus());
@@ -88,11 +88,6 @@ public class ArchiveArchivingService {
             categoryDetail = categoryOk ? "启用末级分类" : "分类已停用或不是末级";
         }
         items.add(new CheckItem("CATEGORY", "分类为启用末级", categoryOk, categoryDetail));
-        RetentionSpec retention = resolveRetention(record.getRetentionCode(), record.getRetentionName());
-        boolean retentionOk = retention.recognized()
-            && (retention.permanent() || record.getFormingDate() != null);
-        items.add(new CheckItem("RETENTION", "保管期限可计算", retentionOk,
-            retentionOk ? retention.display() : "保管期限未设置或编码无法识别（值：" + nullSafe(record.getRetentionCode()) + "）"));
         long fileCount = countFiles(record.getArchiveId());
         items.add(new CheckItem("FILE", "至少一个附件", fileCount > 0, "附件 " + fileCount + " 个"));
         long openDestroy = countOpenDestroy(record.getArchiveId());
