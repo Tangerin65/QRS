@@ -52,6 +52,8 @@ nbdist/
 ######################################################################
 # 微信开发者工具
 
+/project.config.json
+/project.private.config.json
 mini-program/project.config.json
 mini-program/project.private.config.json
 mini-program/.idea/
