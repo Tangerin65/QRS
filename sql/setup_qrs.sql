@@ -1216,6 +1216,192 @@ CREATE TABLE IF NOT EXISTS arc_meta_field (
     CONSTRAINT fk_arc_meta_field_template FOREIGN KEY (template_id) REFERENCES arc_meta_template (template_id),
     CONSTRAINT ck_arc_meta_field_type CHECK (field_type IN ('text', 'number', 'date'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- ============================================================
+-- M12-A 账号与组织底座（合并自 sql/m12_account_001.sql）
+-- 依赖：本文件上方的若依基础表（sys_user / sys_dept / sys_role / sys_user_role）
+--
+-- 【维护须知】新增 sys_user 字段必须用下面的 ALTER TABLE + information_schema 判断，
+-- 不要改写上方第 36 行起的 create table sys_user。因为该建表语句之后紧跟的两条
+-- insert 是「按位置赋值」且没有写字段名，一旦在 create table 中间插入新列，
+-- 这两条 insert 会立刻报 ERROR 1136 Column count doesn't match value count。
+--
+-- 本段可重复执行：已存在时走 DO 0，不做任何修改。
+-- ============================================================
+START TRANSACTION;
+
+-- 1. sys_user.user_no 业务用户编号（对外业务编号，二维码内容）
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD COLUMN user_no VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''用户编号（对外业务编号，二维码内容）'' AFTER user_id',
+        'DO 0')
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND column_name = 'user_no'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 存量账号补编号：按 user_id 左补零到 4 位，例如 1 → 0001。已是 4 位以上时保持不变。
+UPDATE sys_user SET user_no = LPAD(user_id, 4, '0') WHERE user_no = '' OR user_no IS NULL;
+
+-- 用户编号跨账号唯一（也正是二维码绑定的查找依据）
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD UNIQUE KEY uk_sys_user_user_no (user_no)',
+        'DO 0')
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND index_name = 'uk_sys_user_user_no'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 2. sys_user 档案业务字段
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD COLUMN arc_archivist CHAR(1) NOT NULL DEFAULT ''0'' COMMENT ''是否档案员（0否 1是）''',
+        'DO 0')
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND column_name = 'arc_archivist'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD COLUMN arc_secret_level VARCHAR(20) NOT NULL DEFAULT '''' COMMENT ''密级上限引用（代码值，规则由 M13 判定）''',
+        'DO 0')
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND column_name = 'arc_secret_level'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 清单按「部门 + 状态」组合筛选，补一个联合索引
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD INDEX idx_sys_user_dept_status (dept_id, status)',
+        'DO 0')
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND index_name = 'idx_sys_user_dept_status'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 3. wx_binding 微信身份绑定表
+--    模块一只建表并在详情里展示绑定状态，不写绑定业务；绑定/解绑在模块二
+--    一个 open_id 同时只允许绑定一个平台账号 → open_id 唯一
+--    bind_version 在解绑/停用时递增，用于让该账号的旧令牌全部失效
+CREATE TABLE IF NOT EXISTS wx_binding (
+    binding_id   BIGINT       NOT NULL AUTO_INCREMENT COMMENT '绑定ID',
+    user_id      BIGINT       NOT NULL COMMENT '平台账号ID（sys_user.user_id）',
+    open_id      VARCHAR(64)  NOT NULL COMMENT '微信 OpenID（仅服务端用 code 换取）',
+    union_id     VARCHAR(64)  NULL COMMENT '微信 UnionID（同一开放平台下才有）',
+    bind_version INT          NOT NULL DEFAULT 1 COMMENT '绑定版本，解绑/停用时递增',
+    status       TINYINT      NOT NULL DEFAULT 1 COMMENT '1 有效，0 已解绑',
+    bound_at     DATETIME     NULL COMMENT '绑定时间',
+    unbound_at   DATETIME     NULL COMMENT '解绑时间',
+    create_by    VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '创建者',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (binding_id),
+    UNIQUE KEY uk_wx_binding_open_id (open_id),
+    KEY idx_wx_binding_user (user_id, status),
+    CONSTRAINT ck_wx_binding_status CHECK (status IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信身份绑定';
+
+COMMIT;
+
+
+-- ============================================================
+-- M12-B 微信绑定与小程序自动登录（合并自 sql/m12_binding_001.sql）
+-- 依赖：M12-A 已执行（wx_binding 在模块一已建，这里用 IF NOT EXISTS 再兜一次）
+-- 本段可重复执行。
+-- ============================================================
+START TRANSACTION;
+
+-- wx_binding 兜底（模块一已建）
+CREATE TABLE IF NOT EXISTS wx_binding (
+    binding_id   BIGINT       NOT NULL AUTO_INCREMENT COMMENT '绑定ID',
+    user_id      BIGINT       NOT NULL COMMENT '平台账号ID（sys_user.user_id）',
+    open_id      VARCHAR(64)  NOT NULL COMMENT '微信 OpenID（仅服务端用 code 换取）',
+    union_id     VARCHAR(64)  NULL COMMENT '微信 UnionID（同一开放平台下才有）',
+    bind_version INT          NOT NULL DEFAULT 1 COMMENT '绑定版本，解绑/停用时递增',
+    status       TINYINT      NOT NULL DEFAULT 1 COMMENT '1 有效，0 已解绑',
+    bound_at     DATETIME     NULL COMMENT '绑定时间',
+    unbound_at   DATETIME     NULL COMMENT '解绑时间',
+    create_by    VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '创建者',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (binding_id),
+    UNIQUE KEY uk_wx_binding_open_id (open_id),
+    KEY idx_wx_binding_user (user_id, status),
+    CONSTRAINT ck_wx_binding_status CHECK (status IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信身份绑定';
+
+-- wx_token 小程序会话令牌
+--    token_digest 是令牌明文的 SHA-256 十六进制串（64 位），明文不落库；
+--    bind_version 记录签发时的绑定版本，与 wx_binding.bind_version 比对即可让旧令牌失效；
+--    revoked_at 非空表示已撤销（主动退出或管理员强制下线）。
+CREATE TABLE IF NOT EXISTS wx_token (
+    token_id     BIGINT       NOT NULL AUTO_INCREMENT COMMENT '令牌ID',
+    token_digest CHAR(64)     NOT NULL COMMENT '令牌明文的 SHA-256 摘要（十六进制）',
+    user_id      BIGINT       NOT NULL COMMENT '平台账号ID（sys_user.user_id）',
+    bind_version INT          NOT NULL COMMENT '签发时的绑定版本',
+    expires_at   DATETIME     NOT NULL COMMENT '到期时间',
+    revoked_at   DATETIME     NULL COMMENT '撤销时间，非空即已失效',
+    client_type  VARCHAR(20)  NOT NULL DEFAULT 'miniapp' COMMENT '客户端类型（miniapp 小程序 / pc 电脑端）',
+    create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '签发时间',
+    PRIMARY KEY (token_id),
+    UNIQUE KEY uk_wx_token_digest (token_digest),
+    KEY idx_wx_token_user (user_id, revoked_at),
+    KEY idx_wx_token_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='小程序会话令牌';
+
+COMMIT;
+
+
+-- ============================================================
+-- M12-A 账号菜单与权限点（合并自 sql/m12_account_menu.sql）
+-- 依赖：M12-A 表结构已执行
+-- 特点：可重复执行（WHERE NOT EXISTS 防重）；不自动给角色授权
+-- 权限点：
+--   arc:account:view    账号清单、详情、统计、导出、打印
+--   arc:account:manage  新增、修改、停用/启用、导入、绑定二维码
+--   arc:account:export  单独授予「导出」能力
+-- 说明：order_num 取 10，8 已被 M10「归档批次」占用，避免左侧菜单顺序不稳定。
+--       普通角色需在「系统管理 → 角色管理 → 修改 → 菜单权限」中勾选后重新登录。
+-- ============================================================
+START TRANSACTION;
+
+-- 一级菜单：档案账号管理
+INSERT INTO sys_menu(menu_name, parent_id, order_num, url, target, menu_type, visible, is_refresh, perms, icon, create_by, create_time, remark)
+SELECT '档案账号管理', 0, 10, '/archive/account', 'menuItem', 'C', '0', '1', 'arc:account:view', 'fa fa-users', 'admin', NOW(), 'M12-A 账号与组织底座'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url = '/archive/account');
+
+-- 按钮权限：维护权限
+INSERT INTO sys_menu(menu_name, parent_id, order_num, url, target, menu_type, visible, is_refresh, perms, icon, create_by, create_time, remark)
+SELECT '新增、修改、停用、导入与绑定二维码', menu_id, 1, '#', '', 'F', '0', '1', 'arc:account:manage', '#', 'admin', NOW(), 'M12-A 维护权限'
+FROM (SELECT menu_id FROM sys_menu WHERE url = '/archive/account' ORDER BY menu_id LIMIT 1) AS parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE parent_id = parent.menu_id AND perms = 'arc:account:manage');
+
+-- 按钮权限：导出（单独列出，便于只读角色单独授予导出能力）
+INSERT INTO sys_menu(menu_name, parent_id, order_num, url, target, menu_type, visible, is_refresh, perms, icon, create_by, create_time, remark)
+SELECT '导出账号清单', menu_id, 2, '#', '', 'F', '0', '1', 'arc:account:export', '#', 'admin', NOW(), 'M12-A 导出权限'
+FROM (SELECT menu_id FROM sys_menu WHERE url = '/archive/account' ORDER BY menu_id LIMIT 1) AS parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE parent_id = parent.menu_id AND perms = 'arc:account:export');
+
+COMMIT;
+
+-- M12 回退说明：
+--   1) 先在角色管理撤销授权，再删除备注为 'M12-A%' 的菜单记录：
+--      DELETE FROM sys_menu WHERE perms IN ('arc:account:view', 'arc:account:manage', 'arc:account:export');
+--   2) DROP TABLE wx_token;
+--      DROP TABLE wx_binding;
+--      ALTER TABLE sys_user DROP INDEX uk_sys_user_user_no;
+--      ALTER TABLE sys_user DROP INDEX idx_sys_user_dept_status;
+--      ALTER TABLE sys_user DROP COLUMN user_no, DROP COLUMN arc_archivist, DROP COLUMN arc_secret_level;
 
 START TRANSACTION;
 
