@@ -9,8 +9,9 @@
 START TRANSACTION;
 
 -- 一级菜单：档案账号管理
+-- order_num 取 10：8 已被 M10「归档批次」占用，避免左侧菜单顺序不稳定
 INSERT INTO sys_menu(menu_name, parent_id, order_num, url, target, menu_type, visible, is_refresh, perms, icon, create_by, create_time, remark)
-SELECT '档案账号管理', 0, 8, '/archive/account', 'menuItem', 'C', '0', '1', 'arc:account:view', 'fa fa-users', 'admin', NOW(), 'M12-A 账号与组织底座'
+SELECT '档案账号管理', 0, 10, '/archive/account', 'menuItem', 'C', '0', '1', 'arc:account:view', 'fa fa-users', 'admin', NOW(), 'M12-A 账号与组织底座'
 WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url = '/archive/account');
 
 -- 按钮权限：维护权限
