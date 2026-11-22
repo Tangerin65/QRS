@@ -61,10 +61,19 @@ DRAFT --提交归档(M01)--> SUBMITTED --归档校验通过(M10)--> ARCHIVED
 ## 保管期限计算
 
 ```
-retention_end_date = archive_date + N 年   （retention_code = Y5 / Y10 / Y20 / Y30）
-retention_end_date = NULL                 （retention_code = PERMANENT）
+retention_end_date = archive_date + N 年   （有限年限）
+retention_end_date = NULL                 （永久）
 无法识别编码 → 校验项「保管期限可计算」不通过，阻断归档
 ```
+
+编码识别按「字典键值 → 名称快照 → 直接解析」顺序，同时兼容仓库里存在的两套字典键值：
+
+| 初始化脚本 | 键值示例 | 说明 |
+| --- | --- | --- |
+| `sql/setup_qrs.sql` | `PERMANENT`、`Y30` | 直接解析 |
+| `sql/arc_m01_dictionary.sql` | `1`=永久、`2`=30年 … `10`=50年 | 先按 `sys_dict_data` 标签换算，字典缺失时回退 `retention_name` 快照 |
+
+不同机器用了不同初始化脚本时，登记出来的 `retention_code` 会不同；上表两种都能正常校验与计算到期日。
 
 到期提醒只按参数化窗口实现（当前未接定时任务），文档未规定具体提前天数。
 

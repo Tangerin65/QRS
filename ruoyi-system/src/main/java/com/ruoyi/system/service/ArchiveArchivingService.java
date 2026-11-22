@@ -88,10 +88,11 @@ public class ArchiveArchivingService {
             categoryDetail = categoryOk ? "启用末级分类" : "分类已停用或不是末级";
         }
         items.add(new CheckItem("CATEGORY", "分类为启用末级", categoryOk, categoryDetail));
-        boolean retentionOk = retentionEndDate(record.getFormingDate(), record.getRetentionCode()) != null
-            || "PERMANENT".equalsIgnoreCase(nullSafe(record.getRetentionCode()));
+        RetentionSpec retention = resolveRetention(record.getRetentionCode(), record.getRetentionName());
+        boolean retentionOk = retention.recognized()
+            && (retention.permanent() || record.getFormingDate() != null);
         items.add(new CheckItem("RETENTION", "保管期限可计算", retentionOk,
-            retentionOk ? nullSafe(record.getRetentionName()) : "保管期限未设置或编码无法识别"));
+            retentionOk ? retention.display() : "保管期限未设置或编码无法识别（值：" + nullSafe(record.getRetentionCode()) + "）"));
         long fileCount = countFiles(record.getArchiveId());
         items.add(new CheckItem("FILE", "至少一个附件", fileCount > 0, "附件 " + fileCount + " 个"));
         long openDestroy = countOpenDestroy(record.getArchiveId());
@@ -99,13 +100,67 @@ public class ArchiveArchivingService {
         return items;
     }
 
-    /** 保管到期日：永久为空；Y30 表示 30 年。 */
-    public static LocalDate retentionEndDate(LocalDate baseDate, String retentionCode) {
-        if (baseDate == null || retentionCode == null) return null;
-        String code = retentionCode.trim().toUpperCase();
-        if ("PERMANENT".equals(code)) return null;
-        if (code.matches("Y\\d{1,3}")) return baseDate.plusYears(Integer.parseInt(code.substring(1)));
-        return null;
+    /** 保管期限识别结果：永久或有限年限。 */
+    public record RetentionSpec(boolean recognized, boolean permanent, Integer years) {
+        static final RetentionSpec UNKNOWN = new RetentionSpec(false, false, null);
+
+        public String display() {
+            if (permanent) return "永久";
+            return years == null ? "" : years + " 年";
+        }
+    }
+
+    /**
+     * 识别保管期限编码。兼容两套字典键值：setup_qrs.sql 的 PERMANENT/Y30，
+     * 与 arc_m01_dictionary.sql 的 1..10 数字键值；数字键值按字典标签换算，
+     * 字典缺失时回退到登记时保存的名称快照。
+     */
+    public RetentionSpec resolveRetention(String retentionCode, String retentionName) {
+        String code = retentionCode == null ? "" : retentionCode.trim();
+        if (code.matches("\\d{1,3}")) {
+            RetentionSpec fromDict = parseRetentionText(dictLabel(code), true);
+            if (fromDict.recognized()) return fromDict;
+            RetentionSpec fromName = parseRetentionText(retentionName, true);
+            return fromName.recognized() ? fromName : RetentionSpec.UNKNOWN;
+        }
+        RetentionSpec direct = parseRetentionText(code, false);
+        if (direct.recognized()) return direct;
+        return parseRetentionText(retentionName, true);
+    }
+
+    /** 保管到期日：永久为空；有限年限按基准日加年。 */
+    public LocalDate retentionEndDate(LocalDate baseDate, String retentionCode) {
+        RetentionSpec spec = resolveRetention(retentionCode, null);
+        return baseDate != null && spec.recognized() && !spec.permanent()
+            ? baseDate.plusYears(spec.years()) : null;
+    }
+
+    private String dictLabel(String dictValue) {
+        try {
+            List<String> labels = jdbc.queryForList(
+                "select dict_label from sys_dict_data where dict_type='arc_retention_period' and dict_value=? and status='0'",
+                String.class, dictValue);
+            return labels.isEmpty() ? null : labels.get(0);
+        } catch (DataAccessException e) {
+            return null;
+        }
+    }
+
+    private static RetentionSpec parseRetentionText(String text, boolean allowBareNumber) {
+        if (text == null) return RetentionSpec.UNKNOWN;
+        String value = text.trim();
+        if (value.isEmpty()) return RetentionSpec.UNKNOWN;
+        if (value.contains("永久")) return new RetentionSpec(true, true, null);
+        String upper = value.toUpperCase();
+        if ("PERMANENT".equals(upper) || "P".equals(upper)) return new RetentionSpec(true, true, null);
+        java.util.regex.Matcher matcher =
+            java.util.regex.Pattern.compile("^Y?\\s*(\\d{1,3})\\s*年?$").matcher(upper);
+        if (matcher.matches()) {
+            if (!allowBareNumber && upper.matches("\\d{1,3}")) return RetentionSpec.UNKNOWN;
+            int years = Integer.parseInt(matcher.group(1));
+            if (years > 0) return new RetentionSpec(true, false, years);
+        }
+        return RetentionSpec.UNKNOWN;
     }
 
     @Transactional
@@ -136,7 +191,9 @@ public class ArchiveArchivingService {
                     insertItem(batchId, record, "FAIL", "CHECK", reason);
                     continue;
                 }
-                LocalDate endDate = retentionEndDate(today, record.getRetentionCode());
+                RetentionSpec retention = resolveRetention(record.getRetentionCode(), record.getRetentionName());
+                LocalDate endDate = retention.recognized() && !retention.permanent()
+                    ? today.plusYears(retention.years()) : null;
                 int updated = jdbc.update("update arc_archive set archive_status='ARCHIVED',archive_date=?,retention_end_date=?,"
                         + "location_id=?,version=version+1,update_by=?,update_time=now() "
                         + "where archive_id=? and version=? and archive_status='SUBMITTED' and del_flag='0'",
