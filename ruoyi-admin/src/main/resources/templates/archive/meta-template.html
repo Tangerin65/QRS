@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" th:content="${session.csrf_token}">
+    <title>元数据模板</title>
+    <link rel="stylesheet" th:href="@{/css/archive/catalog.css}">
+    <link rel="stylesheet" th:href="@{/css/archive/meta-template.css}">
+    <script defer th:src="@{/js/archive/meta-template.js}"></script>
+</head>
+<body th:attr="data-base=@{/archive/meta-template/},data-manage=${canManage}">
+<main class="workspace">
+    <header class="page-header"><h1>元数据模板</h1></header>
+
+    <section class="panel template-toolbar" aria-label="选择模板">
+        <label for="template-category">档案分类</label>
+        <select id="template-category">
+            <option value="" th:text="${#lists.isEmpty(categories) ? '暂无可选分类' : '请选择末级分类'}">请选择末级分类</option>
+            <option th:each="category : ${categories}" th:value="${category.id()}"
+                    th:text="|${category.path()}（${category.code()}）|"></option>
+        </select>
+        <label for="template-version">模板版本</label>
+        <select id="template-version" disabled><option value="0">未保存</option></select>
+        <button class="button" id="template-reload" type="button" disabled>刷新</button>
+    </section>
+
+    <p id="template-feedback" class="feedback" role="status" hidden></p>
+    <p id="template-empty" class="empty">选择分类后查看模板。</p>
+
+    <div class="template-layout" id="template-content" hidden>
+        <section class="panel" aria-labelledby="template-fields-title">
+            <header class="panel-heading"><h2 id="template-fields-title">字段配置</h2></header>
+            <form id="template-editor" class="template-body">
+                <fieldset id="template-editable">
+                    <label>模板名称<input id="template-name" maxlength="120" required></label>
+                    <div id="template-fields"></div>
+                    <button class="button" id="template-add" type="button" th:if="${canManage}">新增字段</button>
+                </fieldset>
+                <div class="actions" th:if="${canManage}">
+                    <button class="button primary" id="template-save" type="submit">保存新版本</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel" aria-labelledby="template-preview-title">
+            <header class="panel-heading"><h2 id="template-preview-title">登记表单预览</h2></header>
+            <form id="template-preview" class="template-body" novalidate>
+                <p id="preview-empty" class="template-note"></p>
+                <div id="preview-fields"></div>
+                <div class="actions">
+                    <button class="button" id="preview-validate" type="submit" hidden>校验填写</button>
+                </div>
+                <p id="preview-feedback" class="feedback" role="status" hidden></p>
+            </form>
+        </section>
+    </div>
+</main>
+</body>
+</html>
