@@ -17,6 +17,12 @@ ruoyi:
 archive:
   file-root: D:/ruoyi/archiveFiles
 
+#留下了对应的微信配置,到时自己填id和secret即可
+wx:
+  miniapp:
+    app-id: ${WX_MINIAPP_APP_ID:}
+    app-secret: ${WX_MINIAPP_APP_SECRET:}
+
 # 开发环境配置
 server:
   # 开发环境端口，避免与IIS占用的端口冲突
