@@ -82,5 +82,15 @@ INSERT INTO sys_menu (menu_name,parent_id,order_num,url,target,menu_type,visible
 SELECT '登记归还', p.menu_id,5,'','','F','0','1','borrowReturn','#','admin',NOW(),'m07-borrow-001'
 FROM (SELECT menu_id FROM sys_menu WHERE perms='borrowQuery' LIMIT 1) p
 WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE perms='borrowReturn');
+
+INSERT INTO sys_menu (menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '借阅导出', p.menu_id,6,'','','F','0','1','borrowExport','#','admin',NOW(),'m07-borrow-001'
+FROM (SELECT menu_id FROM sys_menu WHERE perms='borrowQuery' LIMIT 1) p
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE perms='borrowExport');
+
+INSERT INTO sys_menu (menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '借阅导入', p.menu_id,7,'','','F','0','1','borrowImport','#','admin',NOW(),'m07-borrow-001'
+FROM (SELECT menu_id FROM sys_menu WHERE perms='borrowQuery' LIMIT 1) p
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE perms='borrowImport');
 COMMIT;
 -- 管理员重新登录后可见菜单；其他角色在角色管理中授予 borrowQuery 及对应按钮权限。

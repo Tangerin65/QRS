@@ -22,4 +22,10 @@ public interface IBorrowService {
     void withdraw(long borrowId, String loginName, long userId);
 
     List<Map<String, Object>> selectBorrowableArchives(String keyword, int limit);
+
+    /** 当前筛选条件下的状态统计与逾期数量。 */
+    Map<String, Object> statistics(BorrowQuery query);
+
+    /** 导入历史借阅记录，逐行返回 row/ok/message。 */
+    List<Map<String, Object>> importBorrows(List<List<String>> rows, String operator, long actorId);
 }

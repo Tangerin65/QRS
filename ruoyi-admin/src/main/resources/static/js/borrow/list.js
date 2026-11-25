@@ -44,6 +44,20 @@ var borrow = (function () {
         return buttons.join(' ');
     }
 
+    function queryParams() {
+        return $.common.formToJSON("borrow-form");
+    }
+
+    function loadStatistics() {
+        $.post(prefix + "/statistics", queryParams(), function (res) {
+            if (res.code !== 0) return;
+            var d = res.data || {};
+            $("#statistics").text("待审批 " + (d.pending || 0) + "　已批准 " + (d.approved || 0) +
+                "　已借出 " + (d.lent || 0) + "　已归还 " + (d.returned || 0) +
+                "　逾期 " + (d.overdue || 0) + "　合计 " + (d.total || 0));
+        });
+    }
+
     function initTable() {
         $.table.init({
             url: prefix + "/list",
@@ -55,12 +69,12 @@ var borrow = (function () {
             columns: [
                 { field: "borrowNo", title: "借阅单号", sortable: true },
                 { field: "archiveCode", title: "档号" },
-                { field: "archiveTitle", title: "档案题名" },
-                { field: "applicantName", title: "申请人" },
-                { field: "startDate", title: "借期开始" },
-                { field: "endDate", title: "应归还" },
+                { field: "archiveTitle", title: "档案题名", sortable: true },
+                { field: "applicantName", title: "申请人", sortable: true },
+                { field: "startDate", title: "借期开始", sortable: true },
+                { field: "endDate", title: "应归还", sortable: true },
                 {
-                    field: "borrowStatus", title: "状态",
+                    field: "borrowStatus", title: "状态", sortable: true,
                     formatter: function (value) { return LABELS[value] || escape(value); }
                 },
                 {
@@ -101,9 +115,48 @@ var borrow = (function () {
         init: function () {
             initDates();
             initTable();
+            loadStatistics();
         },
         search: function () {
             $.table.search();
+            loadStatistics();
+        },
+        exportExcel: function () {
+            window.location.href = prefix + "/export?" + $.param(queryParams());
+        },
+        print: function () {
+            window.open(prefix + "/print?" + $.param(queryParams()));
+        },
+        openImport: function () {
+            $("#import-file").val("");
+            $("#import-rows").html("");
+            $("#import-modal").modal("show");
+        },
+        doImport: function () {
+            var file = $("#import-file")[0].files[0];
+            if (!file) return $.modal.alertWarning("请选择要导入的 Excel 文件");
+            var form = new FormData();
+            form.append("file", file);
+            $.ajax({
+                url: prefix + "/import",
+                type: "POST",
+                data: form,
+                processData: false,
+                contentType: false,
+                success: function (res) {
+                    if (res.code !== 0) return $.modal.alertWarning(res.msg || "导入失败");
+                    var rows = res.data || [];
+                    $("#import-rows").html(rows.map(function (r) {
+                        var text = r.ok ? "<span class='text-success'>" + escape(r.message) + "</span>"
+                            : "<span class='text-danger'>" + escape(r.message) + "</span>";
+                        return "<tr><td>" + r.row + "</td><td>" + text + "</td></tr>";
+                    }).join(""));
+                    var ok = rows.filter(function (r) { return r.ok; }).length;
+                    $.modal.msgSuccess("导入完成：成功 " + ok + " 条，失败 " + (rows.length - ok) + " 条");
+                    $.table.refresh();
+                    loadStatistics();
+                }
+            });
         },
         openApply: function () {
             $("#apply-keyword").val("");
@@ -137,6 +190,7 @@ var borrow = (function () {
                         $("#apply-modal").modal("hide");
                         $.modal.msgSuccess("已提交，等待审批");
                         $.table.refresh();
+                        loadStatistics();
                     } else {
                         $.modal.alertWarning(res.msg || "提交失败");
                     }
@@ -158,21 +212,22 @@ var borrow = (function () {
                 $("#approve-modal").modal("hide");
                 $.modal.msgSuccess(result === "APPROVED" ? "已批准" : "已驳回");
                 $.table.refresh();
+                loadStatistics();
             });
         },
         lend: function (id) {
             $.modal.confirm("确认登记借出？", function () {
-                post("/lend", { borrowId: id }, function () { $.modal.msgSuccess("已登记借出"); $.table.refresh(); });
+                post("/lend", { borrowId: id }, function () { $.modal.msgSuccess("已登记借出"); $.table.refresh(); loadStatistics(); });
             });
         },
         giveBack: function (id) {
             $.modal.confirm("确认登记归还？", function () {
-                post("/return", { borrowId: id }, function () { $.modal.msgSuccess("已登记归还"); $.table.refresh(); });
+                post("/return", { borrowId: id }, function () { $.modal.msgSuccess("已登记归还"); $.table.refresh(); loadStatistics(); });
             });
         },
         withdraw: function (id) {
             $.modal.confirm("确认撤回该借阅申请？", function () {
-                post("/withdraw", { borrowId: id }, function () { $.modal.msgSuccess("已撤回"); $.table.refresh(); });
+                post("/withdraw", { borrowId: id }, function () { $.modal.msgSuccess("已撤回"); $.table.refresh(); loadStatistics(); });
             });
         },
         detail: function (id) {

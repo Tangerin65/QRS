@@ -40,10 +40,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         b.renew_count,b.version,b.create_by,b.create_time,b.update_by,b.update_time,b.remark
     </sql>
 
-    <select id="selectBorrowList" parameterType="com.ruoyi.system.domain.BorrowQuery" resultMap="BorrowResult">
-        select <include refid="borrowColumns"/>
-        from arc_borrow b
-        join arc_archive a on a.archive_id = b.archive_id
+    <sql id="borrowWhere">
         <where>
             <if test="!canApprove">and b.applicant_id = #{userId}</if>
             <if test="borrowNo != null and borrowNo != ''">and b.borrow_no like concat('%',#{borrowNo},'%')</if>
@@ -53,7 +50,25 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dateFrom != null">and b.end_date &gt;= #{dateFrom}</if>
             <if test="dateTo != null">and b.end_date &lt;= #{dateTo}</if>
         </where>
-        order by b.create_time desc, b.borrow_id desc
+    </sql>
+
+    <select id="selectBorrowList" parameterType="com.ruoyi.system.domain.BorrowQuery" resultMap="BorrowResult">
+        select <include refid="borrowColumns"/>
+        from arc_borrow b
+        join arc_archive a on a.archive_id = b.archive_id
+        <include refid="borrowWhere"/>
+    </select>
+
+    <select id="selectBorrowStatistics" parameterType="com.ruoyi.system.domain.BorrowQuery" resultType="java.util.Map">
+        select count(1) as total,
+               coalesce(sum(case when b.borrow_status = 'PENDING' then 1 else 0 end), 0) as pending,
+               coalesce(sum(case when b.borrow_status = 'APPROVED' then 1 else 0 end), 0) as approved,
+               coalesce(sum(case when b.borrow_status = 'LENT' then 1 else 0 end), 0) as lent,
+               coalesce(sum(case when b.borrow_status = 'RETURNED' then 1 else 0 end), 0) as returned,
+               coalesce(sum(case when b.borrow_status = 'LENT' and b.end_date &lt; curdate() then 1 else 0 end), 0) as overdue
+        from arc_borrow b
+        join arc_archive a on a.archive_id = b.archive_id
+        <include refid="borrowWhere"/>
     </select>
 
     <select id="selectBorrowById" resultMap="BorrowResult">
@@ -144,4 +159,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select record_id, borrow_id, approval_level, approver_id, approver_name, result, opinion, handled_at
         from arc_approval_record where borrow_id = #{borrowId} order by handled_at, record_id
     </select>
+
+    <select id="selectArchiveByCode" resultType="java.util.Map">
+        select archive_id, archive_code, title, archive_status, del_flag, dept_id
+        from arc_archive where archive_code = #{archiveCode} and del_flag = '0' limit 1
+    </select>
+
+    <insert id="insertImportedBorrow" parameterType="com.ruoyi.system.domain.BorrowRecord" useGeneratedKeys="true" keyProperty="borrowId">
+        insert into arc_borrow
+        (borrow_no, archive_id, applicant_id, applicant_name, applicant_dept_id, reason,
+         start_date, end_date, actual_return_date, borrow_status, approval_level, version, create_by, create_time, remark)
+        values
+        (#{borrowNo}, #{archiveId}, #{applicantId}, #{applicantName}, #{applicantDeptId}, #{reason},
+         #{startDate}, #{endDate}, #{actualReturnDate}, #{borrowStatus}, #{approvalLevel}, 0, #{createBy}, now(), coalesce(#{remark}, ''))
+    </insert>
 </mapper>

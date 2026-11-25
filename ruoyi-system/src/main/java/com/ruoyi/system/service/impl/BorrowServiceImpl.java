@@ -1,16 +1,19 @@
 package com.ruoyi.system.service.impl;
 
 import com.github.pagehelper.PageHelper;
+import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.system.domain.ApprovalRecord;
 import com.ruoyi.system.domain.BorrowQuery;
 import com.ruoyi.system.domain.BorrowRecord;
 import com.ruoyi.system.mapper.BorrowMapper;
 import com.ruoyi.system.service.IBorrowService;
+import com.ruoyi.system.service.ISysUserService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,19 +34,101 @@ public class BorrowServiceImpl implements IBorrowService {
             WITHDRAWN, "已撤回", LENT, "已借出", RETURNED, "已归还");
 
     private final BorrowMapper mapper;
+    private final ISysUserService users;
 
-    public BorrowServiceImpl(BorrowMapper mapper) {
+    /** 排序字段白名单，避免前端传入任意列名。 */
+    private static final Map<String, String> SORTS = Map.of(
+            "borrowNo", "b.borrow_no", "archiveTitle", "a.title", "applicantName", "b.applicant_name",
+            "startDate", "b.start_date", "endDate", "b.end_date", "borrowStatus", "b.borrow_status",
+            "createTime", "b.create_time");
+
+    public BorrowServiceImpl(BorrowMapper mapper, ISysUserService users) {
         this.mapper = mapper;
+        this.users = users;
     }
 
     @Override
     public List<BorrowRecord> selectBorrowList(BorrowQuery query) {
-        if (query.getPageNum() == null || query.getPageNum() < 1) query.setPageNum(1);
-        if (query.getPageSize() == null || query.getPageSize() < 1 || query.getPageSize() > 100) query.setPageSize(20);
-        PageHelper.startPage(query.getPageNum(), query.getPageSize());
+        String orderBy = orderBy(query);
+        if (query.getMaxRows() > 0) {
+            PageHelper.startPage(1, query.getMaxRows(), orderBy);
+        } else {
+            if (query.getPageNum() == null || query.getPageNum() < 1) query.setPageNum(1);
+            if (query.getPageSize() == null || query.getPageSize() < 1 || query.getPageSize() > 100) query.setPageSize(20);
+            PageHelper.startPage(query.getPageNum(), query.getPageSize(), orderBy);
+        }
         List<BorrowRecord> rows = mapper.selectBorrowList(query);
         rows.forEach(this::decorate);
         return rows;
+    }
+
+    @Override
+    public Map<String, Object> statistics(BorrowQuery query) {
+        return mapper.selectBorrowStatistics(query);
+    }
+
+    @Override
+    @Transactional
+    public List<Map<String, Object>> importBorrows(List<List<String>> rows, String operator, long actorId) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        int line = 1;
+        for (List<String> cells : rows) {
+            line++;
+            Map<String, Object> result = new HashMap<>();
+            result.put("row", line);
+            try {
+                if (cells.size() < 5) throw new ServiceException("列数不足，至少需要档号、借阅人、事由、借期开始、应归还日");
+                String code = cells.get(0);
+                String loginName = cells.get(1);
+                String reason = cells.get(2);
+                if (code.isBlank() || loginName.isBlank()) throw new ServiceException("档号和借阅人不能为空");
+                Map<String, Object> archive = mapper.selectArchiveByCode(code);
+                if (archive == null) throw new ServiceException("档号不存在：" + code);
+                SysUser user = users.selectUserByLoginName(loginName);
+                if (user == null) throw new ServiceException("借阅人账号不存在：" + loginName);
+                LocalDate start = LocalDate.parse(cells.get(3), DateTimeFormatter.ISO_LOCAL_DATE);
+                LocalDate end = LocalDate.parse(cells.get(4), DateTimeFormatter.ISO_LOCAL_DATE);
+                if (end.isBefore(start)) throw new ServiceException("应归还日不能早于借期开始");
+                String status = cells.size() > 5 && !cells.get(5).isBlank() ? cells.get(5).trim().toUpperCase() : RETURNED;
+                if (!RETURNED.equals(status) && !LENT.equals(status) && !APPROVED.equals(status)) {
+                    throw new ServiceException("状态只能是 RETURNED/LENT/APPROVED");
+                }
+                BorrowRecord record = new BorrowRecord();
+                record.setBorrowNo(nextBorrowNo());
+                record.setArchiveId(((Number) archive.get("archive_id")).longValue());
+                record.setApplicantId(user.getUserId());
+                record.setApplicantName(user.getUserName() == null ? user.getLoginName() : user.getUserName());
+                record.setApplicantDeptId(user.getDeptId());
+                record.setReason(reason);
+                record.setStartDate(start);
+                record.setEndDate(end);
+                record.setActualReturnDate(RETURNED.equals(status) ? end : null);
+                record.setBorrowStatus(status);
+                record.setApprovalLevel(1);
+                record.setCreateBy(operator);
+                record.setRemark("导入历史记录");
+                mapper.insertImportedBorrow(record);
+                result.put("ok", true);
+                result.put("message", "导入成功：" + record.getBorrowNo());
+            } catch (ServiceException | java.time.format.DateTimeParseException e) {
+                result.put("ok", false);
+                result.put("message", e.getMessage());
+            }
+            results.add(result);
+        }
+        return results;
+    }
+
+    /** 排序白名单 + 默认按创建时间倒序。 */
+    private String orderBy(BorrowQuery query) {
+        String column = query.getOrderByColumn();
+        if (column == null || column.isBlank()) column = query.getSortBy();
+        String mapped = column == null ? null : SORTS.get(column);
+        if (mapped == null) return "b.create_time desc";
+        String direction = query.getIsAsc();
+        if (direction == null || direction.isBlank()) direction = query.getSortOrder();
+        boolean asc = "asc".equalsIgnoreCase(direction);
+        return mapped + (asc ? " asc" : " desc");
     }
 
     @Override

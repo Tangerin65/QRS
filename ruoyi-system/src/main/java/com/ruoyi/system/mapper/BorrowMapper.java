@@ -37,4 +37,10 @@ public interface BorrowMapper {
     int insertApproval(ApprovalRecord record);
 
     List<ApprovalRecord> selectApprovals(@Param("borrowId") long borrowId);
+
+    Map<String, Object> selectBorrowStatistics(BorrowQuery query);
+
+    Map<String, Object> selectArchiveByCode(@Param("archiveCode") String archiveCode);
+
+    int insertImportedBorrow(BorrowRecord record);
 }

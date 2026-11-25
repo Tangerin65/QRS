@@ -34,6 +34,10 @@
         </div>
         <div class="btn-group-sm" id="toolbar" role="group">
             <a class="btn btn-success" shiro:hasPermission="borrowApply" onclick="borrow.openApply()"><i class="fa fa-plus"></i> 申请借阅</a>
+            <a class="btn btn-info" shiro:hasPermission="borrowImport" onclick="borrow.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
+            <a class="btn btn-warning" shiro:hasPermission="borrowExport" onclick="borrow.exportExcel()"><i class="fa fa-download"></i> 导出</a>
+            <a class="btn btn-default" onclick="borrow.print()"><i class="fa fa-print"></i> 打印</a>
+            <span class="text-muted" id="statistics" style="margin-left:12px"></span>
             <span class="text-muted" id="summary" style="margin-left:12px"></span>
         </div>
         <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
@@ -86,6 +90,21 @@
             <h5>审批记录</h5>
             <table class="table table-bordered"><thead><tr><th>审批人</th><th>结论</th><th>意见</th><th>时间</th></tr></thead><tbody id="approval-rows"></tbody></table>
         </div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="import-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">导入历史借阅记录</h4></div>
+        <div class="modal-body">
+            <p class="text-muted">列：档号、借阅人登录名、借阅事由、借期开始（yyyy-MM-dd）、应归还日、状态（RETURNED/LENT/APPROVED，可空，默认 RETURNED）。<a th:href="@{/borrow/import/template}">下载模板</a></p>
+            <input type="file" id="import-file" accept=".xlsx,.xls" aria-label="选择导入文件">
+            <button class="btn btn-default" onclick="borrow.doImport()">开始导入</button>
+            <div class="table-responsive" style="margin-top:12px;max-height:320px;overflow:auto">
+                <table class="table table-bordered table-condensed"><thead><tr><th>行</th><th>结果</th></tr></thead><tbody id="import-rows"></tbody></table>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
     </div></div>
 </div>
 

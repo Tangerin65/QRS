@@ -9,6 +9,8 @@ import com.ruoyi.common.utils.ShiroUtils;
 import com.ruoyi.system.domain.BorrowQuery;
 import com.ruoyi.system.domain.BorrowRecord;
 import com.ruoyi.system.service.IBorrowService;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.shiro.SecurityUtils;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 /** M07 借阅与审批的页面与接口入口。 */
 @Controller
@@ -120,5 +123,68 @@ public class BorrowController extends BaseController {
     public AjaxResult archives(@RequestParam(required = false) String keyword) {
         List<Map<String, Object>> rows = borrows.selectBorrowableArchives(keyword, 50);
         return AjaxResult.success(rows);
+    }
+
+    @PostMapping("/statistics")
+    @ResponseBody
+    @RequiresPermissions(QUERY)
+    public AjaxResult statistics(BorrowQuery query) {
+        query.setUserId(getUserId());
+        query.setCanApprove(canApprove());
+        return AjaxResult.success(borrows.statistics(query));
+    }
+
+    @GetMapping("/export")
+    @RequiresPermissions("borrowExport")
+    @Log(title = "借阅导出", businessType = BusinessType.EXPORT)
+    public void export(BorrowQuery query, HttpServletResponse response) throws IOException {
+        query.setUserId(getUserId());
+        query.setCanApprove(canApprove());
+        query.setMaxRows(10000);
+        List<BorrowRecord> rows = borrows.selectBorrowList(query);
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=borrows.xlsx");
+        BorrowWorkbook.writeRecords(response.getOutputStream(), rows);
+    }
+
+    @GetMapping("/print")
+    @RequiresPermissions(QUERY)
+    public String print(BorrowQuery query, Model model) {
+        query.setUserId(getUserId());
+        query.setCanApprove(canApprove());
+        query.setMaxRows(500);
+        model.addAttribute("rows", borrows.selectBorrowList(query));
+        model.addAttribute("operator", getLoginName());
+        model.addAttribute("printedAt", java.time.LocalDateTime.now().withNano(0).toString().replace("T", " "));
+        model.addAttribute("criteria", criteria(query));
+        return "borrow/print";
+    }
+
+    @GetMapping("/import/template")
+    @RequiresPermissions("borrowImport")
+    public void importTemplate(HttpServletResponse response) throws IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=borrow-import-template.xlsx");
+        BorrowWorkbook.writeTemplate(response.getOutputStream());
+    }
+
+    @PostMapping("/import")
+    @ResponseBody
+    @RequiresPermissions("borrowImport")
+    @Log(title = "借阅导入", businessType = BusinessType.IMPORT)
+    public AjaxResult importFile(@RequestParam("file") MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) return error("请选择要导入的 Excel 文件");
+        return AjaxResult.success(borrows.importBorrows(BorrowWorkbook.readRows(file.getInputStream()), getLoginName(), getUserId()));
+    }
+
+    /** 打印页眉上的筛选条件说明。 */
+    private String criteria(BorrowQuery query) {
+        StringBuilder text = new StringBuilder();
+        if (query.getBorrowStatus() != null && !query.getBorrowStatus().isBlank()) text.append("状态=").append(query.getBorrowStatus()).append("；");
+        if (query.getArchiveTitle() != null && !query.getArchiveTitle().isBlank()) text.append("题名含").append(query.getArchiveTitle()).append("；");
+        if (query.getApplicantName() != null && !query.getApplicantName().isBlank()) text.append("申请人含").append(query.getApplicantName()).append("；");
+        if (query.getDateFrom() != null) text.append("应归还日≥").append(query.getDateFrom()).append("；");
+        if (query.getDateTo() != null) text.append("应归还日≤").append(query.getDateTo()).append("；");
+        return text.length() == 0 ? "全部记录" : text.toString();
     }
 }

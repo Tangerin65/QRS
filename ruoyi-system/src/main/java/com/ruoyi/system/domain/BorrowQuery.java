@@ -17,8 +17,11 @@ public class BorrowQuery extends BaseEntity {
     private boolean canApprove;
     private Integer pageNum = 1;
     private Integer pageSize = 20;
+    private int maxRows;
     private String sortBy;
     private String sortOrder;
+    private String orderByColumn;
+    private String isAsc;
 
     public String getBorrowNo() { return borrowNo; }
     public void setBorrowNo(String borrowNo) { this.borrowNo = borrowNo; }
@@ -44,4 +47,10 @@ public class BorrowQuery extends BaseEntity {
     public void setSortBy(String sortBy) { this.sortBy = sortBy; }
     public String getSortOrder() { return sortOrder; }
     public void setSortOrder(String sortOrder) { this.sortOrder = sortOrder; }
+    public int getMaxRows() { return maxRows; }
+    public void setMaxRows(int maxRows) { this.maxRows = maxRows; }
+    public String getOrderByColumn() { return orderByColumn; }
+    public void setOrderByColumn(String orderByColumn) { this.orderByColumn = orderByColumn; }
+    public String getIsAsc() { return isAsc; }
+    public void setIsAsc(String isAsc) { this.isAsc = isAsc; }
 }
