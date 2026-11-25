@@ -7,6 +7,12 @@ var borrow = (function () {
     };
     var rowsById = {};
     var RENEW_LABELS = { PENDING: "待审批", APPROVED: "已批准", REJECTED: "已驳回", WITHDRAWN: "已关闭" };
+    var AUDIT_LABELS = {
+        BORROW_APPLY: "申请", BORROW_APPROVE: "审批通过", BORROW_REJECT: "审批驳回",
+        BORROW_LEND: "借出", BORROW_RETURN: "归还", BORROW_WITHDRAW: "撤回",
+        BORROW_RENEW: "续借申请", BORROW_RENEW_APPROVE: "续借批准", BORROW_RENEW_REJECT: "续借驳回",
+        BORROW_IMPORT: "导入"
+    };
 
     function escape(value) {
         return $('<div>').text(value == null ? "" : value).html();
@@ -313,6 +319,12 @@ var borrow = (function () {
                         escape(r.reason) + "</td><td>" + (RENEW_LABELS[r.renewStatus] || escape(r.renewStatus)) + "</td><td>" +
                         escape(r.approverName) + "</td><td>" + escape(dateTime(r.handledAt)) + "</td></tr>";
                 }).join("") : '<tr><td colspan="6" class="text-muted">暂无续借记录</td></tr>');
+                var audits = ((d.params || {}).audits) || [];
+                $("#audit-rows").html(audits.length ? audits.map(function (a) {
+                    return "<tr><td>" + (AUDIT_LABELS[a.event_type] || escape(a.event_type)) + "</td><td>" +
+                        escape(a.actor_name) + "</td><td>" + escape(dateTime(a.event_time)) + "</td><td>" +
+                        escape(a.detail) + "</td></tr>";
+                }).join("") : '<tr><td colspan="4" class="text-muted">暂无操作日志</td></tr>');
                 $("#detail-modal").modal("show");
             });
         }

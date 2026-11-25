@@ -65,4 +65,10 @@ public interface BorrowMapper {
     List<com.ruoyi.system.domain.BorrowRenew> selectRenewsByBorrow(@Param("borrowId") long borrowId);
 
     List<com.ruoyi.system.domain.BorrowRenew> selectPendingRenews();
+
+    int insertAudit(@Param("archiveId") Long archiveId, @Param("archiveCode") String archiveCode,
+                    @Param("eventType") String eventType, @Param("actorId") long actorId,
+                    @Param("actorName") String actorName, @Param("detail") String detail);
+
+    List<Map<String, Object>> selectBorrowAudits(@Param("archiveId") Long archiveId);
 }

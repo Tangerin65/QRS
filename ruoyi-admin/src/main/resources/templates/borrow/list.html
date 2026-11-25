@@ -92,6 +92,8 @@
             <table class="table table-bordered"><thead><tr><th>审批人</th><th>结论</th><th>意见</th><th>时间</th></tr></thead><tbody id="approval-rows"></tbody></table>
             <h5>续借记录</h5>
             <table class="table table-bordered"><thead><tr><th>原应归还</th><th>申请新日期</th><th>原因</th><th>状态</th><th>审批人</th><th>处理时间</th></tr></thead><tbody id="renew-rows"></tbody></table>
+            <h5>操作日志</h5>
+            <table class="table table-bordered"><thead><tr><th>动作</th><th>操作人</th><th>时间</th><th>说明</th></tr></thead><tbody id="audit-rows"></tbody></table>
         </div>
     </div></div>
 </div>
@@ -144,6 +146,6 @@
         canReturn: /*[[${canReturn}]]*/ false
     };
 </script>
-<script th:src="@{/js/borrow/list.js(v='20261125-b')}"></script>
+<script th:src="@{/js/borrow/list.js(v='20261125-c')}"></script>
 </body>
 </html>

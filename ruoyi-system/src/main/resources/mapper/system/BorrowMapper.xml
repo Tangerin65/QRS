@@ -263,4 +263,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where r.renew_status = 'PENDING'
         order by r.create_time
     </select>
+
+    <insert id="insertAudit">
+        insert into arc_audit_event (archive_id, archive_code, event_type, actor_id, actor_name, event_time, detail)
+        values (#{archiveId}, #{archiveCode}, #{eventType}, #{actorId}, #{actorName}, now(), #{detail})
+    </insert>
+
+    <select id="selectBorrowAudits" resultType="java.util.Map">
+        select event_type, actor_name, event_time, detail
+        from arc_audit_event
+        where archive_id = #{archiveId} and event_type like 'BORROW%'
+        order by event_time desc, event_id desc
+        limit 50
+    </select>
 </mapper>

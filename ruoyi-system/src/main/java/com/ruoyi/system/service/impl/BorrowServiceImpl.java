@@ -97,6 +97,8 @@ public class BorrowServiceImpl implements IBorrowService {
                 BorrowRecord record = new BorrowRecord();
                 record.setBorrowNo(nextBorrowNo());
                 record.setArchiveId(((Number) archive.get("archive_id")).longValue());
+                record.setArchiveCode(code);
+                record.setArchiveTitle(String.valueOf(archive.get("title")));
                 record.setApplicantId(user.getUserId());
                 record.setApplicantName(user.getUserName() == null ? user.getLoginName() : user.getUserName());
                 record.setApplicantDeptId(user.getDeptId());
@@ -109,6 +111,7 @@ public class BorrowServiceImpl implements IBorrowService {
                 record.setCreateBy(operator);
                 record.setRemark("导入历史记录");
                 mapper.insertImportedBorrow(record);
+                audit(record, "BORROW_IMPORT", actorId, operator, "导入历史借阅记录 " + record.getBorrowNo());
                 result.put("ok", true);
                 result.put("message", "导入成功：" + record.getBorrowNo());
             } catch (ServiceException | java.time.format.DateTimeParseException e) {
@@ -143,6 +146,8 @@ public class BorrowServiceImpl implements IBorrowService {
         renew.setCreateBy(loginName);
         mapper.insertRenew(renew);
         renew.setRenewStatus(PENDING);
+        audit(record, "BORROW_RENEW", userId, loginName,
+                "申请续借至 " + requestedEndDate + "（原 " + record.getEndDate() + "）");
         return renew;
     }
 
@@ -168,6 +173,8 @@ public class BorrowServiceImpl implements IBorrowService {
                 && mapper.applyRenewToBorrow(renew.getBorrowId(), renew.getRequestedEndDate(), loginName) == 0) {
             throw new ServiceException("借阅单状态已变化，续借未生效");
         }
+        audit(borrow, APPROVED.equals(result) ? "BORROW_RENEW_APPROVE" : "BORROW_RENEW_REJECT", userId, userName,
+                APPROVED.equals(result) ? "批准续借至 " + renew.getRequestedEndDate() : "驳回续借：" + opinion);
     }
 
     @Override
@@ -178,6 +185,12 @@ public class BorrowServiceImpl implements IBorrowService {
     @Override
     public List<BorrowRenew> selectPendingRenews() {
         return mapper.selectPendingRenews();
+    }
+
+    /** 借阅关键动作写入 arc_audit_event，便于详情页追溯。 */
+    private void audit(BorrowRecord record, String type, long actorId, String actorName, String detail) {
+        if (record == null || record.getArchiveId() == null) return;
+        mapper.insertAudit(record.getArchiveId(), record.getArchiveCode(), type, actorId, actorName, detail);
     }
 
     /** 排序白名单 + 默认按创建时间倒序。 */
@@ -203,6 +216,7 @@ public class BorrowServiceImpl implements IBorrowService {
         Map<String, Object> extra = new HashMap<>();
         extra.put("approvals", mapper.selectApprovals(borrowId));
         extra.put("renews", mapper.selectRenewsByBorrow(borrowId));
+        extra.put("audits", mapper.selectBorrowAudits(record.getArchiveId()));
         record.setParams(extra);
         return record;
     }
@@ -229,6 +243,8 @@ public class BorrowServiceImpl implements IBorrowService {
         }
 
         record.setBorrowNo(nextBorrowNo());
+        record.setArchiveCode(String.valueOf(archive.get("archive_code")));
+        record.setArchiveTitle(String.valueOf(archive.get("title")));
         record.setApplicantId(userId);
         record.setApplicantName(loginName);
         record.setApplicantDeptId(deptId);
@@ -237,6 +253,7 @@ public class BorrowServiceImpl implements IBorrowService {
         record.setRenewCount(0);
         record.setCreateBy(loginName);
         mapper.insertBorrow(record);
+        audit(record, "BORROW_APPLY", userId, loginName, "提交借阅申请 " + record.getBorrowNo());
         decorate(record);
         return record;
     }
@@ -266,6 +283,8 @@ public class BorrowServiceImpl implements IBorrowService {
         approval.setOpinion(opinion);
         approval.setHandledAt(LocalDateTime.now());
         mapper.insertApproval(approval);
+        audit(record, APPROVED.equals(result) ? "BORROW_APPROVE" : "BORROW_REJECT", userId, userName,
+                APPROVED.equals(result) ? "借阅审批通过 " + record.getBorrowNo() : "借阅驳回：" + opinion);
     }
 
     @Override
@@ -274,6 +293,7 @@ public class BorrowServiceImpl implements IBorrowService {
         BorrowRecord record = requireBorrow(borrowId);
         if (!APPROVED.equals(record.getBorrowStatus())) throw new ServiceException("只有已批准的借阅单可以登记借出");
         if (mapper.markLent(borrowId, userId, loginName) == 0) throw new ServiceException("借阅单状态已变化，请刷新后重试");
+        audit(record, "BORROW_LEND", userId, loginName, "登记借出 " + record.getBorrowNo());
     }
 
     @Override
@@ -284,6 +304,7 @@ public class BorrowServiceImpl implements IBorrowService {
         if (mapper.markReturned(borrowId, userId, loginName) == 0) throw new ServiceException("借阅单状态已变化，请刷新后重试");
         // 归还后关闭未结的续借申请，避免归还后还能被批准
         mapper.closePendingRenew(borrowId, loginName);
+        audit(record, "BORROW_RETURN", userId, loginName, "登记归还 " + record.getBorrowNo());
     }
 
     @Override
@@ -295,6 +316,7 @@ public class BorrowServiceImpl implements IBorrowService {
         if (mapper.updateBorrowStatus(borrowId, PENDING, WITHDRAWN, loginName) == 0) {
             throw new ServiceException("借阅单状态已变化，请刷新后重试");
         }
+        audit(record, "BORROW_WITHDRAW", userId, loginName, "撤回借阅申请 " + record.getBorrowNo());
     }
 
     @Override
