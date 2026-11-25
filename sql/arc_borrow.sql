@@ -52,6 +52,32 @@ CREATE TABLE IF NOT EXISTS arc_approval_record (
     CONSTRAINT fk_arc_approval_borrow FOREIGN KEY (borrow_id) REFERENCES arc_borrow (borrow_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='借阅审批流水';
 
+-- 续借申请：同一借阅单同时最多一条 PENDING，批准后回写 arc_borrow.end_date。
+CREATE TABLE IF NOT EXISTS arc_borrow_renew (
+    renew_id BIGINT NOT NULL AUTO_INCREMENT COMMENT '续借申请ID',
+    borrow_id BIGINT NOT NULL COMMENT '原借阅单ID',
+    applicant_id BIGINT NOT NULL COMMENT '申请人ID',
+    applicant_name VARCHAR(64) NOT NULL COMMENT '申请人姓名',
+    old_end_date DATE NOT NULL COMMENT '原应归还日',
+    requested_end_date DATE NOT NULL COMMENT '申请的新应归还日',
+    reason VARCHAR(500) NOT NULL COMMENT '续借原因',
+    renew_status VARCHAR(16) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/APPROVED/REJECTED/WITHDRAWN',
+    approver_id BIGINT DEFAULT NULL COMMENT '审批人ID',
+    approver_name VARCHAR(64) DEFAULT NULL COMMENT '审批人姓名',
+    opinion VARCHAR(500) DEFAULT NULL COMMENT '审批意见',
+    handled_at DATETIME DEFAULT NULL COMMENT '处理时间',
+    version INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本',
+    create_by VARCHAR(64) NOT NULL DEFAULT '' COMMENT '创建人',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_by VARCHAR(64) DEFAULT NULL COMMENT '更新人',
+    update_time DATETIME DEFAULT NULL COMMENT '更新时间',
+    PRIMARY KEY (renew_id),
+    KEY idx_arc_renew_borrow (borrow_id, renew_status),
+    KEY idx_arc_renew_status (renew_status, create_time),
+    CONSTRAINT fk_arc_renew_borrow FOREIGN KEY (borrow_id) REFERENCES arc_borrow (borrow_id),
+    CONSTRAINT ck_arc_renew_dates CHECK (requested_end_date > old_end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='借阅续借申请';
+
 -- 菜单与权限点。权限名与 M01 一致使用 camelCase：borrowQuery/borrowView/borrowApply/borrowApprove/borrowLend/borrowReturn。
 START TRANSACTION;
 INSERT INTO sys_menu (menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)

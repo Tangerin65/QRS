@@ -173,4 +173,94 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         (#{borrowNo}, #{archiveId}, #{applicantId}, #{applicantName}, #{applicantDeptId}, #{reason},
          #{startDate}, #{endDate}, #{actualReturnDate}, #{borrowStatus}, #{approvalLevel}, 0, #{createBy}, now(), coalesce(#{remark}, ''))
     </insert>
+
+    <resultMap id="RenewResult" type="com.ruoyi.system.domain.BorrowRenew">
+        <id property="renewId" column="renew_id"/>
+        <result property="borrowId" column="borrow_id"/>
+        <result property="borrowNo" column="borrow_no"/>
+        <result property="archiveTitle" column="archive_title"/>
+        <result property="applicantId" column="applicant_id"/>
+        <result property="applicantName" column="applicant_name"/>
+        <result property="oldEndDate" column="old_end_date"/>
+        <result property="requestedEndDate" column="requested_end_date"/>
+        <result property="reason" column="reason"/>
+        <result property="renewStatus" column="renew_status"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="approverName" column="approver_name"/>
+        <result property="opinion" column="opinion"/>
+        <result property="handledAt" column="handled_at"/>
+        <result property="version" column="version"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="renewColumns">
+        r.renew_id, r.borrow_id, b.borrow_no, a.title as archive_title, r.applicant_id, r.applicant_name,
+        r.old_end_date, r.requested_end_date, r.reason, r.renew_status, r.approver_id, r.approver_name,
+        r.opinion, r.handled_at, r.version, r.create_by, r.create_time
+    </sql>
+
+    <insert id="insertRenew" parameterType="com.ruoyi.system.domain.BorrowRenew" useGeneratedKeys="true" keyProperty="renewId">
+        insert into arc_borrow_renew
+        (borrow_id, applicant_id, applicant_name, old_end_date, requested_end_date, reason, renew_status, version, create_by, create_time)
+        values
+        (#{borrowId}, #{applicantId}, #{applicantName}, #{oldEndDate}, #{requestedEndDate}, #{reason}, 'PENDING', 0, #{createBy}, now())
+    </insert>
+
+    <select id="selectRenewById" resultMap="RenewResult">
+        select <include refid="renewColumns"/>
+        from arc_borrow_renew r
+        join arc_borrow b on b.borrow_id = r.borrow_id
+        join arc_archive a on a.archive_id = b.archive_id
+        where r.renew_id = #{renewId}
+    </select>
+
+    <select id="countPendingRenew" resultType="int">
+        select count(1) from arc_borrow_renew where borrow_id = #{borrowId} and renew_status = 'PENDING'
+    </select>
+
+    <update id="approveRenew">
+        update arc_borrow_renew
+        set renew_status = 'APPROVED', approver_id = #{approverId}, approver_name = #{approverName},
+            opinion = #{opinion}, handled_at = now(), update_by = #{approverName}, update_time = now(), version = version + 1
+        where renew_id = #{renewId} and renew_status = 'PENDING'
+    </update>
+
+    <update id="rejectRenew">
+        update arc_borrow_renew
+        set renew_status = 'REJECTED', approver_id = #{approverId}, approver_name = #{approverName},
+            opinion = #{opinion}, handled_at = now(), update_by = #{approverName}, update_time = now(), version = version + 1
+        where renew_id = #{renewId} and renew_status = 'PENDING'
+    </update>
+
+    <update id="applyRenewToBorrow">
+        update arc_borrow
+        set end_date = #{newEndDate}, renew_count = renew_count + 1,
+            update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and borrow_status = 'LENT'
+    </update>
+
+    <update id="closePendingRenew">
+        update arc_borrow_renew
+        set renew_status = 'WITHDRAWN', update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and renew_status = 'PENDING'
+    </update>
+
+    <select id="selectRenewsByBorrow" resultMap="RenewResult">
+        select <include refid="renewColumns"/>
+        from arc_borrow_renew r
+        join arc_borrow b on b.borrow_id = r.borrow_id
+        join arc_archive a on a.archive_id = b.archive_id
+        where r.borrow_id = #{borrowId}
+        order by r.create_time desc
+    </select>
+
+    <select id="selectPendingRenews" resultMap="RenewResult">
+        select <include refid="renewColumns"/>
+        from arc_borrow_renew r
+        join arc_borrow b on b.borrow_id = r.borrow_id
+        join arc_archive a on a.archive_id = b.archive_id
+        where r.renew_status = 'PENDING'
+        order by r.create_time
+    </select>
 </mapper>

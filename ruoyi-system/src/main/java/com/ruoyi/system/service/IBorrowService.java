@@ -28,4 +28,15 @@ public interface IBorrowService {
 
     /** 导入历史借阅记录，逐行返回 row/ok/message。 */
     List<Map<String, Object>> importBorrows(List<List<String>> rows, String operator, long actorId);
+
+    /** 提交续借申请。 */
+    com.ruoyi.system.domain.BorrowRenew applyRenew(long borrowId, java.time.LocalDate requestedEndDate, String reason,
+                                                   String loginName, long userId);
+
+    /** 审批续借：APPROVED 时同步延长原借阅单的应归还日。 */
+    void approveRenew(long renewId, String result, String opinion, String loginName, long userId, String userName);
+
+    List<com.ruoyi.system.domain.BorrowRenew> selectRenews(long borrowId);
+
+    List<com.ruoyi.system.domain.BorrowRenew> selectPendingRenews();
 }

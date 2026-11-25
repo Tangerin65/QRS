@@ -11,10 +11,12 @@ import com.ruoyi.system.domain.BorrowRecord;
 import com.ruoyi.system.service.IBorrowService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -132,6 +134,33 @@ public class BorrowController extends BaseController {
         query.setUserId(getUserId());
         query.setCanApprove(canApprove());
         return AjaxResult.success(borrows.statistics(query));
+    }
+
+    @PostMapping("/renew")
+    @ResponseBody
+    @RequiresPermissions("borrowApply")
+    @Log(title = "借阅续借", businessType = BusinessType.INSERT)
+    public AjaxResult renew(long borrowId, @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate requestedEndDate,
+                            String reason) {
+        return AjaxResult.success(borrows.applyRenew(borrowId, requestedEndDate, reason, getLoginName(), getUserId()));
+    }
+
+    @PostMapping("/renew/approve")
+    @ResponseBody
+    @RequiresPermissions("borrowApprove")
+    @Log(title = "续借审批", businessType = BusinessType.UPDATE)
+    public AjaxResult approveRenew(long renewId, String result, String opinion) {
+        var user = getSysUser();
+        String name = user.getUserName() == null || user.getUserName().isBlank() ? getLoginName() : user.getUserName();
+        borrows.approveRenew(renewId, result, opinion, getLoginName(), getUserId(), name);
+        return success();
+    }
+
+    @GetMapping("/renew/pending")
+    @ResponseBody
+    @RequiresPermissions("borrowApprove")
+    public AjaxResult pendingRenews() {
+        return AjaxResult.success(borrows.selectPendingRenews());
     }
 
     @GetMapping("/export")

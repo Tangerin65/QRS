@@ -6,6 +6,7 @@ var borrow = (function () {
         WITHDRAWN: "已撤回", LENT: "已借出", RETURNED: "已归还"
     };
     var rowsById = {};
+    var RENEW_LABELS = { PENDING: "待审批", APPROVED: "已批准", REJECTED: "已驳回", WITHDRAWN: "已关闭" };
 
     function escape(value) {
         return $('<div>').text(value == null ? "" : value).html();
@@ -40,6 +41,9 @@ var borrow = (function () {
         }
         if (row.borrowStatus === "LENT" && flags.canReturn) {
             buttons.push('<a class="btn btn-danger btn-xs" onclick="borrow.giveBack(' + id + ')">登记归还</a>');
+        }
+        if (row.borrowStatus === "LENT" && flags.canApply) {
+            buttons.push('<a class="btn btn-primary btn-xs" onclick="borrow.openRenew(' + id + ')">续借</a>');
         }
         return buttons.join(' ');
     }
@@ -230,6 +234,58 @@ var borrow = (function () {
                 post("/withdraw", { borrowId: id }, function () { $.modal.msgSuccess("已撤回"); $.table.refresh(); loadStatistics(); });
             });
         },
+        openRenew: function (id) {
+            var row = rowsById[id] || {};
+            $("#renew-borrow-id").val(id);
+            $("#renew-date").val("");
+            $("#renew-reason").val("");
+            $("#renew-summary").text("借阅单 " + (row.borrowNo || "") + "，当前应归还日 " + (row.endDate || ""));
+            $("#renew-modal").modal("show");
+        },
+        submitRenew: function () {
+            var data = {
+                borrowId: $("#renew-borrow-id").val(),
+                requestedEndDate: $("#renew-date").val(),
+                reason: $.trim($("#renew-reason").val())
+            };
+            if (!data.requestedEndDate) return $.modal.alertWarning("请选择新的应归还日");
+            if (!data.reason) return $.modal.alertWarning("请填写续借原因");
+            post("/renew", data, function () {
+                $("#renew-modal").modal("hide");
+                $.modal.msgSuccess("续借申请已提交");
+                $.table.refresh();
+                loadStatistics();
+            });
+        },
+        openRenewals: function () {
+            $("#renewals-rows").html('<tr><td colspan="6" class="text-muted">加载中…</td></tr>');
+            $("#renewals-modal").modal("show");
+            $.get(prefix + "/renew/pending", function (res) {
+                if (res.code !== 0) return $("#renewals-rows").html('<tr><td colspan="6" class="text-danger">' + escape(res.msg) + '</td></tr>');
+                var rows = res.data || [];
+                if (!rows.length) return $("#renewals-rows").html('<tr><td colspan="6" class="text-muted">暂无待审批续借</td></tr>');
+                $("#renewals-rows").html(rows.map(function (r) {
+                    return "<tr><td>" + escape(r.borrowNo) + "</td><td>" + escape(r.archiveTitle) + "</td><td>" +
+                        escape(r.oldEndDate) + "</td><td>" + escape(r.requestedEndDate) + "</td><td>" + escape(r.reason) + "</td><td>" +
+                        '<a class="btn btn-primary btn-xs" onclick="borrow.decideRenew(' + r.renewId + ',\'APPROVED\')">批准</a> ' +
+                        '<a class="btn btn-danger btn-xs" onclick="borrow.decideRenew(' + r.renewId + ',\'REJECTED\')">驳回</a></td></tr>';
+                }).join(""));
+            });
+        },
+        decideRenew: function (id, result) {
+            var opinion = "";
+            if (result === "REJECTED") {
+                opinion = window.prompt("请输入驳回意见");
+                if (opinion === null) return;
+                if (!$.trim(opinion)) return $.modal.alertWarning("驳回必须填写意见");
+            }
+            post("/renew/approve", { renewId: id, result: result, opinion: opinion }, function () {
+                $.modal.msgSuccess(result === "APPROVED" ? "已批准续借" : "已驳回续借");
+                borrow.openRenewals();
+                $.table.refresh();
+                loadStatistics();
+            });
+        },
         detail: function (id) {
             $.get(prefix + "/detail/" + id, function (res) {
                 if (res.code !== 0) return $.modal.alertWarning(res.msg || "无法读取借阅单");
@@ -251,6 +307,12 @@ var borrow = (function () {
                         (a.result === "APPROVED" ? "批准" : "驳回") + "</td><td>" +
                         escape(a.opinion) + "</td><td>" + escape(dateTime(a.handledAt)) + "</td></tr>";
                 }).join(""));
+                var renews = ((d.params || {}).renews) || [];
+                $("#renew-rows").html(renews.length ? renews.map(function (r) {
+                    return "<tr><td>" + escape(r.oldEndDate) + "</td><td>" + escape(r.requestedEndDate) + "</td><td>" +
+                        escape(r.reason) + "</td><td>" + (RENEW_LABELS[r.renewStatus] || escape(r.renewStatus)) + "</td><td>" +
+                        escape(r.approverName) + "</td><td>" + escape(dateTime(r.handledAt)) + "</td></tr>";
+                }).join("") : '<tr><td colspan="6" class="text-muted">暂无续借记录</td></tr>');
                 $("#detail-modal").modal("show");
             });
         }

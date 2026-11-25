@@ -34,6 +34,7 @@
         </div>
         <div class="btn-group-sm" id="toolbar" role="group">
             <a class="btn btn-success" shiro:hasPermission="borrowApply" onclick="borrow.openApply()"><i class="fa fa-plus"></i> 申请借阅</a>
+            <a class="btn btn-primary" shiro:hasPermission="borrowApprove" onclick="borrow.openRenewals()"><i class="fa fa-clock-o"></i> 续借审批</a>
             <a class="btn btn-info" shiro:hasPermission="borrowImport" onclick="borrow.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
             <a class="btn btn-warning" shiro:hasPermission="borrowExport" onclick="borrow.exportExcel()"><i class="fa fa-download"></i> 导出</a>
             <a class="btn btn-default" onclick="borrow.print()"><i class="fa fa-print"></i> 打印</a>
@@ -89,6 +90,8 @@
             <pre id="borrow-detail" style="white-space:pre-wrap"></pre>
             <h5>审批记录</h5>
             <table class="table table-bordered"><thead><tr><th>审批人</th><th>结论</th><th>意见</th><th>时间</th></tr></thead><tbody id="approval-rows"></tbody></table>
+            <h5>续借记录</h5>
+            <table class="table table-bordered"><thead><tr><th>原应归还</th><th>申请新日期</th><th>原因</th><th>状态</th><th>审批人</th><th>处理时间</th></tr></thead><tbody id="renew-rows"></tbody></table>
         </div>
     </div></div>
 </div>
@@ -108,6 +111,29 @@
     </div></div>
 </div>
 
+<div class="modal fade" id="renew-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">续借申请</h4></div>
+        <div class="modal-body">
+            <input type="hidden" id="renew-borrow-id">
+            <p class="text-muted" id="renew-summary"></p>
+            <div class="form-group"><label for="renew-date">新的应归还日 <span class="text-danger">*</span></label><input id="renew-date" class="form-control borrow-date" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off"></div>
+            <div class="form-group"><label for="renew-reason">续借原因 <span class="text-danger">*</span></label><textarea id="renew-reason" class="form-control" rows="3" maxlength="500"></textarea></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button><button class="btn btn-primary" onclick="borrow.submitRenew()">提交续借</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="renewals-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">待审批续借</h4></div>
+        <div class="modal-body">
+            <table class="table table-bordered"><thead><tr><th>借阅单号</th><th>档案题名</th><th>原应归还</th><th>申请新日期</th><th>原因</th><th>操作</th></tr></thead><tbody id="renewals-rows"></tbody></table>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+
 <th:block th:include="include :: footer" />
 <th:block th:include="include :: datetimepicker-js" />
 <script th:inline="javascript">
@@ -118,6 +144,6 @@
         canReturn: /*[[${canReturn}]]*/ false
     };
 </script>
-<script th:src="@{/js/borrow/list.js(v='20261121-a')}"></script>
+<script th:src="@{/js/borrow/list.js(v='20261125-b')}"></script>
 </body>
 </html>

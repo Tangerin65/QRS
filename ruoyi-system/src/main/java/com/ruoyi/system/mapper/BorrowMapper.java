@@ -43,4 +43,26 @@ public interface BorrowMapper {
     Map<String, Object> selectArchiveByCode(@Param("archiveCode") String archiveCode);
 
     int insertImportedBorrow(BorrowRecord record);
+
+    /* 续借 */
+    int insertRenew(com.ruoyi.system.domain.BorrowRenew renew);
+
+    com.ruoyi.system.domain.BorrowRenew selectRenewById(@Param("renewId") long renewId);
+
+    int countPendingRenew(@Param("borrowId") long borrowId);
+
+    int approveRenew(@Param("renewId") long renewId, @Param("approverId") long approverId,
+                     @Param("approverName") String approverName, @Param("opinion") String opinion);
+
+    int rejectRenew(@Param("renewId") long renewId, @Param("approverId") long approverId,
+                    @Param("approverName") String approverName, @Param("opinion") String opinion);
+
+    int applyRenewToBorrow(@Param("borrowId") long borrowId, @Param("newEndDate") java.time.LocalDate newEndDate,
+                           @Param("operator") String operator);
+
+    int closePendingRenew(@Param("borrowId") long borrowId, @Param("operator") String operator);
+
+    List<com.ruoyi.system.domain.BorrowRenew> selectRenewsByBorrow(@Param("borrowId") long borrowId);
+
+    List<com.ruoyi.system.domain.BorrowRenew> selectPendingRenews();
 }

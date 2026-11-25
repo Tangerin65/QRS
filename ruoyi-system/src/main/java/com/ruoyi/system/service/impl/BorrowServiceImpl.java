@@ -6,6 +6,7 @@ import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.system.domain.ApprovalRecord;
 import com.ruoyi.system.domain.BorrowQuery;
 import com.ruoyi.system.domain.BorrowRecord;
+import com.ruoyi.system.domain.BorrowRenew;
 import com.ruoyi.system.mapper.BorrowMapper;
 import com.ruoyi.system.service.IBorrowService;
 import com.ruoyi.system.service.ISysUserService;
@@ -119,6 +120,66 @@ public class BorrowServiceImpl implements IBorrowService {
         return results;
     }
 
+    @Override
+    @Transactional
+    public BorrowRenew applyRenew(long borrowId, LocalDate requestedEndDate, String reason, String loginName, long userId) {
+        if (requestedEndDate == null) throw new ServiceException("请选择新的应归还日");
+        if (reason == null || reason.isBlank()) throw new ServiceException("请填写续借原因");
+        BorrowRecord record = requireBorrow(borrowId);
+        if (!LENT.equals(record.getBorrowStatus())) throw new ServiceException("只有已借出的借阅单可以续借");
+        if (record.getApplicantId() == null || record.getApplicantId() != userId) throw new ServiceException("只能续借本人的借阅单");
+        if (record.getEndDate() != null && !requestedEndDate.isAfter(record.getEndDate())) {
+            throw new ServiceException("新的应归还日必须晚于当前应归还日");
+        }
+        if (mapper.countPendingRenew(borrowId) > 0) throw new ServiceException("该借阅单已有待审批的续借申请");
+
+        BorrowRenew renew = new BorrowRenew();
+        renew.setBorrowId(borrowId);
+        renew.setApplicantId(userId);
+        renew.setApplicantName(loginName);
+        renew.setOldEndDate(record.getEndDate());
+        renew.setRequestedEndDate(requestedEndDate);
+        renew.setReason(reason);
+        renew.setCreateBy(loginName);
+        mapper.insertRenew(renew);
+        renew.setRenewStatus(PENDING);
+        return renew;
+    }
+
+    @Override
+    @Transactional
+    public void approveRenew(long renewId, String result, String opinion, String loginName, long userId, String userName) {
+        if (!APPROVED.equals(result) && !REJECTED.equals(result)) throw new ServiceException("审批结论不合法");
+        if (REJECTED.equals(result) && (opinion == null || opinion.isBlank())) throw new ServiceException("驳回必须填写意见");
+        BorrowRenew renew = mapper.selectRenewById(renewId);
+        if (renew == null) throw new ServiceException("续借申请不存在");
+        if (!PENDING.equals(renew.getRenewStatus())) throw new ServiceException("该续借申请已处理");
+        if (renew.getApplicantId() != null && renew.getApplicantId() == userId) {
+            throw new ServiceException("不能审批自己的续借申请");
+        }
+        BorrowRecord borrow = requireBorrow(renew.getBorrowId());
+        if (!LENT.equals(borrow.getBorrowStatus())) throw new ServiceException("借阅单已归还，不能续借");
+
+        int changed = APPROVED.equals(result)
+                ? mapper.approveRenew(renewId, userId, userName, opinion)
+                : mapper.rejectRenew(renewId, userId, userName, opinion);
+        if (changed == 0) throw new ServiceException("续借申请状态已变化，请刷新后重试");
+        if (APPROVED.equals(result)
+                && mapper.applyRenewToBorrow(renew.getBorrowId(), renew.getRequestedEndDate(), loginName) == 0) {
+            throw new ServiceException("借阅单状态已变化，续借未生效");
+        }
+    }
+
+    @Override
+    public List<BorrowRenew> selectRenews(long borrowId) {
+        return mapper.selectRenewsByBorrow(borrowId);
+    }
+
+    @Override
+    public List<BorrowRenew> selectPendingRenews() {
+        return mapper.selectPendingRenews();
+    }
+
     /** 排序白名单 + 默认按创建时间倒序。 */
     private String orderBy(BorrowQuery query) {
         String column = query.getOrderByColumn();
@@ -141,6 +202,7 @@ public class BorrowServiceImpl implements IBorrowService {
         decorate(record);
         Map<String, Object> extra = new HashMap<>();
         extra.put("approvals", mapper.selectApprovals(borrowId));
+        extra.put("renews", mapper.selectRenewsByBorrow(borrowId));
         record.setParams(extra);
         return record;
     }
@@ -220,6 +282,8 @@ public class BorrowServiceImpl implements IBorrowService {
         BorrowRecord record = requireBorrow(borrowId);
         if (!LENT.equals(record.getBorrowStatus())) throw new ServiceException("只有已借出的借阅单可以登记归还");
         if (mapper.markReturned(borrowId, userId, loginName) == 0) throw new ServiceException("借阅单状态已变化，请刷新后重试");
+        // 归还后关闭未结的续借申请，避免归还后还能被批准
+        mapper.closePendingRenew(borrowId, loginName);
     }
 
     @Override
