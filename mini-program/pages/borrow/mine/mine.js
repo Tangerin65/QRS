@@ -8,6 +8,7 @@ const STATUS_LABELS = {
 Page({
   data: {
     rows: [],
+    stats: { total: 0, lent: 0, overdue: 0, pending: 0 },
     loading: true,
     error: ''
   },
@@ -25,10 +26,26 @@ Page({
           overdueText: row.overdue ? '已逾期' : ''
         }));
         this.setData({ rows, loading: false });
+        this.loadStats();
       })
       .catch((error) => {
         this.setData({ error: (error && error.message) || '加载失败', loading: false });
       });
+  },
+
+  loadStats() {
+    request.get('/api/mobile/borrow/statistics', {})
+      .then((data) => {
+        this.setData({
+          stats: {
+            total: Number(data.total || 0),
+            lent: Number(data.lent || 0),
+            overdue: Number(data.overdue || 0),
+            pending: Number(data.pending || 0)
+          }
+        });
+      })
+      .catch(() => {});
   },
 
   goApply() {

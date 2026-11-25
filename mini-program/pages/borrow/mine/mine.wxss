@@ -5,6 +5,37 @@
   padding: 24rpx 32rpx 8rpx;
 }
 
+.stats {
+  display: flex;
+  margin: 16rpx 32rpx 0;
+  padding: 20rpx 0;
+  background: #fff;
+  border-radius: 16rpx;
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat .num {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.stat .num.warn {
+  color: #d9534f;
+}
+
+.stat .label {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #7a8999;
+}
+
 .borrow-item .row {
   display: flex;
   align-items: center;

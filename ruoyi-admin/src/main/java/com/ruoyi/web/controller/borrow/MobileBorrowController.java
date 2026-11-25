@@ -98,6 +98,17 @@ public class MobileBorrowController {
         }
     }
 
+    /** 本人借阅统计：服务端固定当前用户，按状态计数并统计逾期。 */
+    @GetMapping("/statistics")
+    public ResponseEntity<Map<String, Object>> statistics(@RequestHeader(value = "Authorization", required = false) String auth) {
+        SysUser user = current(auth);
+        if (user == null) return unauthorized();
+        BorrowQuery query = new BorrowQuery();
+        query.setUserId(user.getUserId());
+        query.setCanApprove(false);
+        return ok(borrows.statistics(query));
+    }
+
     /** 借阅详情（本人或审批人）。 */
     @GetMapping("/detail/{borrowId}")
     public ResponseEntity<Map<String, Object>> detail(@RequestHeader(value = "Authorization", required = false) String auth,
