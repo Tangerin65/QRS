@@ -163,6 +163,20 @@ public class BorrowController extends BaseController {
         return AjaxResult.success(borrows.selectPendingRenews());
     }
 
+    @GetMapping("/depts")
+    @ResponseBody
+    @RequiresPermissions(QUERY)
+    public AjaxResult depts() {
+        return AjaxResult.success(borrows.selectDepts());
+    }
+
+    @GetMapping("/dashboard")
+    @RequiresPermissions(QUERY)
+    public String dashboard(Model model) {
+        model.addAttribute("operator", getLoginName());
+        return "borrow/dashboard";
+    }
+
     @GetMapping("/export")
     @RequiresPermissions("borrowExport")
     @Log(title = "借阅导出", businessType = BusinessType.EXPORT)

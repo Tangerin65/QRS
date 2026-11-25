@@ -71,4 +71,6 @@ public interface BorrowMapper {
                     @Param("actorName") String actorName, @Param("detail") String detail);
 
     List<Map<String, Object>> selectBorrowAudits(@Param("archiveId") Long archiveId);
+
+    List<Map<String, Object>> selectBorrowDepts();
 }

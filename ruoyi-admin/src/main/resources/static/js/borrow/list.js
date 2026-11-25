@@ -68,6 +68,17 @@ var borrow = (function () {
         });
     }
 
+    function loadDepts() {
+        $.get(prefix + "/depts", function (res) {
+            if (res.code !== 0) return;
+            var html = '<option value="">全部部门</option>';
+            (res.data || []).forEach(function (item) {
+                html += '<option value="' + item.deptId + '">' + escape(item.deptName) + '</option>';
+            });
+            $("#filter-dept").html(html);
+        });
+    }
+
     function initTable() {
         $.table.init({
             url: prefix + "/list",
@@ -125,6 +136,7 @@ var borrow = (function () {
         init: function () {
             initDates();
             initTable();
+            loadDepts();
             loadStatistics();
         },
         search: function () {
@@ -136,6 +148,29 @@ var borrow = (function () {
         },
         print: function () {
             window.open(prefix + "/print?" + $.param(queryParams()));
+        },
+        openChart: function () {
+            $("#chart-modal").modal("show");
+            $.post(prefix + "/statistics", queryParams(), function (res) {
+                if (res.code !== 0) return;
+                var d = res.data || {};
+                var chart = echarts.init(document.getElementById("list-chart"));
+                chart.setOption({
+                    tooltip: { trigger: "item" },
+                    legend: { bottom: 0 },
+                    series: [{
+                        type: "pie", radius: ["40%", "65%"],
+                        data: [
+                            { name: "待审批", value: d.pending || 0 },
+                            { name: "已批准", value: d.approved || 0 },
+                            { name: "已借出", value: d.lent || 0 },
+                            { name: "已归还", value: d.returned || 0 },
+                            { name: "已驳回", value: d.rejected || 0 },
+                            { name: "已撤回", value: d.withdrawn || 0 }
+                        ].filter(function (item) { return item.value > 0; })
+                    }]
+                }, true);
+            });
         },
         openImport: function () {
             $("#import-file").val("");

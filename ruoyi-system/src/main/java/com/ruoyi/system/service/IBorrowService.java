@@ -33,6 +33,9 @@ public interface IBorrowService {
     com.ruoyi.system.domain.BorrowRenew applyRenew(long borrowId, java.time.LocalDate requestedEndDate, String reason,
                                                    String loginName, long userId);
 
+    /** 借阅单里出现过的部门，用于统计筛选。 */
+    List<Map<String, Object>> selectDepts();
+
     /** 审批续借：APPROVED 时同步延长原借阅单的应归还日。 */
     void approveRenew(long renewId, String result, String opinion, String loginName, long userId, String userName);
 

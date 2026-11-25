@@ -18,11 +18,12 @@
                             <option value="">全部</option>
                             <option value="PENDING">待审批</option>
                             <option value="APPROVED">已批准</option>
-                            <option value="REJECTED">已驳回</option>
-                            <option value="WITHDRAWN">已撤回</option>
                             <option value="LENT">已借出</option>
                             <option value="RETURNED">已归还</option>
+                            <option value="REJECTED">已驳回</option>
+                            <option value="WITHDRAWN">已撤回</option>
                         </select></li>
+                        <li>部门：<select id="filter-dept" name="deptId" aria-label="按部门筛选"><option value="">全部部门</option></select></li>
                         <li>应归还日：<input class="borrow-date" name="dateFrom" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="应归还日起"> 至 <input class="borrow-date" name="dateTo" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off" aria-label="应归还日止"></li>
                         <li>
                             <a class="btn btn-primary btn-rounded btn-sm" onclick="borrow.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
@@ -38,6 +39,7 @@
             <a class="btn btn-info" shiro:hasPermission="borrowImport" onclick="borrow.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
             <a class="btn btn-warning" shiro:hasPermission="borrowExport" onclick="borrow.exportExcel()"><i class="fa fa-download"></i> 导出</a>
             <a class="btn btn-default" onclick="borrow.print()"><i class="fa fa-print"></i> 打印</a>
+            <a class="btn btn-default" onclick="borrow.openChart()"><i class="fa fa-pie-chart"></i> 统计图</a>
             <span class="text-muted" id="statistics" style="margin-left:12px"></span>
             <span class="text-muted" id="summary" style="margin-left:12px"></span>
         </div>
@@ -136,7 +138,16 @@
     </div></div>
 </div>
 
+<div class="modal fade" id="chart-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">借阅状态分布</h4></div>
+        <div class="modal-body"><div id="list-chart" style="height:360px;"></div></div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+
 <th:block th:include="include :: footer" />
+<script th:src="@{/ajax/libs/report/echarts/echarts-all.min.js}"></script>
 <th:block th:include="include :: datetimepicker-js" />
 <script th:inline="javascript">
     window.borrowFlags = {
@@ -146,6 +157,6 @@
         canReturn: /*[[${canReturn}]]*/ false
     };
 </script>
-<script th:src="@{/js/borrow/list.js(v='20261125-c')}"></script>
+<script th:src="@{/js/borrow/list.js(v='20261125-d')}"></script>
 </body>
 </html>

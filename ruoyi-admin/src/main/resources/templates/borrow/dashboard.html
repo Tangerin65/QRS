@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('借阅驾驶舱')" />
+</head>
+<body class="gray-bg">
+<div class="container-div">
+    <div class="row">
+        <div class="col-sm-12">
+            <h4>借阅驾驶舱　<small class="text-muted">当前用户：<span th:text="${operator}"></span></small></h4>
+        </div>
+        <div class="col-sm-4">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title"><h5>待审批</h5></div>
+                <div class="ibox-content"><h1 id="metric-pending" style="margin:0">-</h1></div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title"><h5>已借出</h5></div>
+                <div class="ibox-content"><h1 id="metric-lent" style="margin:0">-</h1></div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title"><h5>逾期</h5></div>
+                <div class="ibox-content"><h1 id="metric-overdue" style="margin:0;color:#d9534f">-</h1></div>
+            </div>
+        </div>
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title"><h5>状态分布</h5></div>
+                <div class="ibox-content">
+                    <div id="status-chart" style="height:320px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:include="include :: footer" />
+<script th:src="@{/ajax/libs/report/echarts/echarts-all.min.js}"></script>
+<script th:inline="javascript">
+    var borrowPrefix = /*[[@{/borrow}]]*/ '/borrow';
+</script>
+<script>
+    $(function () {
+        $.post(borrowPrefix + "/statistics", {}, function (res) {
+            if (res.code !== 0) return;
+            var d = res.data || {};
+            $("#metric-pending").text(d.pending || 0);
+            $("#metric-lent").text(d.lent || 0);
+            $("#metric-overdue").text(d.overdue || 0);
+            var chart = echarts.init(document.getElementById('status-chart'));
+            chart.setOption({
+                tooltip: { trigger: 'item' },
+                legend: { bottom: 0 },
+                series: [{
+                    type: 'pie', radius: ['40%', '65%'],
+                    data: [
+                        { name: '待审批', value: d.pending || 0 },
+                        { name: '已批准', value: d.approved || 0 },
+                        { name: '已借出', value: d.lent || 0 },
+                        { name: '已归还', value: d.returned || 0 },
+                        { name: '已驳回', value: d.rejected || 0 },
+                        { name: '已撤回', value: d.withdrawn || 0 }
+                    ].filter(function (item) { return item.value > 0; })
+                }]
+            });
+        });
+    });
+</script>
+</body>
+</html>

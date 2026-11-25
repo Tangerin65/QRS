@@ -11,6 +11,7 @@ public class BorrowQuery extends BaseEntity {
     private String archiveTitle;
     private String applicantName;
     private String borrowStatus;
+    private Long deptId;
     private LocalDate dateFrom;
     private LocalDate dateTo;
     private Long userId;
@@ -31,6 +32,8 @@ public class BorrowQuery extends BaseEntity {
     public void setApplicantName(String applicantName) { this.applicantName = applicantName; }
     public String getBorrowStatus() { return borrowStatus; }
     public void setBorrowStatus(String borrowStatus) { this.borrowStatus = borrowStatus; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public LocalDate getDateFrom() { return dateFrom; }
     public void setDateFrom(LocalDate dateFrom) { this.dateFrom = dateFrom; }
     public LocalDate getDateTo() { return dateTo; }

@@ -47,6 +47,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="archiveTitle != null and archiveTitle != ''">and a.title like concat('%',#{archiveTitle},'%')</if>
             <if test="applicantName != null and applicantName != ''">and b.applicant_name like concat('%',#{applicantName},'%')</if>
             <if test="borrowStatus != null and borrowStatus != ''">and b.borrow_status = #{borrowStatus}</if>
+            <if test="deptId != null">and b.applicant_dept_id = #{deptId}</if>
             <if test="dateFrom != null">and b.end_date &gt;= #{dateFrom}</if>
             <if test="dateTo != null">and b.end_date &lt;= #{dateTo}</if>
         </where>
@@ -65,6 +66,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                coalesce(sum(case when b.borrow_status = 'APPROVED' then 1 else 0 end), 0) as approved,
                coalesce(sum(case when b.borrow_status = 'LENT' then 1 else 0 end), 0) as lent,
                coalesce(sum(case when b.borrow_status = 'RETURNED' then 1 else 0 end), 0) as returned,
+               coalesce(sum(case when b.borrow_status = 'REJECTED' then 1 else 0 end), 0) as rejected,
+               coalesce(sum(case when b.borrow_status = 'WITHDRAWN' then 1 else 0 end), 0) as withdrawn,
                coalesce(sum(case when b.borrow_status = 'LENT' and b.end_date &lt; curdate() then 1 else 0 end), 0) as overdue
         from arc_borrow b
         join arc_archive a on a.archive_id = b.archive_id
@@ -275,5 +278,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where archive_id = #{archiveId} and event_type like 'BORROW%'
         order by event_time desc, event_id desc
         limit 50
+    </select>
+
+    <select id="selectBorrowDepts" resultType="java.util.Map">
+        select distinct b.applicant_dept_id as deptId, d.dept_name as deptName
+        from arc_borrow b
+        join sys_dept d on d.dept_id = b.applicant_dept_id
+        where b.applicant_dept_id is not null
+        order by d.dept_name
     </select>
 </mapper>

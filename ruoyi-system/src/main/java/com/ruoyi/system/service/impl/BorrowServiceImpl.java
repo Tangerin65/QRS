@@ -187,6 +187,11 @@ public class BorrowServiceImpl implements IBorrowService {
         return mapper.selectPendingRenews();
     }
 
+    @Override
+    public List<Map<String, Object>> selectDepts() {
+        return mapper.selectBorrowDepts();
+    }
+
     /** 借阅关键动作写入 arc_audit_event，便于详情页追溯。 */
     private void audit(BorrowRecord record, String type, long actorId, String actorName, String detail) {
         if (record == null || record.getArchiveId() == null) return;
