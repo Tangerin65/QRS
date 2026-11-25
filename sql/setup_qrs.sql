@@ -862,6 +862,9 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     summary VARCHAR(1000) NOT NULL DEFAULT '',
     metadata_json JSON NOT NULL,
     archive_status VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+    archive_date DATE DEFAULT NULL,
+    retention_end_date DATE DEFAULT NULL,
+    location_id BIGINT DEFAULT NULL,
     version INT NOT NULL DEFAULT 1,
     dept_id BIGINT NOT NULL,
     create_by VARCHAR(64) NOT NULL,
@@ -874,7 +877,9 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     KEY idx_arc_archive_category (category_id, del_flag, archive_status),
     KEY idx_arc_archive_owner (create_by, del_flag, archive_status),
     KEY idx_arc_archive_dept (dept_id, del_flag, archive_status),
-    KEY idx_arc_archive_forming_date (forming_date)
+    KEY idx_arc_archive_forming_date (forming_date),
+    KEY idx_arc_archive_retention_end (retention_end_date),
+    KEY idx_arc_archive_location (location_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案登记信息';
 
 CREATE TABLE IF NOT EXISTS arc_audit_event (
@@ -944,6 +949,64 @@ JOIN sys_dict_data d ON d.dict_type COLLATE utf8mb4_0900_ai_ci = _utf8mb4'arc_re
     AND d.dict_value COLLATE utf8mb4_0900_ai_ci = a.retention_code COLLATE utf8mb4_0900_ai_ci
 SET a.retention_name = d.dict_label
 WHERE a.retention_name = '';
+
+
+-- M10归档字段迁移（归档日期、保管到期日、库位）
+
+SET @has_archive_date = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'archive_date'
+);
+SET @archive_date_sql = IF(@has_archive_date = 0,
+    'ALTER TABLE arc_archive ADD COLUMN archive_date DATE DEFAULT NULL AFTER archive_status',
+    'SELECT 1');
+PREPARE archive_date_stmt FROM @archive_date_sql;
+EXECUTE archive_date_stmt;
+DEALLOCATE PREPARE archive_date_stmt;
+
+SET @has_retention_end_date = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'retention_end_date'
+);
+SET @retention_end_date_sql = IF(@has_retention_end_date = 0,
+    'ALTER TABLE arc_archive ADD COLUMN retention_end_date DATE DEFAULT NULL AFTER archive_date',
+    'SELECT 1');
+PREPARE retention_end_date_stmt FROM @retention_end_date_sql;
+EXECUTE retention_end_date_stmt;
+DEALLOCATE PREPARE retention_end_date_stmt;
+
+SET @has_location_id = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'location_id'
+);
+SET @location_id_sql = IF(@has_location_id = 0,
+    'ALTER TABLE arc_archive ADD COLUMN location_id BIGINT DEFAULT NULL AFTER retention_end_date',
+    'SELECT 1');
+PREPARE location_id_stmt FROM @location_id_sql;
+EXECUTE location_id_stmt;
+DEALLOCATE PREPARE location_id_stmt;
+
+SET @has_idx_retention_end = (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND index_name = 'idx_arc_archive_retention_end'
+);
+SET @idx_retention_end_sql = IF(@has_idx_retention_end = 0,
+    'ALTER TABLE arc_archive ADD KEY idx_arc_archive_retention_end (retention_end_date)',
+    'SELECT 1');
+PREPARE idx_retention_end_stmt FROM @idx_retention_end_sql;
+EXECUTE idx_retention_end_stmt;
+DEALLOCATE PREPARE idx_retention_end_stmt;
+
+SET @has_idx_location = (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND index_name = 'idx_arc_archive_location'
+);
+SET @idx_location_sql = IF(@has_idx_location = 0,
+    'ALTER TABLE arc_archive ADD KEY idx_arc_archive_location (location_id)',
+    'SELECT 1');
+PREPARE idx_location_stmt FROM @idx_location_sql;
+EXECUTE idx_location_stmt;
+DEALLOCATE PREPARE idx_location_stmt;
 
 
 -- M01档案登记权限
@@ -1029,6 +1092,89 @@ CREATE TABLE IF NOT EXISTS arc_file (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案附件';
 
 
+
+-- M10归档与库位
+
+CREATE TABLE IF NOT EXISTS arc_location (
+    location_id   BIGINT NOT NULL AUTO_INCREMENT,
+    parent_id     BIGINT DEFAULT NULL,
+    location_level VARCHAR(16) NOT NULL DEFAULT 'RACK',
+    location_code VARCHAR(32) NOT NULL,
+    location_name VARCHAR(120) NOT NULL,
+    capacity      INT DEFAULT NULL,
+    status        TINYINT NOT NULL DEFAULT 0,
+    sort_no       INT NOT NULL DEFAULT 0,
+    remark        VARCHAR(500) NOT NULL DEFAULT '',
+    create_by     VARCHAR(64) NOT NULL DEFAULT '',
+    create_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by     VARCHAR(64) DEFAULT NULL,
+    update_time   DATETIME DEFAULT NULL,
+    PRIMARY KEY (location_id),
+    UNIQUE KEY uk_arc_location_code (location_code),
+    KEY idx_arc_location_parent (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案库位';
+
+CREATE TABLE IF NOT EXISTS arc_archive_batch (
+    batch_id       BIGINT NOT NULL AUTO_INCREMENT,
+    batch_no       VARCHAR(32) NOT NULL,
+    applicant_id   BIGINT NOT NULL,
+    applicant_name VARCHAR(64) NOT NULL DEFAULT '',
+    total_count    INT NOT NULL DEFAULT 0,
+    success_count  INT NOT NULL DEFAULT 0,
+    fail_count     INT NOT NULL DEFAULT 0,
+    batch_status   VARCHAR(16) NOT NULL DEFAULT 'RUNNING',
+    location_id    BIGINT DEFAULT NULL,
+    submit_time    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finish_time    DATETIME DEFAULT NULL,
+    remark         VARCHAR(500) NOT NULL DEFAULT '',
+    PRIMARY KEY (batch_id),
+    UNIQUE KEY uk_arc_batch_no (batch_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次';
+
+CREATE TABLE IF NOT EXISTS arc_archive_batch_item (
+    item_id      BIGINT NOT NULL AUTO_INCREMENT,
+    batch_id     BIGINT NOT NULL,
+    archive_id   BIGINT NOT NULL,
+    archive_code VARCHAR(96) NOT NULL DEFAULT '',
+    title        VARCHAR(200) NOT NULL DEFAULT '',
+    item_result  VARCHAR(8) NOT NULL,
+    reason_code  VARCHAR(32) NOT NULL DEFAULT '',
+    reason       VARCHAR(200) NOT NULL DEFAULT '',
+    PRIMARY KEY (item_id),
+    KEY idx_arc_batch_item_batch (batch_id, item_result)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次明细';
+
+
+-- M10归档与库位权限
+START TRANSACTION;
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '档案归档',0,7,'/records/archiving','menuItem','C','0','1','archiveArchivingQuery','fa fa-archive','admin',NOW(),'M10 档案归档'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/archiving');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '归档批次',0,8,'/records/batch','menuItem','C','0','1','archiveBatchQuery','fa fa-list-alt','admin',NOW(),'M10 归档批次'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/batch');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '库位管理',0,9,'/records/location','menuItem','C','0','1','archiveLocationQuery','fa fa-cubes','admin',NOW(),'M10 库位管理'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/records/location');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT action.menu_name,parent.menu_id,action.order_num,'#','','F','0','1',action.perms,'#','admin',NOW(),'M10 归档操作权限'
+FROM (SELECT '提交归档' menu_name,1 order_num,'archiveArchivingSubmit' perms UNION ALL
+      SELECT '归档退回补正',2,'archiveArchivingReturn') action
+JOIN (SELECT menu_id FROM sys_menu WHERE url='/records/archiving' ORDER BY menu_id LIMIT 1) parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu existing WHERE existing.parent_id=parent.menu_id AND existing.perms=action.perms);
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT action.menu_name,parent.menu_id,action.order_num,'#','','F','0','1',action.perms,'#','admin',NOW(),'M10 库位操作权限'
+FROM (SELECT '维护库位' menu_name,1 order_num,'archiveLocationManage' perms) action
+JOIN (SELECT menu_id FROM sys_menu WHERE url='/records/location' ORDER BY menu_id LIMIT 1) parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu existing WHERE existing.parent_id=parent.menu_id AND existing.perms=action.perms);
+
+COMMIT;
+
 -- M02附件权限
 START TRANSACTION;
 
@@ -1045,5 +1191,227 @@ WHERE url='/records/workbench' OR menu_name='若依官网' OR url IN ('http://ru
 
 COMMIT;
 
+-- M04 元数据模板
+-- 同一分类的版本各占一行，字段通过 template_id 关联到具体版本。
+CREATE TABLE IF NOT EXISTS arc_meta_template (
+    template_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    category_id BIGINT NOT NULL,
+    version_no INT NOT NULL,
+    template_name VARCHAR(120) NOT NULL,
+    create_by VARCHAR(64) NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_arc_meta_template_version (category_id, version_no),
+    CONSTRAINT fk_arc_meta_template_category FOREIGN KEY (category_id) REFERENCES arc_category (category_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS arc_meta_field (
+    field_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    template_id BIGINT NOT NULL,
+    field_key VARCHAR(32) NOT NULL,
+    field_name VARCHAR(120) NOT NULL,
+    field_type VARCHAR(20) NOT NULL,
+    required TINYINT NOT NULL DEFAULT 0,
+    sort_no INT NOT NULL,
+    UNIQUE KEY uk_arc_meta_field_key (template_id, field_key),
+    CONSTRAINT fk_arc_meta_field_template FOREIGN KEY (template_id) REFERENCES arc_meta_template (template_id),
+    CONSTRAINT ck_arc_meta_field_type CHECK (field_type IN ('text', 'number', 'date'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- ============================================================
+-- M12-A 账号与组织底座（合并自 sql/m12_account_001.sql）
+-- 依赖：本文件上方的若依基础表（sys_user / sys_dept / sys_role / sys_user_role）
+--
+-- 【维护须知】新增 sys_user 字段必须用下面的 ALTER TABLE + information_schema 判断，
+-- 不要改写上方第 36 行起的 create table sys_user。因为该建表语句之后紧跟的两条
+-- insert 是「按位置赋值」且没有写字段名，一旦在 create table 中间插入新列，
+-- 这两条 insert 会立刻报 ERROR 1136 Column count doesn't match value count。
+--
+-- 本段可重复执行：已存在时走 DO 0，不做任何修改。
+-- ============================================================
+START TRANSACTION;
+
+-- 1. sys_user.user_no 业务用户编号（对外业务编号，二维码内容）
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD COLUMN user_no VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''用户编号（对外业务编号，二维码内容）'' AFTER user_id',
+        'DO 0')
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND column_name = 'user_no'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 存量账号补编号：按 user_id 左补零到 4 位，例如 1 → 0001。已是 4 位以上时保持不变。
+UPDATE sys_user SET user_no = LPAD(user_id, 4, '0') WHERE user_no = '' OR user_no IS NULL;
+
+-- 用户编号跨账号唯一（也正是二维码绑定的查找依据）
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD UNIQUE KEY uk_sys_user_user_no (user_no)',
+        'DO 0')
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND index_name = 'uk_sys_user_user_no'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 2. sys_user 档案业务字段
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD COLUMN arc_archivist CHAR(1) NOT NULL DEFAULT ''0'' COMMENT ''是否档案员（0否 1是）''',
+        'DO 0')
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND column_name = 'arc_archivist'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD COLUMN arc_secret_level VARCHAR(20) NOT NULL DEFAULT '''' COMMENT ''密级上限引用（代码值，规则由 M13 判定）''',
+        'DO 0')
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND column_name = 'arc_secret_level'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 清单按「部门 + 状态」组合筛选，补一个联合索引
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_user ADD INDEX idx_sys_user_dept_status (dept_id, status)',
+        'DO 0')
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'sys_user' AND index_name = 'idx_sys_user_dept_status'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 3. wx_binding 微信身份绑定表
+--    模块一只建表并在详情里展示绑定状态，不写绑定业务；绑定/解绑在模块二
+--    一个 open_id 同时只允许绑定一个平台账号 → open_id 唯一
+--    bind_version 在解绑/停用时递增，用于让该账号的旧令牌全部失效
+CREATE TABLE IF NOT EXISTS wx_binding (
+    binding_id   BIGINT       NOT NULL AUTO_INCREMENT COMMENT '绑定ID',
+    user_id      BIGINT       NOT NULL COMMENT '平台账号ID（sys_user.user_id）',
+    open_id      VARCHAR(64)  NOT NULL COMMENT '微信 OpenID（仅服务端用 code 换取）',
+    union_id     VARCHAR(64)  NULL COMMENT '微信 UnionID（同一开放平台下才有）',
+    bind_version INT          NOT NULL DEFAULT 1 COMMENT '绑定版本，解绑/停用时递增',
+    status       TINYINT      NOT NULL DEFAULT 1 COMMENT '1 有效，0 已解绑',
+    bound_at     DATETIME     NULL COMMENT '绑定时间',
+    unbound_at   DATETIME     NULL COMMENT '解绑时间',
+    create_by    VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '创建者',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (binding_id),
+    UNIQUE KEY uk_wx_binding_open_id (open_id),
+    KEY idx_wx_binding_user (user_id, status),
+    CONSTRAINT ck_wx_binding_status CHECK (status IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信身份绑定';
+
+COMMIT;
 
 
+-- ============================================================
+-- M12-B 微信绑定与小程序自动登录（合并自 sql/m12_binding_001.sql）
+-- 依赖：M12-A 已执行（wx_binding 在模块一已建，这里用 IF NOT EXISTS 再兜一次）
+-- 本段可重复执行。
+-- ============================================================
+START TRANSACTION;
+
+-- wx_binding 兜底（模块一已建）
+CREATE TABLE IF NOT EXISTS wx_binding (
+    binding_id   BIGINT       NOT NULL AUTO_INCREMENT COMMENT '绑定ID',
+    user_id      BIGINT       NOT NULL COMMENT '平台账号ID（sys_user.user_id）',
+    open_id      VARCHAR(64)  NOT NULL COMMENT '微信 OpenID（仅服务端用 code 换取）',
+    union_id     VARCHAR(64)  NULL COMMENT '微信 UnionID（同一开放平台下才有）',
+    bind_version INT          NOT NULL DEFAULT 1 COMMENT '绑定版本，解绑/停用时递增',
+    status       TINYINT      NOT NULL DEFAULT 1 COMMENT '1 有效，0 已解绑',
+    bound_at     DATETIME     NULL COMMENT '绑定时间',
+    unbound_at   DATETIME     NULL COMMENT '解绑时间',
+    create_by    VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '创建者',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (binding_id),
+    UNIQUE KEY uk_wx_binding_open_id (open_id),
+    KEY idx_wx_binding_user (user_id, status),
+    CONSTRAINT ck_wx_binding_status CHECK (status IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信身份绑定';
+
+-- wx_token 小程序会话令牌
+--    token_digest 是令牌明文的 SHA-256 十六进制串（64 位），明文不落库；
+--    bind_version 记录签发时的绑定版本，与 wx_binding.bind_version 比对即可让旧令牌失效；
+--    revoked_at 非空表示已撤销（主动退出或管理员强制下线）。
+CREATE TABLE IF NOT EXISTS wx_token (
+    token_id     BIGINT       NOT NULL AUTO_INCREMENT COMMENT '令牌ID',
+    token_digest CHAR(64)     NOT NULL COMMENT '令牌明文的 SHA-256 摘要（十六进制）',
+    user_id      BIGINT       NOT NULL COMMENT '平台账号ID（sys_user.user_id）',
+    bind_version INT          NOT NULL COMMENT '签发时的绑定版本',
+    expires_at   DATETIME     NOT NULL COMMENT '到期时间',
+    revoked_at   DATETIME     NULL COMMENT '撤销时间，非空即已失效',
+    client_type  VARCHAR(20)  NOT NULL DEFAULT 'miniapp' COMMENT '客户端类型（miniapp 小程序 / pc 电脑端）',
+    create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '签发时间',
+    PRIMARY KEY (token_id),
+    UNIQUE KEY uk_wx_token_digest (token_digest),
+    KEY idx_wx_token_user (user_id, revoked_at),
+    KEY idx_wx_token_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='小程序会话令牌';
+
+COMMIT;
+
+
+-- ============================================================
+-- M12-A 账号菜单与权限点（合并自 sql/m12_account_menu.sql）
+-- 依赖：M12-A 表结构已执行
+-- 特点：可重复执行（WHERE NOT EXISTS 防重）；不自动给角色授权
+-- 权限点：
+--   arc:account:view    账号清单、详情、统计、导出、打印
+--   arc:account:manage  新增、修改、停用/启用、导入、绑定二维码
+--   arc:account:export  单独授予「导出」能力
+-- 说明：order_num 取 10，8 已被 M10「归档批次」占用，避免左侧菜单顺序不稳定。
+--       普通角色需在「系统管理 → 角色管理 → 修改 → 菜单权限」中勾选后重新登录。
+-- ============================================================
+START TRANSACTION;
+
+-- 一级菜单：档案账号管理
+INSERT INTO sys_menu(menu_name, parent_id, order_num, url, target, menu_type, visible, is_refresh, perms, icon, create_by, create_time, remark)
+SELECT '档案账号管理', 0, 10, '/archive/account', 'menuItem', 'C', '0', '1', 'arc:account:view', 'fa fa-users', 'admin', NOW(), 'M12-A 账号与组织底座'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url = '/archive/account');
+
+-- 按钮权限：维护权限
+INSERT INTO sys_menu(menu_name, parent_id, order_num, url, target, menu_type, visible, is_refresh, perms, icon, create_by, create_time, remark)
+SELECT '新增、修改、停用、导入与绑定二维码', menu_id, 1, '#', '', 'F', '0', '1', 'arc:account:manage', '#', 'admin', NOW(), 'M12-A 维护权限'
+FROM (SELECT menu_id FROM sys_menu WHERE url = '/archive/account' ORDER BY menu_id LIMIT 1) AS parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE parent_id = parent.menu_id AND perms = 'arc:account:manage');
+
+-- 按钮权限：导出（单独列出，便于只读角色单独授予导出能力）
+INSERT INTO sys_menu(menu_name, parent_id, order_num, url, target, menu_type, visible, is_refresh, perms, icon, create_by, create_time, remark)
+SELECT '导出账号清单', menu_id, 2, '#', '', 'F', '0', '1', 'arc:account:export', '#', 'admin', NOW(), 'M12-A 导出权限'
+FROM (SELECT menu_id FROM sys_menu WHERE url = '/archive/account' ORDER BY menu_id LIMIT 1) AS parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE parent_id = parent.menu_id AND perms = 'arc:account:export');
+
+COMMIT;
+
+-- M12 回退说明：
+--   1) 先在角色管理撤销授权，再删除备注为 'M12-A%' 的菜单记录：
+--      DELETE FROM sys_menu WHERE perms IN ('arc:account:view', 'arc:account:manage', 'arc:account:export');
+--   2) DROP TABLE wx_token;
+--      DROP TABLE wx_binding;
+--      ALTER TABLE sys_user DROP INDEX uk_sys_user_user_no;
+--      ALTER TABLE sys_user DROP INDEX idx_sys_user_dept_status;
+--      ALTER TABLE sys_user DROP COLUMN user_no, DROP COLUMN arc_archivist, DROP COLUMN arc_secret_level;
+
+START TRANSACTION;
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '元数据模板',0,10,'/archive/meta-template','menuItem','C','0','1','arc:meta:view','fa fa-list-alt','admin',NOW(),'M04 元数据模板'
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE url='/archive/meta-template');
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT '维护元数据模板',menu_id,1,'#','','F','0','1','arc:meta:manage','#','admin',NOW(),'M04 模板维护权限'
+FROM (SELECT menu_id FROM sys_menu WHERE url='/archive/meta-template' AND perms='arc:meta:view' LIMIT 1) parent
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE parent_id=parent.menu_id AND perms='arc:meta:manage');
+
+COMMIT;

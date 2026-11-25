@@ -15,6 +15,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="retentionCode" column="retention_code"/>
         <result property="retentionName" column="retention_name"/>
         <result property="summary" column="summary"/>
+        <result property="matchedAttachment" column="matched_attachment"/>
+        <result property="attachmentExcerpt" column="attachment_excerpt"/>
         <result property="metadataJson" column="metadata_json"/>
         <result property="archiveStatus" column="archive_status"/>
         <result property="version" column="version"/>
@@ -33,12 +35,29 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="selectArchiveList" parameterType="com.ruoyi.system.domain.ArchiveQuery" resultMap="ArchiveResult">
         select <include refid="archiveColumns"/>
+        <if test="searchAttachments">
+            , hit.display_name as matched_attachment,
+              substring(body.content,greatest(locate(#{keyword},body.content)-30,1),char_length(#{keyword})+60) as attachment_excerpt
+        </if>
         from arc_archive a left join arc_category c on c.category_id=a.category_id
+        <if test="searchAttachments">
+            left join arc_file hit on hit.file_id=(
+                select min(f.file_id)
+                from arc_file f join arc_file_text t on t.file_id=f.file_id and t.source_sha256=f.sha256
+                where f.archive_id=a.archive_id and locate(#{keyword},t.content) &gt; 0
+            )
+            left join arc_file_text body on body.file_id=hit.file_id and body.source_sha256=hit.sha256
+        </if>
         <where>
             a.del_flag='0'
             <if test="!admin">and a.create_by=#{ownerName}</if>
             <if test="archiveCode != null and archiveCode != ''">and a.archive_code like concat('%',#{archiveCode},'%')</if>
             <if test="title != null and title != ''">and a.title like concat('%',#{title},'%')</if>
+            <if test="keyword != null and keyword != ''">
+                and (locate(#{keyword}, a.archive_code) &gt; 0 or locate(#{keyword}, a.title) &gt; 0
+                    or locate(#{keyword}, a.summary) &gt; 0
+                    <if test="searchAttachments">or hit.file_id is not null</if>)
+            </if>
             <if test="categoryId != null">and a.category_id=#{categoryId}</if>
             <if test="secretLevel != null">and a.secret_level=#{secretLevel}</if>
             <if test="archiveStatus != null and archiveStatus != ''">and a.archive_status=#{archiveStatus}</if>
@@ -108,6 +127,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="!admin">and create_by=#{ownerName}</if>
     </update>
 
+    <update id="softDeleteSubmittedArchive">
+        update arc_archive set del_flag='1',version=version+1,update_by=#{updateBy},update_time=now()
+        where archive_id=#{archiveId} and version=#{version} and archive_status='SUBMITTED' and del_flag='0'
+    </update>
+
     <insert id="insertSequence">
         insert ignore into arc_archive_sequence(category_id,forming_year,next_value) values(#{categoryId},#{formingYear},1)
     </insert>
@@ -134,12 +158,28 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </insert>
 
     <select id="selectStatistics" parameterType="com.ruoyi.system.domain.ArchiveQuery" resultType="map">
-        select archive_status status,count(*) total from arc_archive a
+        select
+        <choose>
+            <when test="statisticBy == 'secretLevel'">a.secret_level</when>
+            <when test="statisticBy == 'category'">a.category_id</when>
+            <otherwise>a.archive_status</otherwise>
+        </choose>
+        statisticKey,count(*) total from arc_archive a
         <where>
             a.del_flag='0'
             <if test="!admin">and a.create_by=#{ownerName}</if>
             <if test="archiveCode != null and archiveCode != ''">and a.archive_code like concat('%',#{archiveCode},'%')</if>
             <if test="title != null and title != ''">and a.title like concat('%',#{title},'%')</if>
+            <if test="keyword != null and keyword != ''">
+                and (locate(#{keyword}, a.archive_code) &gt; 0 or locate(#{keyword}, a.title) &gt; 0
+                    or locate(#{keyword}, a.summary) &gt; 0
+                    <if test="searchAttachments">
+                        or exists (
+                            select 1 from arc_file f join arc_file_text t on t.file_id=f.file_id and t.source_sha256=f.sha256
+                            where f.archive_id=a.archive_id and locate(#{keyword},t.content) &gt; 0
+                        )
+                    </if>)
+            </if>
             <if test="categoryId != null">and a.category_id=#{categoryId}</if>
             <if test="secretLevel != null">and a.secret_level=#{secretLevel}</if>
             <if test="archiveStatus != null and archiveStatus != ''">and a.archive_status=#{archiveStatus}</if>
@@ -150,6 +190,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </if>
             and a.secret_level &lt;=#{maxSecretLevel}
         </where>
-        group by archive_status order by archive_status
+        <choose>
+            <when test="statisticBy == 'secretLevel'">group by a.secret_level order by a.secret_level</when>
+            <when test="statisticBy == 'category'">group by a.category_id order by a.category_id</when>
+            <otherwise>group by a.archive_status order by a.archive_status</otherwise>
+        </choose>
     </select>
 </mapper>

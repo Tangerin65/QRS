@@ -14,7 +14,7 @@ public interface IArchiveService {
     ArchiveRecord createDraft(ArchiveRecord record, String actorName, long actorId, long deptId, LongPredicate allowedCategory, int maxSecretLevel);
     void submitDraft(long archiveId, int version, String actorName, long actorId, boolean admin, LongPredicate allowedCategory, int maxSecretLevel);
     ArchiveRecord updateDraft(ArchiveRecord record, String actorName, long actorId, boolean admin, LongPredicate allowedCategory, int maxSecretLevel);
-    void deleteDraft(long archiveId, int version, String actorName, long actorId, boolean admin, LongPredicate allowedCategory, int maxSecretLevel);
+    void deleteArchive(long archiveId, int version, String actorName, long actorId, boolean admin, LongPredicate allowedCategory, int maxSecretLevel);
     String previewCode(long categoryId, java.time.LocalDate formingDate, LongPredicate allowedCategory);
     List<Map<String, Object>> statistics(ArchiveQuery query);
     List<ArchiveImportValidator.ImportLine> validateImport(org.springframework.web.multipart.MultipartFile file, LongPredicate allowedCategory, int maxSecretLevel);

@@ -4,31 +4,57 @@
     <view class="profile-copy"><text class="profile-name">{{profileName}}</text><text class="profile-role">{{profileRole}}</text></view>
     <text class="profile-badge">{{bound ? '已登录' : '未登录'}}</text>
   </view>
+
   <view wx:if="{{!bound}}" class="profile-action card">
     <text class="section-title">登录档案服务</text>
     <text class="profile-action-desc">已绑定账号可直接登录，首次使用请扫码绑定。</text>
     <button class="primary-button" loading="{{busy}}" disabled="{{busy || !configured}}" bindtap="resumeLogin">微信登录</button>
     <button class="secondary-button spaced-button" disabled="{{busy}}" bindtap="goScan">扫码绑定账号</button>
   </view>
-  <view wx:else class="section card account-services">
-    <view class="section-heading"><text class="section-title">账号服务</text></view>
-    <button class="profile-row" disabled="{{busy}}" bindtap="goPc">
-      <view class="small-icon tone-pc"><image src="/assets/icons/pc.png" mode="aspectFit" /></view>
-      <view class="row-copy"><text class="row-title">电脑扫码登录</text><text class="row-subtitle">确认本人发起的电脑登录</text></view><text class="row-arrow">›</text>
-    </button>
-    <button class="profile-row" disabled="{{busy}}" data-switch="yes" bindtap="confirmLogout">
-      <view class="small-icon tone-switch"><image src="/assets/icons/switch.png" mode="aspectFit" /></view>
-      <text class="row-copy row-title">切换账号</text><text class="row-arrow">›</text>
-    </button>
-    <button class="profile-row" disabled="{{busy}}" data-switch="no" bindtap="confirmLogout">
-      <view class="small-icon tone-logout"><image src="/assets/icons/logout.png" mode="aspectFit" /></view>
-      <text class="row-copy row-title">退出登录</text><text class="row-arrow">›</text>
-    </button>
-  </view>
+
+  <block wx:else>
+    <view class="section card profile-detail">
+      <view class="section-heading">
+        <text class="section-title">基础资料</text>
+        <text wx:if="{{profileState === 'loading'}}" class="section-meta">读取中…</text>
+      </view>
+      <view wx:if="{{profileState === 'error'}}" class="profile-error">
+        <text>{{profileError}}</text>
+        <button class="text-button" bindtap="retryProfile">重新读取</button>
+      </view>
+      <view wx:else class="profile-info">
+        <view class="info-row"><text>用户编号</text><text class="row-hint">{{userNo || '—'}}</text></view>
+        <view class="info-row"><text>登录账号</text><text class="row-hint">{{loginName || '—'}}</text></view>
+        <view class="info-row"><text>所属部门</text><text class="row-hint">{{deptName || '—'}}</text></view>
+        <view class="info-row"><text>手机号码</text><text class="row-hint">{{phonenumber || '—'}}</text></view>
+        <view class="info-row"><text>档案员</text><text class="row-hint">{{archivist ? '是' : '否'}}</text></view>
+        <view class="info-row"><text>业务权限</text><text class="row-hint">{{permissionCount}} 项</text></view>
+      </view>
+    </view>
+
+    <view class="section card account-services">
+      <view class="section-heading"><text class="section-title">绑定与账号</text></view>
+      <view class="info-row"><text>微信绑定</text><text class="row-hint">{{bound ? '已绑定' : '未绑定'}}{{boundAt ? ' · ' + boundAt : ''}}</text></view>
+      <button class="profile-row" disabled="{{busy}}" bindtap="goPc">
+        <view class="small-icon tone-pc"><image src="/assets/icons/pc.png" mode="aspectFit" /></view>
+        <view class="row-copy"><text class="row-title">电脑扫码登录</text><text class="row-subtitle">确认本人发起的电脑登录</text></view><text class="row-arrow">›</text>
+      </button>
+      <button class="profile-row" disabled="{{busy}}" data-switch="yes" bindtap="confirmLogout">
+        <view class="small-icon tone-switch"><image src="/assets/icons/switch.png" mode="aspectFit" /></view>
+        <text class="row-copy row-title">切换账号</text><text class="row-arrow">›</text>
+      </button>
+      <button class="profile-row" disabled="{{busy}}" data-switch="no" bindtap="confirmLogout">
+        <view class="small-icon tone-logout"><image src="/assets/icons/logout.png" mode="aspectFit" /></view>
+        <text class="row-copy row-title">退出登录</text><text class="row-arrow">›</text>
+      </button>
+    </view>
+  </block>
+
   <text wx:if="{{message}}" class="inline-message">{{message}}</text>
   <view class="section card profile-info">
     <view class="info-row"><text>账号管理</text><text class="row-hint">资料与权限由管理员维护</text></view>
-    <view class="info-row"><text>当前版本</text><text class="row-hint">v0.3.0</text></view>
+    <view class="info-row"><text>解绑说明</text><text class="row-hint">换绑需管理员解除旧绑定</text></view>
+    <view class="info-row"><text>当前版本</text><text class="row-hint">v0.4.0</text></view>
   </view>
   <text wx:if="{{!configured}}" class="service-note">服务暂未接入，登录与绑定待开放</text>
   <app-tabbar active="profile"></app-tabbar>

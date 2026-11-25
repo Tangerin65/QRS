@@ -4,7 +4,8 @@
     "pages/archives/archives",
     "pages/messages/messages",
     "pages/profile/profile",
-    "pages/scan/scan"
+    "pages/scan/scan",
+    "pages/archive-workbench/archive-workbench"
   ],
   "window": {
     "navigationBarTitleText": "档案管理系统",

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('档案归档')" />
+    <style>
+        .m10-metrics { display: flex; gap: 12px; margin: 10px 0; flex-wrap: wrap; width: 100%; float: left; clear: both; }
+        .m10-metric { background: #fff; border: 1px solid #e7eaec; border-radius: 3px; padding: 8px 14px; min-width: 110px; }
+        .m10-metric span { display: block; color: #999; font-size: 12px; }
+        .m10-metric strong { font-size: 20px; color: #1ab394; }
+        .m10-check-list { list-style: none; padding-left: 0; margin: 0; }
+        .m10-check-list li { padding: 3px 0; }
+        .m10-pass { color: #1ab394; }
+        .m10-fail { color: #ed5565; }
+    </style>
+</head>
+<body class="gray-bg">
+<div class="container-div">
+    <div class="row">
+        <div class="col-sm-12 search-collapse">
+            <form id="archiving-form">
+                <div class="select-list">
+                    <ul>
+                        <li>档号：<input name="archiveCode" maxlength="96" aria-label="按档号筛选"></li>
+                        <li>题名：<input name="title" maxlength="200" aria-label="按题名筛选"></li>
+                        <li>分类：<select id="filter-category" name="categoryId" aria-label="按分类筛选"><option value="">全部分类</option></select></li>
+                        <li>排序：<select name="sortBy" aria-label="排序方式">
+                            <option value="">默认</option>
+                            <option value="archiveCode">档号</option>
+                            <option value="formingDate">形成日期</option>
+                            <option value="createTime">登记时间</option>
+                        </select></li>
+                        <li>
+                            <a class="btn btn-primary btn-rounded btn-sm" onclick="archiving.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                            <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+        <div class="col-sm-12"><div class="m10-metrics" id="metrics"></div></div>
+        <div class="btn-group-sm" id="toolbar" role="group">
+            <a class="btn btn-success" shiro:hasPermission="archiveArchivingSubmit" onclick="archiving.openSubmit()"><i class="fa fa-archive"></i> 提交归档</a>
+            <a class="btn btn-info" onclick="archiving.checkSelected()"><i class="fa fa-check-square-o"></i> 归档校验</a>
+            <a class="btn btn-warning" onclick="archiving.exportRows()"><i class="fa fa-download"></i> 导出</a>
+            <a class="btn btn-default" onclick="archiving.printRows()"><i class="fa fa-print"></i> 打印</a>
+            <span class="text-muted" id="summary" style="margin-left:12px"></span>
+        </div>
+        <div class="col-sm-12 select-table table-striped"><table id="bootstrap-table"></table></div>
+    </div>
+</div>
+
+<div class="modal fade" id="check-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">归档校验结果</h4></div>
+        <div class="modal-body" id="check-body"></div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="submit-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">提交归档</h4></div>
+        <div class="modal-body">
+            <p id="submit-count" class="text-info"></p>
+            <div class="form-group"><label for="submit-location">库位（柜架，可选）</label>
+                <select id="submit-location" class="form-control"><option value="">不指定库位</option></select></div>
+            <p class="help-block">归档前会逐条校验：状态、档号、题名、分类末级、附件、未结销毁。</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" data-dismiss="modal">取消</button>
+            <button class="btn btn-info" onclick="archiving.checkSelected(true)">先校验</button>
+            <button class="btn btn-primary" onclick="archiving.doSubmit()">确认归档</button>
+        </div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="return-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">退回补正</h4></div>
+        <div class="modal-body">
+            <input type="hidden" id="return-id"><input type="hidden" id="return-version">
+            <div class="form-group"><label for="return-reason">退回原因 <span class="text-danger">*</span></label>
+                <textarea id="return-reason" class="form-control" rows="3" maxlength="200"></textarea></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button>
+            <button class="btn btn-danger" onclick="archiving.doReturn()">确认退回</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="detail-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">档案详情</h4></div>
+        <div class="modal-body"><pre id="detail-text" style="white-space:pre-wrap"></pre><h5>归档校验项</h5><ul id="detail-checks" class="m10-check-list"></ul></div>
+    </div></div>
+</div>
+
+<th:block th:include="include :: footer" />
+<script th:inline="javascript">
+    var archivingFlags = { canReturn: /*[[${canReturn}]]*/ false };
+</script>
+<script th:src="@{/js/archive/archiving.js(v=2)}"></script>
+</body>
+</html>

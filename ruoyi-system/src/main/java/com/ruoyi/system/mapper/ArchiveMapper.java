@@ -23,6 +23,8 @@ public interface ArchiveMapper {
     int softDeleteArchive(@Param("archiveId") long archiveId, @Param("ownerName") String ownerName,
                           @Param("admin") boolean admin, @Param("version") int version,
                           @Param("updateBy") String updateBy);
+    int softDeleteSubmittedArchive(@Param("archiveId") long archiveId, @Param("version") int version,
+                                   @Param("updateBy") String updateBy);
     int insertSequence(@Param("categoryId") long categoryId, @Param("formingYear") int formingYear);
     int selectNextSequence(@Param("categoryId") long categoryId, @Param("formingYear") int formingYear);
     int incrementSequence(@Param("categoryId") long categoryId, @Param("formingYear") int formingYear);

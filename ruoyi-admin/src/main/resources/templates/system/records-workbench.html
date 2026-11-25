@@ -2,24 +2,7 @@
 <html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
 <head>
     <th:block th:include="include :: header('档案管理工作台')" />
-    <style>
-        .records-page { padding: 18px; }
-        .records-title { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
-        .records-subtitle { color: #777; margin-bottom: 20px; }
-        .records-section { background: #fff; border: 1px solid #e7eaec; padding: 16px; margin-bottom: 16px; }
-        .records-section h3 { font-size: 15px; margin: 0 0 14px; font-weight: 600; }
-        .records-links { display: flex; flex-wrap: wrap; gap: 8px; }
-        .records-link { display: inline-block; min-width: 150px; padding: 12px; border: 1px solid #e4e9ed; color: #337ab7; background: #f1f6fa; }
-        .records-links > .records-link:nth-child(6n + 2) { background: #f1f7f3; border-color: #e3ece6; }
-        .records-links > .records-link:nth-child(6n + 3) { background: #faf6ed; border-color: #eee7d8; }
-        .records-links > .records-link:nth-child(6n + 4) { background: #f3f3f9; border-color: #e7e7ef; }
-        .records-links > .records-link:nth-child(6n + 5) { background: #f9f2f0; border-color: #eee4e1; }
-        .records-links > .records-link:nth-child(6n) { background: #f0f6f5; border-color: #e0eae8; }
-        .records-link:hover { filter: brightness(0.98); text-decoration: none; }
-        .records-link strong { display: block; color: #333; margin-bottom: 4px; }
-        .records-link span { color: #777; font-size: 12px; }
-        .records-notice { border-left: 3px solid #f0ad4e; background: #fcf8e3; padding: 10px 12px; color: #8a6d3b; }
-    </style>
+    <link th:href="@{/css/records-workbench.css?v=1.0.0}" rel="stylesheet"/>
 </head>
 <body class="gray-bg">
 <div class="records-page">

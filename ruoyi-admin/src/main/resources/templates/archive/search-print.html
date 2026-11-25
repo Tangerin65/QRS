@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('档案检索打印')" />
+    <style>
+        main { padding: 20px; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; }
+        @media print { .print-actions { display: none; } main { padding: 0; } }
+    </style>
+</head>
+<body>
+<main>
+    <h2>档案检索结果</h2>
+    <p>匹配档案 <strong th:text="${#aggregates.sum(statistics.![total]) ?: 0}"></strong> 条</p>
+    <p th:each="item : ${statistics}" th:text="${(item.status == 'DRAFT' ? '草稿' : (item.status == 'SUBMITTED' ? '已提交' : item.status)) + '：' + item.total}"></p>
+    <p th:if="${(#aggregates.sum(statistics.![total]) ?: 0) > #lists.size(rows)}">最多打印前 1000 条，请缩小筛选范围。</p>
+    <p class="print-actions"><button class="btn btn-primary" type="button" onclick="window.print()"><i class="fa fa-print"></i> 打印</button></p>
+    <table class="table table-bordered">
+        <thead><tr><th>档号</th><th>题名</th><th>分类</th><th>形成日期</th><th>密级</th><th>状态</th></tr></thead>
+        <tbody>
+        <tr th:each="row : ${rows}">
+            <td th:text="${row.archiveCode}"></td><td th:text="${row.title}"></td>
+            <td th:text="${row.categoryName}"></td><td th:text="${row.formingDate}"></td>
+            <td th:text="${row.secretName}"></td>
+            <td th:text="${row.archiveStatus == 'DRAFT' ? '草稿' : (row.archiveStatus == 'SUBMITTED' ? '已提交' : row.archiveStatus)}"></td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>

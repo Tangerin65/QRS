@@ -2,11 +2,9 @@
   <view class="loading-dot"></view><text>正在加载</text>
 </view>
 <view wx:elif="{{status === 'error'}}" class="request-state request-error">
-  <image class="state-icon" src="/assets/icons/warning.png" mode="aspectFit" />
   <text class="state-message">{{message || '操作未完成，请重试'}}</text>
   <button class="retry-button" bindtap="handleRetry">{{retryText}}</button>
 </view>
 <view wx:elif="{{status === 'empty'}}" class="request-state request-empty">
-  <image class="state-icon" src="/assets/icons/empty-archives.png" mode="aspectFit" />
   <text class="state-message">{{message || '暂无内容'}}</text>
 </view>

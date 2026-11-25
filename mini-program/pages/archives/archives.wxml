@@ -1,13 +1,36 @@
-<view class="page placeholder-page">
-  <view class="placeholder-heading">
-    <view class="small-icon tone-archives"><image src="/assets/icons/archives.png" mode="aspectFit" /></view>
-    <view><text class="page-title">档案查询</text><text class="page-subtitle">检索与阅览授权档案</text></view>
+<view class="page archives-page">
+  <text class="page-title">档案查询</text>
+  <view class="card archive-filters">
+    <input class="archive-input" value="{{keyword}}" placeholder="输入关键词" maxlength="200"
+      confirm-type="search" bindinput="inputKeyword" bindconfirm="search" />
+    <view class="archive-pickers">
+      <picker range="{{categories}}" range-key="name" value="{{categoryIndex}}" bindchange="chooseCategory">
+        <view class="archive-picker">{{categories[categoryIndex].name}} ▾</view>
+      </picker>
+      <picker range="{{sorts}}" value="{{sortIndex}}" bindchange="chooseSort">
+        <view class="archive-picker">{{sorts[sortIndex]}} ▾</view>
+      </picker>
+    </view>
+    <button class="primary-button" bindtap="search">搜索</button>
   </view>
-  <view class="empty-service card">
-    <image class="empty-illustration" src="/assets/icons/empty-archives.png" mode="aspectFit" />
-    <text class="empty-title">档案查询暂未开放</text>
-    <text class="empty-description">服务开放后，可在这里检索档案、查看档案信息及附件。</text>
-    <button class="secondary-button" bindtap="goHome">返回工作台</button>
-  </view>
+
+  <request-state wx:if="{{status !== 'success'}}" status="{{status}}" message="{{message || (status === 'empty' ? '没有匹配的档案' : '')}}" bind:retry="retry" />
+  <block wx:else>
+    <text class="archive-count">共 {{total}} 条</text>
+    <view class="card archive-results">
+      <view class="archive-row" wx:for="{{rows}}" wx:key="archiveId">
+        <text class="archive-title">{{item.title}}</text>
+        <text class="archive-meta">{{item.archiveCode}} · {{item.categoryName}} · {{item.formingDate}}</text>
+        <text class="archive-meta">{{item.secretName}} · {{item.statusText}}</text>
+        <text wx:if="{{item.matchedAttachment}}" class="archive-source">{{item.matchedAttachment}}</text>
+        <text wx:if="{{item.attachmentExcerpt || item.summary}}" class="archive-summary">{{item.attachmentExcerpt || item.summary}}</text>
+      </view>
+    </view>
+    <view class="archive-pages">
+      <button class="secondary-button" disabled="{{pageNum <= 1}}" bindtap="prevPage">上一页</button>
+      <text>第 {{pageNum}} 页</text>
+      <button class="secondary-button" disabled="{{!hasMore}}" bindtap="nextPage">下一页</button>
+    </view>
+  </block>
   <app-tabbar active="archives"></app-tabbar>
 </view>

@@ -18,11 +18,14 @@ public class ArchiveRecord extends BaseEntity {
     private String retentionCode;
     private String retentionName;
     private String summary;
+    private String matchedAttachment;
+    private String attachmentExcerpt;
     private String metadataJson;
     private String archiveStatus;
     private Integer version;
     private Long deptId;
     private List<Map<String, Object>> auditEvents;
+    private Map<String, Object> revisionHistory;
 
     public Long getArchiveId() { return archiveId; }
     public void setArchiveId(Long archiveId) { this.archiveId = archiveId; }
@@ -48,6 +51,10 @@ public class ArchiveRecord extends BaseEntity {
     public void setRetentionName(String retentionName) { this.retentionName = retentionName; }
     public String getSummary() { return summary; }
     public void setSummary(String summary) { this.summary = summary; }
+    public String getMatchedAttachment() { return matchedAttachment; }
+    public void setMatchedAttachment(String matchedAttachment) { this.matchedAttachment = matchedAttachment; }
+    public String getAttachmentExcerpt() { return attachmentExcerpt; }
+    public void setAttachmentExcerpt(String attachmentExcerpt) { this.attachmentExcerpt = attachmentExcerpt; }
     public String getMetadataJson() { return metadataJson; }
     public void setMetadataJson(String metadataJson) { this.metadataJson = metadataJson; }
     public String getArchiveStatus() { return archiveStatus; }
@@ -58,4 +65,6 @@ public class ArchiveRecord extends BaseEntity {
     public void setDeptId(Long deptId) { this.deptId = deptId; }
     public List<Map<String, Object>> getAuditEvents() { return auditEvents; }
     public void setAuditEvents(List<Map<String, Object>> auditEvents) { this.auditEvents = auditEvents; }
+    public Map<String, Object> getRevisionHistory() { return revisionHistory; }
+    public void setRevisionHistory(Map<String, Object> revisionHistory) { this.revisionHistory = revisionHistory; }
 }

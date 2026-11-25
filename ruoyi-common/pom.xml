@@ -90,6 +90,12 @@
             <artifactId>poi-ooxml</artifactId>
         </dependency>
 
+        <!-- 二维码生成（M12 绑定二维码），版本在父 pom 的 dependencyManagement 中统一管理 -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+        </dependency>
+
         <!-- 解析客户端操作系统、浏览器等 -->
         <dependency>
             <groupId>nl.basjes.parse.useragent</groupId>

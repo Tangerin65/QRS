@@ -17,6 +17,7 @@
     <link th:href="@{/ruoyi/css/ry-ui.css?v=4.8.3}" rel="stylesheet"/>
     <style type="text/css">.fixed-sidebar .nav:not(.navbar-toolbar)>li.active{border-left:0px!important;}#noticeItems li a{transition:background .15s;border-radius:2px}#noticeItems li a:hover{background:#f7f9fb;text-decoration:none}#noticeItems li a:active{background:#eef2f7}#noticeItems li a:focus{background:transparent;outline:0}#noticeList .mark-all-read{font-size:12px;color:#5b9bd5;text-decoration:none;padding:2px 8px;border-radius:3px;transition:background 0.15s}#noticeList .mark-all-read:hover{background:#eef5fc;color:#2b7cc1}#noticeList .mark-all-read:active{background:#eef5fc;color:#2b7cc1}#noticeList .mark-all-read:focus{outline:none;background:transparent}
 </style>
+</head>
 <body class="fixed-sidebar full-height-layout gray-bg" th:classappend="${isMobile} ? 'canvas-menu'" style="overflow: hidden">
 <div id="wrapper">
 
@@ -338,8 +339,8 @@
 <script th:src="@{/js/resize-tabs.js}"></script>
 <script th:inline="javascript">
 window.history.forward(1);
-var ctx = [[@{/}]]; 
-var lockscreen = [[${session.lockscreen}]]; 
+var ctx = /*[[@{/}]]*/ "/";
+var lockscreen = /*[[${session.lockscreen}]]*/ false;
 if(lockscreen){window.top.location=ctx+"lockscreen";}
 // 皮肤缓存
 var skin = storage.get("skin");
@@ -357,8 +358,8 @@ if($.common.isNotEmpty(skin)){
 	$("body").addClass(skin.split('|')[0]);
 	$("body").addClass(skin.split('|')[1]);
 } else {
-	$("body").addClass([[${sideTheme}]]);
-	$("body").addClass([[${skinName}]]);
+	$("body").addClass(/*[[${sideTheme}]]*/ "");
+	$("body").addClass(/*[[${skinName}]]*/ "");
 }
 
 /* 用户管理-重置密码 */
@@ -444,7 +445,7 @@ $(function() {
 	}
 	
 	/* 初始密码提示 */
-	if([[${isDefaultModifyPwd}]]) {
+	if(/*[[${isDefaultModifyPwd}]]*/ false) {
 		layer.confirm("您的密码还是初始密码，请修改密码！", {
 			icon: 0,
 			title: "安全提示",
@@ -457,7 +458,7 @@ $(function() {
 	}
 	
 	/* 过期密码提示 */
-	if(![[${isDefaultModifyPwd}]] && [[${isPasswordExpired}]]) {
+	if(!/*[[${isDefaultModifyPwd}]]*/ false && /*[[${isPasswordExpired}]]*/ false) {
 		layer.confirm("您的密码已过期，请尽快修改密码！", {
 			icon: 0,
 			title: "安全提示",

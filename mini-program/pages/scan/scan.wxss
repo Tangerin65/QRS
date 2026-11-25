@@ -2,10 +2,47 @@
   padding-top: 20rpx;
 }
 
+/* M12-B 绑定口令输入区：首次绑定要校验平台账号口令，避免仅凭编号占用他人账号 */
+.password-field {
+  margin-top: 30rpx;
+  padding: 24rpx;
+  border: 1rpx solid #e3e9f2;
+  border-radius: 16rpx;
+  background: #f8fafd;
+  text-align: left;
+}
+
+.password-label {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #46536a;
+  font-size: 25rpx;
+  font-weight: 500;
+}
+
+.password-input {
+  width: 100%;
+  height: 82rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid #d7dfeb;
+  border-radius: 12rpx;
+  background: #fff;
+  color: #2c3a4f;
+  font-size: 27rpx;
+}
+
+.password-note {
+  display: block;
+  margin-top: 12rpx;
+  color: #9aa4b4;
+  font-size: 21rpx;
+  line-height: 1.6;
+}
+
 .mode-tabs {
   display: flex;
   padding: 8rpx;
-  border-radius: 14rpx;
+  border-radius: 6rpx;
   background: #e9edf4;
 }
 
@@ -15,116 +52,31 @@
   align-items: center;
   justify-content: center;
   min-height: 74rpx;
-  border-radius: 10rpx;
-  color: #7c889a;
+  border-radius: 4rpx;
+  color: #666;
   font-size: 26rpx;
 }
 
 .mode-tab.selected {
   background: #fff;
-  color: #4779e8;
+  color: #2e65af;
   font-weight: 500;
 }
 
-.scan-heading {
-  padding: 38rpx 4rpx 30rpx;
-}
-
-.scan-heading .page-title {
-  font-size: 36rpx;
-}
-
 .scan-card {
-  padding: 36rpx 32rpx 28rpx;
-  text-align: center;
+  margin-top: 20rpx;
+  padding: 24rpx;
+}
+
+.scan-instruction {
+  display: block;
+  margin-bottom: 20rpx;
+  color: #555;
+  line-height: 1.6;
 }
 
 .scan-card .primary-button, .scan-card .secondary-button {
   width: 100%;
-}
-
-.scan-frame {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 360rpx;
-  max-width: 100%;
-  height: 328rpx;
-  margin: 10rpx auto 36rpx;
-  background: #f6f8fd;
-  border-radius: 12rpx;
-}
-
-.scan-frame-icon {
-  width: 110rpx;
-  height: 110rpx;
-  opacity: .65;
-}
-
-.scan-frame-text {
-  margin-top: 26rpx;
-  color: #8f9db4;
-  font-size: 24rpx;
-}
-
-.corner {
-  position: absolute;
-  width: 40rpx;
-  height: 40rpx;
-  border-color: #6e92e9;
-  border-style: solid;
-}
-
-.corner-tl {
-  top: 0;
-  left: 0;
-  border-width: 4rpx 0 0 4rpx;
-  border-top-left-radius: 10rpx;
-}
-
-.corner-tr {
-  top: 0;
-  right: 0;
-  border-width: 4rpx 4rpx 0 0;
-  border-top-right-radius: 10rpx;
-}
-
-.corner-bl {
-  bottom: 0;
-  left: 0;
-  border-width: 0 0 4rpx 4rpx;
-  border-bottom-left-radius: 10rpx;
-}
-
-.corner-br {
-  bottom: 0;
-  right: 0;
-  border-width: 0 4rpx 4rpx 0;
-  border-bottom-right-radius: 10rpx;
-}
-
-.camera-note {
-  display: block;
-  margin-top: 20rpx;
-  color: #9aa4b3;
-  font-size: 22rpx;
-}
-
-.result-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 116rpx;
-  height: 116rpx;
-  margin: 10rpx auto 28rpx;
-  border-radius: 34rpx;
-}
-
-.result-icon image {
-  width: 64rpx;
-  height: 64rpx;
 }
 
 .pc-title {
@@ -137,7 +89,7 @@
 
 .device-info, .account-number {
   padding: 12rpx 24rpx;
-  border-radius: 12rpx;
+  border-radius: 4rpx;
   background: #f6f8fb;
   text-align: left;
 }
@@ -153,7 +105,7 @@
 
 .device-label {
   flex: 0 0 62rpx;
-  color: #929eae;
+  color: #666;
 }
 
 .device-value {
@@ -164,13 +116,10 @@
 }
 
 .countdown {
-  display: inline-block;
-  margin-top: 26rpx;
-  padding: 7rpx 18rpx;
-  border-radius: 8rpx;
-  background: #edf3ff;
-  color: #4779e8;
-  font-size: 23rpx;
+  display: block;
+  margin-top: 18rpx;
+  color: #555;
+  font-size: 24rpx;
 }
 
 .pc-warning {
@@ -211,13 +160,13 @@
 
 .text-button {
   padding: 24rpx 12rpx 8rpx;
-  color: #4779e8;
+  color: #2e65af;
   font-size: 25rpx;
 }
 
 .scan-help {
   padding: 28rpx 10rpx;
-  color: #97a0af;
+  color: #666;
   font-size: 23rpx;
   line-height: 1.6;
   text-align: center;

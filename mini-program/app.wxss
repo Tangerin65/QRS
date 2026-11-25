@@ -35,52 +35,45 @@ button[disabled] {
 
 .card {
   background: #fff;
-  border-radius: 20rpx;
+  border: 1rpx solid #e1e4e8;
+  border-radius: 6rpx;
 }
 
 .page-title {
   display: block;
   color: #233047;
-  font-size: 42rpx;
+  font-size: 34rpx;
   font-weight: 600;
   line-height: 1.4;
-}
-
-.page-subtitle {
-  display: block;
-  margin-top: 8rpx;
-  color: #7d8797;
-  font-size: 25rpx;
-  line-height: 1.6;
 }
 
 .primary-button, .secondary-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 86rpx;
+  min-height: 80rpx;
   padding: 20rpx 24rpx;
-  border-radius: 12rpx;
+  border-radius: 6rpx;
   font-size: 28rpx;
   font-weight: 500;
   line-height: 1.5;
 }
 
 .primary-button {
-  background: #4779e8;
+  background: #2e65af;
   color: #fff;
 }
 
 .secondary-button {
   border: 1rpx solid #dbe3ef;
   background: #fff;
-  color: #4779e8;
+  color: #2e65af;
 }
 
 .connection-note {
   margin: 20rpx 0;
   padding: 18rpx 24rpx;
-  border-radius: 12rpx;
+  border-radius: 6rpx;
   background: #fff6e9;
   color: #9b6c30;
   font-size: 24rpx;
@@ -92,22 +85,13 @@ button[disabled] {
 }
 
 .section-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  padding: 28rpx 28rpx 22rpx;
+  padding: 20rpx 24rpx 14rpx;
 }
 
 .section-title {
   font-size: 29rpx;
   font-weight: 600;
   color: #2a374b;
-}
-
-.section-meta {
-  color: #949dab;
-  font-size: 22rpx;
 }
 
 .row-arrow {
@@ -131,118 +115,30 @@ button[disabled] {
   line-height: 1.5;
 }
 
-.row-subtitle {
-  display: block;
-  margin-top: 6rpx;
-  color: #929caa;
-  font-size: 22rpx;
-  line-height: 1.5;
-}
-
-.small-icon {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 68rpx;
-  height: 68rpx;
-  border-radius: 18rpx;
-}
-
-.small-icon image {
-  width: 42rpx;
-  height: 42rpx;
-}
-
-.tone-archives {
-  background: #edf3ff;
-}
-
-.tone-messages {
-  background: #fff2e6;
-}
-
-.tone-pc {
-  background: #e9f8f3;
-}
-
-.tone-scan {
-  background: #eef1ff;
-}
-
-.tone-profile {
-  background: #f4edff;
-}
-
-.tone-switch {
-  background: #edf3ff;
-}
-
-.tone-logout {
-  background: #fff0f1;
-}
-
 .service-note {
   display: block;
   margin: 28rpx 12rpx 0;
-  color: #969eab;
+  color: #666;
   font-size: 22rpx;
   line-height: 1.7;
   text-align: center;
 }
 
-.placeholder-heading {
-  display: flex;
-  align-items: center;
-  gap: 22rpx;
-  padding: 10rpx 4rpx 30rpx;
-}
-
-.placeholder-heading .small-icon {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 24rpx;
-}
-
-.placeholder-heading .small-icon image {
-  width: 54rpx;
-  height: 54rpx;
-}
-
-.placeholder-heading .page-title {
-  font-size: 36rpx;
-}
-
 .empty-service {
-  margin-top: 8rpx;
-  padding: 64rpx 36rpx 46rpx;
+  margin-top: 20rpx;
+  padding: 32rpx 24rpx;
   text-align: center;
-}
-
-.empty-illustration {
-  width: 180rpx;
-  height: 180rpx;
 }
 
 .empty-title {
   display: block;
-  margin-top: 24rpx;
   color: #344154;
   font-size: 29rpx;
   font-weight: 500;
 }
 
-.empty-description {
-  display: block;
-  max-width: 510rpx;
-  margin: 16rpx auto 0;
-  color: #8b95a5;
-  font-size: 25rpx;
-  line-height: 1.8;
-}
-
 .empty-service .secondary-button {
   width: 240rpx;
-  margin: 32rpx auto 0;
+  margin: 24rpx auto 0;
   min-height: 76rpx;
 }

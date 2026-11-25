@@ -1,6 +1,9 @@
 var archive = (function () {
     var prefix = ctx + "records";
     var importRows = [];
+    var statusNames = { DRAFT: "草稿", SUBMITTED: "已提交" };
+    var statusColors = { DRAFT: "#5bc0de", SUBMITTED: "#5cb85c" };
+    var secretNames = { 0: "公开", 1: "内部", 2: "秘密", 3: "机密" };
 
     function postJson(url, data, done) {
         $.ajax({
@@ -43,7 +46,8 @@ var archive = (function () {
         if (archiveFlags.canView) html.push('<a class="btn btn-info btn-xs" onclick="archive.detail(' + row.archiveId + ')"><i class="fa fa-eye"></i>详情</a> ');
         if (archiveFlags.canEdit && row.archiveStatus === "DRAFT") html.push('<a class="btn btn-primary btn-xs" onclick="archive.edit(' + row.archiveId + ')"><i class="fa fa-edit"></i>编辑</a> ');
         if (archiveFlags.canSubmit && row.archiveStatus === "DRAFT") html.push('<a class="btn btn-success btn-xs" onclick="archive.submit(' + row.archiveId + ',' + row.version + ')"><i class="fa fa-check"></i>提交</a> ');
-        if (archiveFlags.canDelete && row.archiveStatus === "DRAFT") html.push('<a class="btn btn-danger btn-xs" onclick="archive.remove(' + row.archiveId + ',' + row.version + ')"><i class="fa fa-remove"></i>撤销</a>');
+        if (archiveFlags.canDelete && row.archiveStatus === "DRAFT") html.push('<a class="btn btn-danger btn-xs" onclick="archive.remove(' + row.archiveId + ',' + row.version + ',false)"><i class="fa fa-remove"></i>撤销</a>');
+        if (archiveFlags.canDeleteSubmitted && row.archiveStatus === "SUBMITTED") html.push('<a class="btn btn-danger btn-xs" onclick="archive.remove(' + row.archiveId + ',' + row.version + ',true)"><i class="fa fa-remove"></i>删除</a>');
         return html.join("");
     }
 
@@ -58,20 +62,36 @@ var archive = (function () {
     }
 
     function loadStatistics() {
+        //发送统计的post请求
         $.post(prefix + "/statistics", $.common.formToJSON("archive-form"), function (res) {
             if (res.code !== 0) return;
-            var totals = { DRAFT: 0 };
-            $.each(res.data || [], function (_, item) { totals[item.status] = item.total; });
-            var text = "草稿 " + (totals.DRAFT || 0);
-            $.each(totals, function (status, count) {
-                if (status !== "DRAFT") text += " / " + status + " " + count;
+            var dimension = $("#statistics-by").val() || "status";
+            var totals = {};
+            $.each(res.data || [], function (_, item) { totals[item.statisticKey] = item.total; });
+            var textParts = [];
+            $.each(totals, function (key, count) {
+                var label = dimension === "status" ? (statusNames[key] || key)
+                    : dimension === "secretLevel" ? (secretNames[key] || ("密级 " + key))
+                    : "分类 " + key;
+                textParts.push(label + "：" + count + "条");
             });
-            $("#statistics").text("匹配统计：" + text);
+            $("#statistics").text("匹配统计：" + (textParts.join(" / ") || "无数据"));
+            var max = Math.max.apply(null, Object.keys(totals).map(function (key) { return totals[key]; }).concat([1]));
+            var chartTitle = dimension === "status" ? "档案状态统计" : dimension === "secretLevel" ? "档案密级统计" : "档案分类统计";
+            var chartHtml = "<div class=\"panel panel-default\"><div class=\"panel-heading\">" + chartTitle + "</div><div class=\"panel-body\">";
+            $.each(totals, function (key, count) {
+                var label = dimension === "status" ? (statusNames[key] || key)
+                    : dimension === "secretLevel" ? (secretNames[key] || ("密级 " + key))
+                    : "分类 " + key;
+                var width = Math.round(count * 100 / max);
+                chartHtml += "<div class=\"form-group\"><label>" + escape(label) + "：" + count + " 条</label><div class=\"progress\"><div class=\"progress-bar\" role=\"progressbar\" style=\"width:" + width + "%;background-color:" + (statusColors[key] || "#337ab7") + "\">" + count + "</div></div></div>";
+            });
+            $("#statistics-chart").html(chartHtml + "</div></div>");
         });
     }
 
     function initDates() {
-        //统一日历语言和日期格式，避免浏览器原生日期占位混排
+        //统一日历语言和日期格式
         $(".archive-date").datetimepicker({
             language: "zh-cn",
             format: "yyyy-mm-dd",
@@ -122,10 +142,11 @@ var archive = (function () {
             initDates();
             initTable();
             loadCategories();
-            loadStatistics();
         },
         search: function () {
             $.table.search();
+        },
+        statistics: function () {
             loadStatistics();
         },
         openAdd: function () {
@@ -153,7 +174,7 @@ var archive = (function () {
                 else $.modal.alertWarning(res.msg || "档号预览失败");
             }).fail(function (xhr) {
                 var message = xhr.responseJSON && xhr.responseJSON.msg;
-                $.modal.alertWarning(message || "档号预览请求失败，请确认当前角色有新增权限后重试");
+                $.modal.alertWarning(message || "档号预览请求失败");
             });
         },
         save: function () {
@@ -169,6 +190,7 @@ var archive = (function () {
             });
         },
         edit: function (id) {
+            //编辑档案草稿
             $.get(prefix + "/edit/" + id, function (res) {
                 if (res.code !== 0) return $.modal.alertWarning(res.msg || "无法读取档案");
                 $("#archive-editor")[0].reset();
@@ -191,7 +213,7 @@ var archive = (function () {
                 $("#archive-detail").text(lines.join("\n"));
                 var auditHtml = "";
                 $.each(item.auditEvents || [], function (_, event) {
-                    auditHtml += "<tr><td>" + escape(event.eventType) + "</td><td>" + escape(event.actorName) + "</td><td>" + escape(event.eventTime) + "</td><td>" + escape(event.detail) + "</td></tr>";
+                    auditHtml += "<tr><td>" + escape(event.eventType) + "</td><td>" + escape(event.actorName) + "</td><td>" + escape(String(event.eventTime || "").replace("T", " ")) + "</td><td>" + escape(event.detail) + "</td></tr>";
                 });
                 $("#audit-events").html(auditHtml || '<tr><td colspan="4">暂无记录</td></tr>');
                 $("#detail-modal").modal("show");
@@ -204,10 +226,11 @@ var archive = (function () {
                 }});
             });
         },
-        remove: function (id, version) {
-            $.modal.confirm("确认撤销该档案草稿？", function () {
+        remove: function (id, version, submitted) {
+            var message = submitted ? "确认删除已提交档案？这一操作会被记录" : "确认撤销该档案草稿？";
+            $.modal.confirm(message, function () {
                 $.ajax({ url: prefix + "/remove", type: "POST", data: { archiveId: id, version: version }, success: function (res) {
-                    showResult(res, function () { $.table.refresh(); });
+                    showResult(res, function () { $.table.refresh(); loadStatistics(); });
                 }});
             });
         },
@@ -273,6 +296,9 @@ var archive = (function () {
         },
         export: function () {
             window.location.href = prefix + "/export?" + $.param($.common.formToJSON("archive-form"));
+        },
+        printPreview: function () {
+            window.print();
         }
     };
 }());
