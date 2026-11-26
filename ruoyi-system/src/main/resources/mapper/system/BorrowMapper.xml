@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.BorrowMapper">
+
+    <resultMap id="BorrowResult" type="com.ruoyi.system.domain.BorrowRecord">
+        <id property="borrowId" column="borrow_id"/>
+        <result property="borrowNo" column="borrow_no"/>
+        <result property="archiveId" column="archive_id"/>
+        <result property="archiveCode" column="archive_code"/>
+        <result property="archiveTitle" column="archive_title"/>
+        <result property="applicantId" column="applicant_id"/>
+        <result property="applicantName" column="applicant_name"/>
+        <result property="applicantDeptId" column="applicant_dept_id"/>
+        <result property="reason" column="reason"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="actualReturnDate" column="actual_return_date"/>
+        <result property="borrowStatus" column="borrow_status"/>
+        <result property="approvalLevel" column="approval_level"/>
+        <result property="currentApproverId" column="current_approver_id"/>
+        <result property="lendBy" column="lend_by"/>
+        <result property="lendAt" column="lend_at"/>
+        <result property="returnBy" column="return_by"/>
+        <result property="returnAt" column="return_at"/>
+        <result property="renewCount" column="renew_count"/>
+        <result property="version" column="version"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="borrowColumns">
+        b.borrow_id,b.borrow_no,b.archive_id,a.archive_code,a.title as archive_title,
+        b.applicant_id,b.applicant_name,b.applicant_dept_id,b.reason,b.start_date,b.end_date,b.actual_return_date,
+        b.borrow_status,b.approval_level,b.current_approver_id,b.lend_by,b.lend_at,b.return_by,b.return_at,
+        b.renew_count,b.version,b.create_by,b.create_time,b.update_by,b.update_time,b.remark
+    </sql>
+
+    <sql id="borrowWhere">
+        <where>
+            <if test="!canApprove">and b.applicant_id = #{userId}</if>
+            <if test="borrowNo != null and borrowNo != ''">and b.borrow_no like concat('%',#{borrowNo},'%')</if>
+            <if test="archiveTitle != null and archiveTitle != ''">and a.title like concat('%',#{archiveTitle},'%')</if>
+            <if test="applicantName != null and applicantName != ''">and b.applicant_name like concat('%',#{applicantName},'%')</if>
+            <if test="borrowStatus != null and borrowStatus != ''">and b.borrow_status = #{borrowStatus}</if>
+            <if test="deptId != null">and b.applicant_dept_id = #{deptId}</if>
+            <if test="dateFrom != null">and b.end_date &gt;= #{dateFrom}</if>
+            <if test="dateTo != null">and b.end_date &lt;= #{dateTo}</if>
+        </where>
+    </sql>
+
+    <select id="selectBorrowList" parameterType="com.ruoyi.system.domain.BorrowQuery" resultMap="BorrowResult">
+        select <include refid="borrowColumns"/>
+        from arc_borrow b
+        join arc_archive a on a.archive_id = b.archive_id
+        <include refid="borrowWhere"/>
+    </select>
+
+    <select id="selectBorrowStatistics" parameterType="com.ruoyi.system.domain.BorrowQuery" resultType="java.util.Map">
+        select count(1) as total,
+               coalesce(sum(case when b.borrow_status = 'PENDING' then 1 else 0 end), 0) as pending,
+               coalesce(sum(case when b.borrow_status = 'APPROVED' then 1 else 0 end), 0) as approved,
+               coalesce(sum(case when b.borrow_status = 'LENT' then 1 else 0 end), 0) as lent,
+               coalesce(sum(case when b.borrow_status = 'RETURNED' then 1 else 0 end), 0) as returned,
+               coalesce(sum(case when b.borrow_status = 'REJECTED' then 1 else 0 end), 0) as rejected,
+               coalesce(sum(case when b.borrow_status = 'WITHDRAWN' then 1 else 0 end), 0) as withdrawn,
+               coalesce(sum(case when b.borrow_status = 'LENT' and b.end_date &lt; curdate() then 1 else 0 end), 0) as overdue
+        from arc_borrow b
+        join arc_archive a on a.archive_id = b.archive_id
+        <include refid="borrowWhere"/>
+    </select>
+
+    <select id="selectBorrowById" resultMap="BorrowResult">
+        select <include refid="borrowColumns"/>
+        from arc_borrow b
+        join arc_archive a on a.archive_id = b.archive_id
+        where b.borrow_id = #{borrowId}
+    </select>
+
+    <insert id="insertBorrow" parameterType="com.ruoyi.system.domain.BorrowRecord" useGeneratedKeys="true" keyProperty="borrowId">
+        insert into arc_borrow
+        (borrow_no, archive_id, applicant_id, applicant_name, applicant_dept_id, reason,
+         start_date, end_date, borrow_status, approval_level, version, create_by, create_time, remark)
+        values
+        (#{borrowNo}, #{archiveId}, #{applicantId}, #{applicantName}, #{applicantDeptId}, #{reason},
+         #{startDate}, #{endDate}, #{borrowStatus}, #{approvalLevel}, 0, #{createBy}, now(), coalesce(#{remark}, ''))
+    </insert>
+
+    <select id="countActiveByArchive" resultType="int">
+        select count(1) from arc_borrow
+        where archive_id = #{archiveId} and borrow_status in ('PENDING','APPROVED','LENT')
+    </select>
+
+    <select id="countByPrefix" resultType="int">
+        select count(1) from arc_borrow where borrow_no like concat(#{prefix},'%')
+    </select>
+
+    <select id="selectArchiveForBorrow" resultType="java.util.Map">
+        select archive_id, archive_code, title, archive_status, del_flag, category_id, secret_level, dept_id
+        from arc_archive where archive_id = #{archiveId}
+    </select>
+
+    <select id="selectBorrowableArchives" resultType="java.util.Map">
+        select archive_id, archive_code, title, archive_status
+        from arc_archive
+        where del_flag = '0' and archive_status in ('SUBMITTED','ARCHIVED')
+        <if test="keyword != null and keyword != ''">
+            and (title like concat('%',#{keyword},'%') or archive_code like concat('%',#{keyword},'%'))
+        </if>
+        order by create_time desc
+        limit #{limit}
+    </select>
+
+    <update id="updateBorrowStatus">
+        update arc_borrow
+        set borrow_status = #{to}, update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and borrow_status = #{from}
+    </update>
+
+    <update id="markApproved">
+        update arc_borrow
+        set borrow_status = 'APPROVED', current_approver_id = #{approverId},
+            update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and borrow_status = 'PENDING'
+    </update>
+
+    <update id="markLent">
+        update arc_borrow
+        set borrow_status = 'LENT', lend_by = #{lendBy}, lend_at = now(),
+            update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and borrow_status = 'APPROVED'
+    </update>
+
+    <update id="markReturned">
+        update arc_borrow
+        set borrow_status = 'RETURNED', return_by = #{returnBy}, return_at = now(), actual_return_date = curdate(),
+            update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and borrow_status = 'LENT'
+    </update>
+
+    <insert id="insertApproval" parameterType="com.ruoyi.system.domain.ApprovalRecord" useGeneratedKeys="true" keyProperty="recordId">
+        insert into arc_approval_record (borrow_id, approval_level, approver_id, approver_name, result, opinion, handled_at)
+        values (#{borrowId}, #{approvalLevel}, #{approverId}, #{approverName}, #{result}, #{opinion}, #{handledAt})
+    </insert>
+
+    <resultMap id="ApprovalResult" type="com.ruoyi.system.domain.ApprovalRecord">
+        <id property="recordId" column="record_id"/>
+        <result property="borrowId" column="borrow_id"/>
+        <result property="approvalLevel" column="approval_level"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="approverName" column="approver_name"/>
+        <result property="result" column="result"/>
+        <result property="opinion" column="opinion"/>
+        <result property="handledAt" column="handled_at"/>
+    </resultMap>
+
+    <select id="selectApprovals" resultMap="ApprovalResult">
+        select record_id, borrow_id, approval_level, approver_id, approver_name, result, opinion, handled_at
+        from arc_approval_record where borrow_id = #{borrowId} order by handled_at, record_id
+    </select>
+
+    <select id="selectArchiveByCode" resultType="java.util.Map">
+        select archive_id, archive_code, title, archive_status, del_flag, dept_id
+        from arc_archive where archive_code = #{archiveCode} and del_flag = '0' limit 1
+    </select>
+
+    <insert id="insertImportedBorrow" parameterType="com.ruoyi.system.domain.BorrowRecord" useGeneratedKeys="true" keyProperty="borrowId">
+        insert into arc_borrow
+        (borrow_no, archive_id, applicant_id, applicant_name, applicant_dept_id, reason,
+         start_date, end_date, actual_return_date, borrow_status, approval_level, version, create_by, create_time, remark)
+        values
+        (#{borrowNo}, #{archiveId}, #{applicantId}, #{applicantName}, #{applicantDeptId}, #{reason},
+         #{startDate}, #{endDate}, #{actualReturnDate}, #{borrowStatus}, #{approvalLevel}, 0, #{createBy}, now(), coalesce(#{remark}, ''))
+    </insert>
+
+    <resultMap id="RenewResult" type="com.ruoyi.system.domain.BorrowRenew">
+        <id property="renewId" column="renew_id"/>
+        <result property="borrowId" column="borrow_id"/>
+        <result property="borrowNo" column="borrow_no"/>
+        <result property="archiveTitle" column="archive_title"/>
+        <result property="applicantId" column="applicant_id"/>
+        <result property="applicantName" column="applicant_name"/>
+        <result property="oldEndDate" column="old_end_date"/>
+        <result property="requestedEndDate" column="requested_end_date"/>
+        <result property="reason" column="reason"/>
+        <result property="renewStatus" column="renew_status"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="approverName" column="approver_name"/>
+        <result property="opinion" column="opinion"/>
+        <result property="handledAt" column="handled_at"/>
+        <result property="version" column="version"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="renewColumns">
+        r.renew_id, r.borrow_id, b.borrow_no, a.title as archive_title, r.applicant_id, r.applicant_name,
+        r.old_end_date, r.requested_end_date, r.reason, r.renew_status, r.approver_id, r.approver_name,
+        r.opinion, r.handled_at, r.version, r.create_by, r.create_time
+    </sql>
+
+    <insert id="insertRenew" parameterType="com.ruoyi.system.domain.BorrowRenew" useGeneratedKeys="true" keyProperty="renewId">
+        insert into arc_borrow_renew
+        (borrow_id, applicant_id, applicant_name, old_end_date, requested_end_date, reason, renew_status, version, create_by, create_time)
+        values
+        (#{borrowId}, #{applicantId}, #{applicantName}, #{oldEndDate}, #{requestedEndDate}, #{reason}, 'PENDING', 0, #{createBy}, now())
+    </insert>
+
+    <select id="selectRenewById" resultMap="RenewResult">
+        select <include refid="renewColumns"/>
+        from arc_borrow_renew r
+        join arc_borrow b on b.borrow_id = r.borrow_id
+        join arc_archive a on a.archive_id = b.archive_id
+        where r.renew_id = #{renewId}
+    </select>
+
+    <select id="countPendingRenew" resultType="int">
+        select count(1) from arc_borrow_renew where borrow_id = #{borrowId} and renew_status = 'PENDING'
+    </select>
+
+    <update id="approveRenew">
+        update arc_borrow_renew
+        set renew_status = 'APPROVED', approver_id = #{approverId}, approver_name = #{approverName},
+            opinion = #{opinion}, handled_at = now(), update_by = #{approverName}, update_time = now(), version = version + 1
+        where renew_id = #{renewId} and renew_status = 'PENDING'
+    </update>
+
+    <update id="rejectRenew">
+        update arc_borrow_renew
+        set renew_status = 'REJECTED', approver_id = #{approverId}, approver_name = #{approverName},
+            opinion = #{opinion}, handled_at = now(), update_by = #{approverName}, update_time = now(), version = version + 1
+        where renew_id = #{renewId} and renew_status = 'PENDING'
+    </update>
+
+    <update id="applyRenewToBorrow">
+        update arc_borrow
+        set end_date = #{newEndDate}, renew_count = renew_count + 1,
+            update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and borrow_status = 'LENT'
+    </update>
+
+    <update id="closePendingRenew">
+        update arc_borrow_renew
+        set renew_status = 'WITHDRAWN', update_by = #{operator}, update_time = now(), version = version + 1
+        where borrow_id = #{borrowId} and renew_status = 'PENDING'
+    </update>
+
+    <select id="selectRenewsByBorrow" resultMap="RenewResult">
+        select <include refid="renewColumns"/>
+        from arc_borrow_renew r
+        join arc_borrow b on b.borrow_id = r.borrow_id
+        join arc_archive a on a.archive_id = b.archive_id
+        where r.borrow_id = #{borrowId}
+        order by r.create_time desc
+    </select>
+
+    <select id="selectPendingRenews" resultMap="RenewResult">
+        select <include refid="renewColumns"/>
+        from arc_borrow_renew r
+        join arc_borrow b on b.borrow_id = r.borrow_id
+        join arc_archive a on a.archive_id = b.archive_id
+        where r.renew_status = 'PENDING'
+        order by r.create_time
+    </select>
+
+    <insert id="insertAudit">
+        insert into arc_audit_event (archive_id, archive_code, event_type, actor_id, actor_name, event_time, detail)
+        values (#{archiveId}, #{archiveCode}, #{eventType}, #{actorId}, #{actorName}, now(), #{detail})
+    </insert>
+
+    <select id="selectBorrowAudits" resultType="java.util.Map">
+        select event_type, actor_name, event_time, detail
+        from arc_audit_event
+        where archive_id = #{archiveId} and event_type like 'BORROW%'
+        order by event_time desc, event_id desc
+        limit 50
+    </select>
+
+    <select id="selectBorrowDepts" resultType="java.util.Map">
+        select distinct b.applicant_dept_id as deptId, d.dept_name as deptName
+        from arc_borrow b
+        join sys_dept d on d.dept_id = b.applicant_dept_id
+        where b.applicant_dept_id is not null
+        order by d.dept_name
+    </select>
+</mapper>

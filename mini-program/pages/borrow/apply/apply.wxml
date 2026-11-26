@@ -1,0 +1,39 @@
+<view class="page">
+  <view class="page-header">
+    <text class="page-title">申请借阅</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="state">加载可借档案…</view>
+  <view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <view wx:elif="{{archives.length === 0}}" class="state">暂无可借档案：需要已提交或已归档的档案</view>
+
+  <view wx:else class="form">
+    <view class="field">
+      <text class="label">档案</text>
+      <picker mode="selector" range="{{options}}" value="{{index}}" bindchange="onArchiveChange">
+        <view class="picker">{{index >= 0 ? options[index] : '请选择档案'}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="label">借阅事由</text>
+      <textarea class="textarea" maxlength="500" placeholder="请填写借阅事由" value="{{reason}}" bindinput="onReasonInput" />
+    </view>
+
+    <view class="field">
+      <text class="label">借期开始</text>
+      <picker mode="date" value="{{start}}" bindchange="onStartChange">
+        <view class="picker">{{start}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="label">应归还日</text>
+      <picker mode="date" value="{{end}}" bindchange="onEndChange">
+        <view class="picker">{{end}}</view>
+      </picker>
+    </view>
+
+    <button class="primary-button" loading="{{submitting}}" bindtap="submit">提交申请</button>
+  </view>
+</view>

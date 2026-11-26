@@ -1,0 +1,76 @@
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx 8rpx;
+}
+
+.stats {
+  display: flex;
+  margin: 16rpx 32rpx 0;
+  padding: 20rpx 0;
+  background: #fff;
+  border-radius: 16rpx;
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat .num {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.stat .num.warn {
+  color: #d9534f;
+}
+
+.stat .label {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #7a8999;
+}
+
+.borrow-item .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.borrow-item .no {
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.borrow-item .title {
+  margin-top: 12rpx;
+  font-size: 30rpx;
+  color: #1f2d3d;
+}
+
+.borrow-item .meta {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #7a8999;
+}
+
+.status {
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  background: #eef3fb;
+  color: #3a6fb0;
+}
+
+.status-LENT { background: #fff4e6; color: #c07a12; }
+.status-RETURNED { background: #eaf7ee; color: #2f8f4e; }
+.status-REJECTED { background: #fdeeee; color: #c04040; }
+
+.overdue {
+  color: #d9534f;
+}
