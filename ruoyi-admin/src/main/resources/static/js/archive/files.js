@@ -1,144 +1,191 @@
 var archiveFiles = (function () {
-    //管理档案附件上传队列与列表
     var prefix = ctx + "records/files/" + archiveFileOptions.archiveId;
     var uploading = false;
+    var versionUploading = false;
+    var chart;
+    var statisticsRequest;
+    var events = {FILE_UPLOAD: "首次上传", FILE_VERSION_ADD: "新增版本", FILE_VERSION_ROLLBACK: "版本回退",
+        FILE_REVOKE: "撤销附件", FILE_PREVIEW: "预览", FILE_DOWNLOAD: "下载", FILE_PRINT: "打印请求"};
 
     function escape(value) {
-        //转义文件名和路径中的HTML字符
         return $("<div>").text(value == null ? "" : value).html();
     }
-
     function sizeText(bytes) {
-        //格式化文件大小
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
         return (bytes / 1024 / 1024).toFixed(1) + " MB";
     }
-
+    function requestError(xhr) {
+        $.modal.alertWarning((xhr.responseJSON && xhr.responseJSON.msg) || "请求失败，请稍后重试");
+    }
+    function button(label, action, fileId) {
+        return '<button type="button" class="btn btn-default btn-xs" data-action="' + action
+            + '" data-file-id="' + fileId + '">' + label + '</button> ';
+    }
     function refresh() {
-        //刷新已上传附件清单
-        $.get(prefix + "/list", function (res) {
+        return $.get(prefix + "/list", function (res) {
             if (res.code !== 0) return $.modal.alertWarning(res.msg || "附件查询失败");
             var html = (res.data || []).map(function (file) {
-                //生成附件信息行
-                var action = archiveFileOptions.canDeleteFiles
-                    ? '<td><button class="btn btn-danger btn-xs" onclick="archiveFiles.remove(' + file.fileId + ')"><i class="fa fa-trash"></i> 删除记录</button></td>' : "";
-                return "<tr><td>" + escape(file.displayName) + "</td><td>" + escape(file.relativePath)
-                    + "</td><td>" + escape(file.storageName) + "</td><td>" + escape(file.fileType)
-                    + "</td><td>" + sizeText(file.fileSize) + "</td><td>" + escape(file.createBy)
-                    + "</td><td>" + escape(file.createTime) + "</td>" + action + "</tr>";
+                var id = file.fileId, version = file.currentVersionNo;
+                var actions = button("版本", "versions", id) + button("操作记录", "operations", id);
+                if (version) {
+                    if (archiveFileOptions.canPreview) actions += button("预览", "preview", id);
+                    if (archiveFileOptions.canDownload) actions += button("下载", "download", id);
+                    if (archiveFileOptions.canPrint) actions += button("打印", "print", id);
+                    if (archiveFileOptions.canUpload) actions += button("新增版本", "addVersion", id);
+                }
+                if (archiveFileOptions.canDeleteFiles) actions += button("撤销", "revoke", id);
+                return '<tr data-version="' + (version || 0) + '"><td>' + escape(file.displayName)
+                    + '</td><td>' + escape(file.relativePath) + '</td><td>' + escape(file.fileType)
+                    + '</td><td>' + sizeText(file.fileSize) + '</td><td>' + (version ? 'V' + version : '待迁移')
+                    + '</td><td>' + escape(file.createBy) + '</td><td>' + escape(file.createTime)
+                    + '</td><td>' + actions + '</td></tr>';
             }).join("");
-            var columns = archiveFileOptions.canDeleteFiles ? 8 : 7;
-            $("#attachment-rows").html(html || '<tr><td colspan="' + columns + '" class="text-center text-muted">暂无附件</td></tr>');
+            $("#attachment-rows").html(html || '<tr><td colspan="8" class="text-center">暂无附件</td></tr>');
+        }).fail(requestError);
+    }
+    function loadStatistics() {
+        var from = $("#usage-form [name=dateFrom]").val(), to = $("#usage-form [name=dateTo]").val();
+        if (from && to && from > to) return $.modal.alertWarning("开始日期不能晚于结束日期");
+        // 新查询替换旧查询，避免慢响应覆盖最新筛选结果。
+        if (statisticsRequest) statisticsRequest.abort();
+        statisticsRequest = $.ajax({url: prefix + "/statistics", type: "POST", data: $("#usage-form").serialize(),
+            success: function (res) {
+                if (res.code !== 0) return $.modal.alertWarning(res.msg || "统计失败");
+                var rows = res.data || [], total = 0;
+                var byEvent = $("#usage-form [name=groupBy]").val() === "eventType";
+                var names = [], values = [];
+                $("#usage-rows").html(rows.map(function (row) {
+                    var name = byEvent ? (events[row.name] || row.name) : row.name;
+                    var count = Number(row.total);
+                    total += count; names.push(name); values.push(count);
+                    return '<tr><td>' + escape(name) + '</td><td>' + count + '</td></tr>';
+                }).join("") || '<tr><td colspan="2">暂无操作记录</td></tr>');
+                $("#usage-summary").text("符合条件的操作共 " + total + " 次；按档案当前状态及附件当前类型分组。");
+                if (window.echarts) {
+                    if (!chart) chart = echarts.init(document.getElementById("usage-chart"));
+                    chart.setOption({tooltip: {trigger: "axis"}, grid: {x: 60, y: 30, x2: 30, y2: 80},
+                        xAxis: [{type: "category", data: names, axisLabel: {rotate: 20}}],
+                        yAxis: [{type: "value", min: 0, minInterval: 1}],
+                        series: [{name: "操作次数", type: "bar", data: values}]}, true);
+                }
+            }, error: function (xhr, status) { if (status !== "abort") requestError(xhr); }
         });
     }
-
+    function changed() { refresh(); loadStatistics(); }
     function uploadQueue(selectedFiles) {
-        //依次上传所选文件并保留相对目录
         var queue = Array.from(selectedFiles);
         if (!queue.length || uploading) return;
         uploading = true;
         $("#upload-panel button").prop("disabled", true);
         $("#upload-queue").show();
         $("#upload-rows").html(queue.map(function (file, index) {
-            //显示待上传文件与初始进度
             return '<tr id="upload-row-' + index + '"><td>' + escape(file.webkitRelativePath || file.name)
-                + "</td><td>" + sizeText(file.size) + '</td><td class="upload-progress">0%</td><td class="upload-result">等待上传</td></tr>';
+                + '</td><td>' + sizeText(file.size) + '</td><td class="upload-progress">0%</td><td class="upload-result">等待上传</td></tr>';
         }).join(""));
-        var success = 0;
-        var failed = 0;
-
+        var success = 0, failed = 0;
         function next(index) {
-            //处理下一文件并汇总上传结果
             $("#upload-summary").text("共 " + queue.length + " 个，成功 " + success + " 个，失败 " + failed + " 个");
             if (index === queue.length) {
                 uploading = false;
                 $("#upload-panel button").prop("disabled", false);
-                refresh();
+                changed();
                 return;
             }
-            var file = queue[index];
-            var row = $("#upload-row-" + index);
-            if (file.size === 0 || file.size > archiveFileOptions.maxFileSize) {
-                row.find(".upload-result").addClass("text-danger").text(file.size === 0 ? "空文件" : "超过单文件大小限制");
+            var file = queue[index], row = $("#upload-row-" + index);
+            if (!file.size || file.size > archiveFileOptions.maxFileSize) {
+                row.find(".upload-result").addClass("text-danger").text(!file.size ? "空文件" : "超过单文件大小限制");
                 failed++;
-                next(index + 1);
+                // 异步继续，避免大量无效文件造成递归栈过深。
+                setTimeout(function () { next(index + 1); }, 0);
                 return;
             }
             var data = new FormData();
             data.append("file", file, file.name);
             data.append("relativePath", file.webkitRelativePath || file.name);
             row.find(".upload-result").text("正在上传");
-            $.ajax({
-                url: prefix + "/upload",
-                type: "POST",
-                data: data,
-                processData: false,
-                contentType: false,
+            $.ajax({url: prefix + "/upload", type: "POST", data: data, processData: false, contentType: false,
                 xhr: function () {
-                    //更新当前文件上传进度
                     var xhr = $.ajaxSettings.xhr();
                     xhr.upload.addEventListener("progress", function (event) {
                         if (event.lengthComputable) row.find(".upload-progress").text(Math.round(event.loaded * 100 / event.total) + "%");
                     });
                     return xhr;
-                },
-                success: function (res) {
-                    //记录单个文件的服务端处理结果
+                }, success: function (res) {
                     if (res.code === 0) {
-                        success++;
-                        row.find(".upload-progress").text("100%");
+                        success++; row.find(".upload-progress").text("100%");
                         row.find(".upload-result").addClass("text-success").text("上传成功");
                     } else {
-                        failed++;
-                        row.find(".upload-result").addClass("text-danger").text(res.msg || "上传失败");
+                        failed++; row.find(".upload-result").addClass("text-danger").text(res.msg || "上传失败");
                     }
-                },
-                error: function (xhr) {
-                    //显示请求失败结果并继续队列
-                    failed++;
-                    row.find(".upload-result").addClass("text-danger").text((xhr.responseJSON && xhr.responseJSON.msg) || "上传请求失败");
-                },
-                complete: function () {
-                    //继续上传队列
-                    next(index + 1);
-                }
+                }, error: function (xhr) {
+                    failed++; row.find(".upload-result").addClass("text-danger").text((xhr.responseJSON && xhr.responseJSON.msg) || "上传请求失败");
+                }, complete: function () { next(index + 1); }
             });
         }
         next(0);
     }
-
+    function addVersion(fileId) {
+        if (versionUploading) return $.modal.alertWarning("请等待当前版本上传完成");
+        var input = $('<input type="file">');
+        input.on("change", function () {
+            var file = this.files[0];
+            if (!file) return;
+            if (!file.size || file.size > archiveFileOptions.maxFileSize) return $.modal.alertWarning("文件为空或超过大小限制");
+            var data = new FormData(); data.append("file", file, file.name);
+            versionUploading = true;
+            $.ajax({url: prefix + "/file/" + fileId + "/versions", type: "POST", data: data,
+                processData: false, contentType: false,
+                success: function (res) { if (res.code === 0) changed(); else $.modal.alertWarning(res.msg); },
+                error: requestError, complete: function () { versionUploading = false; }
+            });
+        });
+        input[0].click();
+    }
+    function revoke(fileId) {
+        var reason = window.prompt("请输入撤销原因（可留空）");
+        if (reason === null) return;
+        $.modal.confirm("撤销后该附件将不再用于预览、下载和打印，确认继续？", function () {
+            $.post(prefix + "/file/" + fileId + "/revoke", {reason: reason}, function (res) {
+                if (res.code === 0) changed(); else $.modal.alertWarning(res.msg);
+            }).fail(requestError);
+        });
+    }
+    function operations(fileId) {
+        $("#operation-rows").html('<tr><td colspan="4">加载中…</td></tr>');
+        $("#file-operations").modal("show");
+        $.get(prefix + "/file/" + fileId + "/operations", function (res) {
+            if (res.code !== 0) return $.modal.alertWarning(res.msg);
+            $("#operation-rows").html((res.data || []).map(function (row) {
+                return '<tr><td>' + escape(events[row.eventType] || row.eventType) + '</td><td>' + escape(row.actorName)
+                    + '</td><td>' + escape(row.eventTime) + '</td><td>' + escape(row.detail) + '</td></tr>';
+            }).join("") || '<tr><td colspan="4">暂无操作记录</td></tr>');
+        }).fail(requestError);
+    }
     return {
         init: function () {
-            //初始化附件列表与文件选择事件
             var folderInput = document.getElementById("folder-files");
             if (folderInput) folderInput.setAttribute("webkitdirectory", "");
             $("#file-size-limit").text(sizeText(archiveFileOptions.maxFileSize));
-            $("#single-file, #multiple-files, #folder-files").on("change", function () {
-                //读取所选文件并启动上传
-                uploadQueue(this.files);
-                this.value = "";
+            $("#single-file, #multiple-files, #folder-files").on("change", function () { uploadQueue(this.files); this.value = ""; });
+            $("#attachment-rows").on("click", "button[data-action]", function () {
+                var id = $(this).data("file-id"), action = $(this).data("action");
+                var version = $(this).closest("tr").data("version");
+                if (action === "versions") window.open(prefix + "/file/" + id + "/versions/page", "_blank", "noopener");
+                else if (action === "addVersion") addVersion(id);
+                else if (action === "revoke") revoke(id);
+                else if (action === "operations") operations(id);
+                else if (["preview", "download", "print"].indexOf(action) >= 0) {
+                    window.open(prefix + "/file/" + id + "/version/" + version + "/" + action, "_blank", "noopener");
+                }
             });
-            refresh();
+            $("#usage-form").on("submit", function (event) { event.preventDefault(); loadStatistics(); });
+            $(window).on("resize", function () { if (chart) chart.resize(); });
+            $(window).on("focus", changed);
+            refresh(); loadStatistics();
         },
-        pick: function (inputId) {
-            //打开单文件多文件或文件夹选择器
-            if (!uploading) document.getElementById(inputId).click();
-        },
-        remove: function (fileId) {
-            //确认后只删除附件数据库记录
-            $.modal.confirm("删除后附件记录将移除，但磁盘文件会保留，确认继续？", function () {
-                $.ajax({
-                    url: prefix + "/delete/" + fileId,
-                    type: "POST",
-                    success: function (res) {
-                        if (res.code === 0) refresh();
-                        else $.modal.alertWarning(res.msg || "附件记录删除失败");
-                    }
-                });
-            });
-        },
-        refresh: refresh
+        pick: function (inputId) { if (!uploading) document.getElementById(inputId).click(); },
+        refresh: changed
     };
 })();
 $(archiveFiles.init);

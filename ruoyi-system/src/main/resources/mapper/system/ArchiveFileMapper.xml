@@ -12,11 +12,92 @@
         <result property="sha256" column="sha256"/>
         <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
+        <result property="revoked" column="revoked"/>
+        <result property="currentVersionNo" column="current_version_no"/>
+    </resultMap>
+
+    <resultMap id="VersionResult" type="com.ruoyi.system.domain.ArchiveFileVersion">
+        <id property="fileId" column="file_id"/>
+        <id property="versionNo" column="version_no"/>
+        <result property="originalName" column="original_name"/>
+        <result property="storeKey" column="store_key"/>
+        <result property="fileType" column="file_type"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="sha256" column="sha256"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="sourceVersionNo" column="source_version_no"/>
     </resultMap>
 
     <select id="selectFiles" resultMap="FileResult">
-        select file_id,archive_id,display_name,relative_path,store_key,file_type,file_size,sha256,create_by,create_time
-        from arc_file where archive_id=#{archiveId} order by relative_path,file_id
+        select f.file_id,f.archive_id,f.display_name,f.relative_path,f.store_key,f.file_type,f.file_size,f.sha256,
+               f.create_by,f.create_time,f.revoked,
+               (select max(v.version_no) from arc_file_version v where v.file_id=f.file_id) current_version_no
+        from arc_file f
+        where f.archive_id=#{archiveId} and f.revoked=0
+        order by f.relative_path,f.file_id
+    </select>
+
+    <select id="selectVersions" resultMap="VersionResult">
+        select file_id,version_no,original_name,store_key,file_type,file_size,sha256,create_by,create_time,source_version_no
+        from arc_file_version where file_id=#{fileId} order by version_no desc
+    </select>
+
+    <select id="selectVersion" resultMap="VersionResult">
+        select v.file_id,v.version_no,v.original_name,v.store_key,v.file_type,v.file_size,v.sha256,
+               v.create_by,v.create_time,v.source_version_no
+        from arc_file_version v join arc_file f on f.file_id=v.file_id
+        where v.file_id=#{fileId} and v.version_no=#{versionNo} and f.revoked=0
+    </select>
+
+    <select id="selectNextVersionNo" resultType="int">
+        select coalesce(max(version_no),0)+1 from arc_file_version where file_id=#{fileId}
+    </select>
+
+    <insert id="insertVersion" useGeneratedKeys="false">
+        insert into arc_file_version(file_id,version_no,original_name,store_key,file_type,file_size,sha256,create_by,source_version_no)
+        values(#{version.fileId},#{version.versionNo},#{version.originalName},#{version.storeKey},#{version.fileType},#{version.fileSize},#{version.sha256},#{version.createBy},#{version.sourceVersionNo})
+    </insert>
+
+    <update id="updateCurrentSnapshot">
+        update arc_file set display_name=#{version.originalName},store_key=#{version.storeKey},file_type=#{version.fileType},file_size=#{version.fileSize},sha256=#{version.sha256}
+        where file_id=#{version.fileId} and archive_id=#{archiveId} and revoked=0
+    </update>
+
+    <update id="revokeFile">
+        update arc_file set revoked=1 where file_id=#{fileId} and archive_id=#{archiveId} and revoked=0
+    </update>
+
+    <select id="selectUsageStatistics" resultType="map">
+        select <choose><when test="groupBy == 'fileType'">f.file_type</when>
+            <otherwise>e.event_type</otherwise></choose> as name, count(*) as total
+        from arc_audit_event e
+        join arc_file f on e.archive_id=f.archive_id
+            and locate(concat('[file:',f.file_id,']'),e.detail)=1
+        join arc_archive a on a.archive_id=e.archive_id
+        where a.del_flag='0' and e.archive_id=#{archiveId}
+            and e.event_type in ('FILE_UPLOAD','FILE_PREVIEW','FILE_DOWNLOAD','FILE_PRINT',
+                'FILE_VERSION_ADD','FILE_VERSION_ROLLBACK','FILE_REVOKE')
+        <if test="dateFrom != null">and e.event_time &gt;= #{dateFrom}</if>
+        <if test="dateTo != null">and e.event_time &lt; date_add(#{dateTo}, interval 1 day)</if>
+        <if test="archiveStatus != null and archiveStatus != ''">and a.archive_status=#{archiveStatus}</if>
+        group by <choose><when test="groupBy == 'fileType'">f.file_type</when>
+            <otherwise>e.event_type</otherwise></choose>
+        order by total desc
+    </select>
+
+    <select id="selectFileOperations" resultType="map">
+        select event_type eventType,actor_name actorName,event_time eventTime,detail
+        from arc_audit_event
+        where archive_id=#{archiveId} and locate(concat('[file:',#{fileId},']'),detail)=1
+        order by event_time desc,event_id desc
+    </select>
+
+    <select id="selectFile" resultMap="FileResult">
+        select f.file_id,f.archive_id,f.display_name,f.relative_path,f.store_key,f.file_type,f.file_size,f.sha256,
+               f.create_by,f.create_time,f.revoked,
+               (select max(v.version_no) from arc_file_version v where v.file_id=f.file_id) current_version_no
+        from arc_file f where f.file_id=#{fileId} and f.archive_id=#{archiveId}
     </select>
 
     <select id="lockArchive" resultType="java.lang.Long">
@@ -24,8 +105,8 @@
     </select>
 
     <insert id="insertFile" useGeneratedKeys="true" keyProperty="fileId">
-        insert into arc_file(archive_id,display_name,relative_path,store_key,file_type,file_size,sha256,create_by)
-        values(#{archiveId},#{displayName},#{relativePath},#{storeKey},#{fileType},#{fileSize},#{sha256},#{createBy})
+        insert into arc_file(archive_id,display_name,relative_path,store_key,file_type,file_size,sha256,create_by,revoked)
+        values(#{archiveId},#{displayName},#{relativePath},#{storeKey},#{fileType},#{fileSize},#{sha256},#{createBy},0)
     </insert>
 
     <delete id="deleteFile">

@@ -9,7 +9,7 @@
         <div class="ibox-title"><h5>档案附件</h5></div>
         <div class="ibox-content">
             <p><strong th:text="${archive.archiveCode}"></strong>　<span th:text="${archive.title}"></span></p>
-            <p class="text-muted">支持 PDF、Word、Excel、文本文件、图片及音视频文件</p>
+            <p class="text-muted">支持 PDF、Office、文本、图片及音视频文件；单文件上限 <span id="file-size-limit"></span>。预览与打印取决于浏览器支持，Office 文件可下载后打开。</p>
             <div th:if="${canUpload}" id="upload-panel">
                 <div class="btn-group-sm" style="margin-bottom:12px">
                     <button class="btn btn-success" type="button" onclick="archiveFiles.pick('single-file')"><i class="fa fa-file-o"></i> 单文件上传</button>
@@ -38,21 +38,51 @@
             <button class="btn btn-default btn-sm" type="button" onclick="archiveFiles.refresh()"><i class="fa fa-refresh"></i> 刷新</button>
             <div class="table-responsive" style="margin-top:12px">
                 <table class="table table-bordered table-striped">
-                    <thead><tr><th>原文件名</th><th>相对路径</th><th>自动存储名</th><th>类型</th><th>大小</th><th>上传人</th><th>上传时间</th><th th:if="${canDeleteFiles}">操作</th></tr></thead>
+                    <thead><tr><th>原文件名</th><th>相对路径</th><th>类型</th><th>大小</th><th>当前版本</th><th>上传人</th><th>上传时间</th><th>操作</th></tr></thead>
                     <tbody id="attachment-rows"></tbody>
                 </table>
             </div>
         </div>
     </div>
+    <div class="ibox">
+        <div class="ibox-title"><h5>当前档案文件操作统计</h5></div>
+        <div class="ibox-content">
+            <form id="usage-form" class="form-inline">
+                <label>开始日期 <input class="form-control" type="date" name="dateFrom"></label>
+                <label>结束日期 <input class="form-control" type="date" name="dateTo"></label>
+                <label>档案当前状态 <select class="form-control" name="archiveStatus">
+                    <option value="">全部</option><option value="DRAFT">草稿</option><option value="SUBMITTED">已提交</option>
+                </select></label>
+                <label>统计维度 <select class="form-control" name="groupBy">
+                    <option value="eventType">操作类型</option><option value="fileType">文件类型</option>
+                </select></label>
+                <button class="btn btn-primary" type="submit">查询统计</button>
+            </form>
+            <p id="usage-summary" class="text-muted" style="margin-top:12px"></p>
+            <div id="usage-chart" style="height:300px"></div>
+            <table class="table table-bordered"><thead><tr><th>分组</th><th>次数</th></tr></thead><tbody id="usage-rows"></tbody></table>
+        </div>
+    </div>
+</div>
+<div id="file-operations" class="modal fade" tabindex="-1" role="dialog" aria-label="附件操作记录">
+    <div class="modal-dialog modal-lg"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button><h4>附件操作记录</h4></div>
+        <div class="modal-body"><table class="table table-bordered"><thead><tr><th>操作</th><th>操作人</th><th>时间</th><th>详情</th></tr></thead><tbody id="operation-rows"></tbody></table></div>
+    </div></div>
 </div>
 <th:block th:include="include :: footer" />
 <script th:inline="javascript">
     var archiveFileOptions = {
         archiveId: /*[[${archive.archiveId}]]*/ 0,
         maxFileSize: /*[[${maxFileSize}]]*/ 0,
-        canDeleteFiles: /*[[${canDeleteFiles}]]*/ false
+        canUpload: /*[[${canUpload}]]*/ false,
+        canDeleteFiles: /*[[${canDeleteFiles}]]*/ false,
+        canPreview: /*[[${canPreview}]]*/ false,
+        canDownload: /*[[${canDownload}]]*/ false,
+        canPrint: /*[[${canPrint}]]*/ false
     };
 </script>
+<script th:src="@{/ajax/libs/report/echarts/echarts-all.min.js}"></script>
 <script th:src="@{/js/archive/files.js}"></script>
 </body>
 </html>

@@ -27,6 +27,10 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.web.multipart.MultipartFile;
+import com.ruoyi.system.domain.ArchiveFileVersion;
+import java.io.InputStream;
+import java.util.Date;
+import java.util.Map;
 
 @Service
 public class ArchiveFileService {
@@ -45,12 +49,17 @@ public class ArchiveFileService {
         this.root = Path.of(fileRoot).toAbsolutePath().normalize();
     }
 
-    public ArchiveRecord requireArchive(long archiveId, String actor, boolean admin, LongPredicate categoryAllowed, int maxSecretLevel) {
-        //校验档案访问权限
+    public ArchiveRecord requireArchive(long archiveId, String actor, boolean admin) {
+        //校验档案是否存在及当前用户的基本访问权限
         ArchiveRecord record = archives.selectArchiveById(archiveId, actor, admin);
-        if (record == null || !categoryAllowed.test(record.getCategoryId()) || record.getSecretLevel() > maxSecretLevel)
-            throw new ServiceException("档案不存在或无权访问");
+        if (record == null) throw new ServiceException("档案不存在或无权访问");
         return record;
+    }
+
+    public ArchiveRecord requireArchive(long archiveId, String actor, boolean admin,
+                                        LongPredicate categoryAllowed, int maxSecretLevel) {
+        //兼容原有调用，不再校验分类和密级
+        return requireArchive(archiveId, actor, admin);
     }
 
     public List<ArchiveFile> list(long archiveId, String actor, boolean admin, LongPredicate categoryAllowed, int maxSecretLevel) {
@@ -109,19 +118,28 @@ public class ArchiveFileService {
         file.setSha256(HexFormat.of().formatHex(digest.digest()));
         file.setCreateBy(actor);
         files.insertFile(file);
-        archives.insertAudit(archiveId, archive.getArchiveCode(), "FILE_UPLOAD", actorId, actor, "上传附件：" + name);
+        ArchiveFileVersion initial = new ArchiveFileVersion();
+        initial.setFileId(file.getFileId());
+        initial.setVersionNo(1);
+        initial.setOriginalName(name);
+        initial.setStoreKey(storeKey);
+        initial.setFileType(type);
+        initial.setFileSize(file.getFileSize());
+        initial.setSha256(file.getSha256());
+        initial.setCreateBy(actor);
+        files.insertVersion(initial);
+        file.setCurrentVersionNo(1);
+        file.setRevoked(0);
+        archives.insertAudit(archiveId, archive.getArchiveCode(), "FILE_UPLOAD", actorId, actor,
+            fileDetail(file.getFileId(), "上传附件 V1：" + name));
         return file;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void delete(long archiveId, long fileId, String actor, long actorId, boolean admin,
         LongPredicate categoryAllowed, int maxSecretLevel) {
-        //只删除附件数据库记录并保留磁盘文件
-        if (files.lockArchive(archiveId) == null) throw new ServiceException("档案不存在或无权访问");
-        ArchiveRecord archive = requireArchive(archiveId, actor, admin, categoryAllowed, maxSecretLevel);
-        if (!"DRAFT".equals(archive.getArchiveStatus())) throw new ServiceException("只有草稿档案的附件可以删除");
-        if (files.deleteFile(fileId, archiveId) == 0) throw new ServiceException("附件不存在");
-        archives.insertAudit(archiveId, archive.getArchiveCode(), "FILE_DELETE", actorId, actor, "删除附件记录：" + fileId);
+        // 兼容旧删除接口，统一逻辑撤销，保留版本和操作历史。
+        revoke(archiveId, fileId, "旧删除入口撤销", actor, actorId, admin);
     }
 
     private String normalizePath(String value, String name) {
@@ -137,4 +155,169 @@ public class ArchiveFileService {
         if (!parts[parts.length - 1].equals(name)) throw new ServiceException("相对路径与文件名不一致");
         return path;
     }
+
+    @Transactional(rollbackFor = Exception.class)
+    //传新版本
+    public ArchiveFileVersion addVersion(long archiveId, long fileId, MultipartFile upload, String actor, long actorId, boolean admin) throws IOException, NoSuchAlgorithmException {
+        files.lockArchive(archiveId);//debug：需要先锁定档案记录，否则会发生冲突
+        ArchiveRecord archive = requireArchive(archiveId, actor, admin);
+        if (!"DRAFT".equals(archive.getArchiveStatus())) throw new ServiceException("只有草稿可以新增版本");
+        ArchiveFile current = files.selectFile(archiveId, fileId);
+        if (current == null || Integer.valueOf(1).equals(current.getRevoked())) {
+            throw new ServiceException("附件不存在或已撤销");
+        }
+        ArchiveFileVersion version = writeVersionFile(upload, current.getDisplayName(), actor);
+        version.setFileId(fileId);
+        version.setVersionNo(files.selectNextVersionNo(fileId));
+        files.insertVersion(version);
+        files.updateCurrentSnapshot(archiveId, version);
+        archives.insertAudit(archiveId, archive.getArchiveCode(), "FILE_VERSION_ADD", actorId, actor,
+                fileDetail(fileId, "新版本V" + version.getVersionNo() + "：" + version.getOriginalName()));
+        return version;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    //回滚版本rollback
+    public ArchiveFileVersion rollback(long archiveId, long fileId, int sourceVersionNo, String actor, long actorId, boolean admin) {
+        files.lockArchive(archiveId);
+        ArchiveRecord archive = requireArchive(archiveId, actor, admin);
+        if (!"DRAFT".equals(archive.getArchiveStatus())) throw new ServiceException("只有草稿可以回退版本");
+        ArchiveFile current = files.selectFile(archiveId, fileId);
+        ArchiveFileVersion source = files.selectVersion(fileId, sourceVersionNo);
+        if (current == null || Integer.valueOf(1).equals(current.getRevoked()) || source == null) {
+            throw new ServiceException("附件或来源版本不存在");
+        }
+        if (Integer.valueOf(sourceVersionNo).equals(current.getCurrentVersionNo())) {
+            throw new ServiceException("不能回退到当前版本");
+        }
+        ArchiveFileVersion next = copyVersion(source);
+        next.setVersionNo(files.selectNextVersionNo(fileId));
+        next.setSourceVersionNo(sourceVersionNo);//溯源：给出来源版本号
+        next.setCreateBy(actor);
+        next.setCreateTime(new Date());
+        files.insertVersion(next);
+        files.updateCurrentSnapshot(archiveId, next);
+        archives.insertAudit(archiveId, archive.getArchiveCode(), "FILE_VERSION_ROLLBACK", actorId, actor,
+                fileDetail(fileId, "回退到 V" + sourceVersionNo + "，生成 V" + next.getVersionNo()));
+        return next;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    //撤销附件，但是逻辑撤销i
+    public void revoke(long archiveId, long fileId, String reason, String actor, long actorId, boolean admin) {
+        files.lockArchive(archiveId);
+        ArchiveRecord archive = requireArchive(archiveId, actor, admin);
+        if (!"DRAFT".equals(archive.getArchiveStatus())) throw new ServiceException("只有草稿附件可以撤销");
+        if (files.revokeFile(archiveId, fileId) == 0) throw new ServiceException("附件不存在或已撤销");
+        archives.insertAudit(archiveId, archive.getArchiveCode(), "FILE_REVOKE", actorId, actor,
+                fileDetail(fileId, "撤销附件：" + reason));
+    }
+
+    //版本查询
+    public List<ArchiveFileVersion> versions(long archiveId, long fileId, String actor, boolean admin) {
+        requireArchive(archiveId, actor, admin);
+        ArchiveFile file = files.selectFile(archiveId, fileId);
+        if (file == null || Integer.valueOf(1).equals(file.getRevoked())) throw new ServiceException("附件不存在");
+        return files.selectVersions(fileId);
+    }
+
+    public List<Map<String, Object>> usageStatistics(long archiveId, LocalDate dateFrom, LocalDate dateTo,
+        String archiveStatus, String groupBy, String actor, boolean admin) {
+        requireArchive(archiveId, actor, admin);
+        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo))
+            throw new ServiceException("开始日期不能晚于结束日期");
+        if (!"eventType".equals(groupBy) && !"fileType".equals(groupBy))
+            throw new ServiceException("不支持的统计维度");
+        return files.selectUsageStatistics(archiveId, dateFrom, dateTo, archiveStatus, groupBy);
+    }
+
+    //附件操作历史查询
+    public List<Map<String, Object>> operations(long archiveId, long fileId, String actor, boolean admin) {
+        requireArchive(archiveId, actor, admin);
+        if (files.selectFile(archiveId, fileId) == null) throw new ServiceException("附件不存在");
+        return files.selectFileOperations(archiveId, fileId);
+    }
+
+    //版本信息比较
+    public Map<String, Object> compare(long archiveId, long fileId, int leftVersionNo, int rightVersionNo, String actor, boolean admin) {
+        requireArchive(archiveId, actor, admin);
+        if (files.selectFile(archiveId, fileId) == null) throw new ServiceException("附件不存在");
+        ArchiveFileVersion left = files.selectVersion(fileId, leftVersionNo);
+        ArchiveFileVersion right = files.selectVersion(fileId, rightVersionNo);
+        if (left == null || right == null) throw new ServiceException("比较版本不存在");
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("left", left);
+        result.put("right", right);
+        result.put("sameContent", left.getSha256().equalsIgnoreCase(right.getSha256()));
+        result.put("sameName", left.getOriginalName().equals(right.getOriginalName()));
+        result.put("sizeDelta", right.getFileSize() - left.getFileSize());
+        result.put("typeChanged", !left.getFileType().equalsIgnoreCase(right.getFileType()));
+        return result;
+    }
+
+    //record的预览下载打印，and sth else
+    @Transactional(rollbackFor = Exception.class)
+    public void recordUse(long archiveId, long fileId, int versionNo, String eventType, String actor, long actorId, boolean admin) {
+        ArchiveRecord archive = requireArchive(archiveId, actor, admin);
+        version(archiveId, fileId, versionNo, actor, admin);
+        archives.insertAudit(archiveId, archive.getArchiveCode(), eventType, actorId, actor,
+                fileDetail(fileId, eventType + " V" + versionNo));
+    }
+
+    //查询单个版本
+    public ArchiveFileVersion version(long archiveId, long fileId, int versionNo, String actor, boolean admin) {
+        requireArchive(archiveId, actor, admin);
+        if (files.selectFile(archiveId, fileId) == null) throw new ServiceException("附件不存在");
+        ArchiveFileVersion value = files.selectVersion(fileId, versionNo);
+        if (value == null) throw new ServiceException("版本不存在");
+        return value;
+    }
+
+    //定位文件在本地的path
+    public Path resolveVersion(long archiveId, long fileId, int versionNo, String actor, boolean admin) {
+        ArchiveFileVersion version = version(archiveId, fileId, versionNo, actor, admin);
+        Path path = root.resolve(version.getStoreKey()).normalize();
+        if (!path.startsWith(root) || !Files.isRegularFile(path)) throw new ServiceException("附件文件不存在");
+        return path;
+    }
+
+    //保存上传的文件
+    private ArchiveFileVersion writeVersionFile(MultipartFile upload, String fallbackName, String actor)
+            throws IOException, NoSuchAlgorithmException {
+        if (upload == null || upload.isEmpty()) throw new ServiceException("请选择非空文件");
+        String name = upload.getOriginalFilename();
+        name = name == null || name.isBlank() ? fallbackName : name.replace('\\', '/');
+        name = name.substring(name.lastIndexOf('/') + 1);
+        if (name.isBlank() || name.length() > 255) throw new ServiceException("文件名无效");//debug：拦截超长文件名
+        String type = name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        if (!ALLOWED_TYPES.contains(type)) throw new ServiceException("不支持此类文件");
+        String storeKey = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/"
+                + UUID.randomUUID().toString().replace("-", "") + "." + type;
+        Path target = root.resolve(storeKey).normalize();
+        Files.createDirectories(target.getParent());
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) FileSystemUtils.deleteRecursively(target.toFile());
+            }
+        });
+        try (InputStream input = new DigestInputStream(upload.getInputStream(), digest)) {
+            Files.copy(input, target);
+        }
+        ArchiveFileVersion value = new ArchiveFileVersion();
+        value.setOriginalName(name); value.setStoreKey(storeKey); value.setFileType(type);
+        value.setFileSize(upload.getSize()); value.setSha256(HexFormat.of().formatHex(digest.digest()));
+        value.setCreateBy(actor); value.setCreateTime(new Date());
+        return value;
+    }
+
+    private ArchiveFileVersion copyVersion(ArchiveFileVersion source) {
+        ArchiveFileVersion value = new ArchiveFileVersion();
+        value.setFileId(source.getFileId()); value.setOriginalName(source.getOriginalName());
+        value.setStoreKey(source.getStoreKey()); value.setFileType(source.getFileType());
+        value.setFileSize(source.getFileSize()); value.setSha256(source.getSha256());
+        return value;
+    }
+
+    private String fileDetail(long fileId, String text) { return "[file:" + fileId + "] " + text; }
 }

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head><th:block th:include="include :: header('文件版本')" /></head>
+<body class="gray-bg"><div class="wrapper wrapper-content">
+    <div class="ibox"><div class="ibox-title"><h5>文件版本</h5></div><div class="ibox-content">
+        <p class="text-muted">选择两个版本比较文件属性与摘要；回退会生成新版本。打印使用浏览器打印功能。</p>
+        <button type="button" id="compare-versions" class="btn btn-primary">比较所选版本</button>
+        <button type="button" id="refresh-versions" class="btn btn-default">刷新</button>
+        <div id="compare-result" style="margin-top:12px"></div>
+        <div class="table-responsive"><table class="table table-bordered table-striped">
+            <thead><tr><th>比较</th><th>版本</th><th>文件名</th><th>大小</th><th>SHA-256</th><th>操作人</th><th>时间</th><th>来源版本</th><th>操作</th></tr></thead>
+            <tbody id="version-rows"></tbody>
+        </table></div>
+    </div></div>
+</div>
+<th:block th:include="include :: footer" />
+<script th:inline="javascript">
+var versionOptions = {
+    archiveId: /*[[${archiveId}]]*/ 0,
+    fileId: /*[[${fileId}]]*/ 0,
+    canRollback: /*[[${canRollback}]]*/ false,
+    canPreview: /*[[${canPreview}]]*/ false,
+    canDownload: /*[[${canDownload}]]*/ false,
+    canPrint: /*[[${canPrint}]]*/ false
+};
+</script>
+<script th:src="@{/js/archive/file-versions.js}"></script>
+</body></html>

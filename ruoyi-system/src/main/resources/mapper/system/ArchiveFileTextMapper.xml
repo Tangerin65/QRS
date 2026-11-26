@@ -13,7 +13,7 @@
         from arc_file f
         join arc_archive a on a.archive_id=f.archive_id and a.del_flag='0'
         left join arc_file_text t on t.file_id=f.file_id
-        where f.file_type in ('pdf','doc','docx')
+        where f.revoked=0 and f.file_type in ('pdf','doc','docx')
           and (t.file_id is null or t.source_sha256&lt;&gt;f.sha256 or t.retry_after&lt;=now())
         order by f.file_id limit 20
     </select>
@@ -22,7 +22,7 @@
         insert into arc_file_text(file_id,source_sha256,content,retry_after)
         select f.file_id,f.sha256,#{content},if(#{retry},date_add(now(),interval 1 hour),null)
         from arc_file f
-        where f.file_id=#{file.fileId} and f.sha256=#{file.sha256} and f.store_key=#{file.storeKey}
+        where f.revoked=0 and f.file_id=#{file.fileId} and f.sha256=#{file.sha256} and f.store_key=#{file.storeKey}
         on duplicate key update source_sha256=#{file.sha256},content=#{content},
             retry_after=if(#{retry},date_add(now(),interval 1 hour),null)
     </insert>
