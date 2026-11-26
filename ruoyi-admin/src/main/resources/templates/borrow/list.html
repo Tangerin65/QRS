@@ -40,6 +40,7 @@
             <a class="btn btn-warning" shiro:hasPermission="borrowExport" onclick="borrow.exportExcel()"><i class="fa fa-download"></i> 导出</a>
             <a class="btn btn-default" onclick="borrow.print()"><i class="fa fa-print"></i> 打印</a>
             <a class="btn btn-default" onclick="borrow.openChart()"><i class="fa fa-pie-chart"></i> 统计图</a>
+            <a class="btn btn-default" shiro:hasPermission="borrowQuery" onclick="borrow.openDashboard()"><i class="fa fa-dashboard"></i> 驾驶舱</a>
             <span class="text-muted" id="statistics" style="margin-left:12px"></span>
             <span class="text-muted" id="summary" style="margin-left:12px"></span>
         </div>
@@ -157,6 +158,6 @@
         canReturn: /*[[${canReturn}]]*/ false
     };
 </script>
-<script th:src="@{/js/borrow/list.js(v='20261125-d')}"></script>
+<script th:src="@{/js/borrow/list.js(v='20261126-a')}"></script>
 </body>
 </html>

@@ -150,8 +150,7 @@ var borrow = (function () {
             window.open(prefix + "/print?" + $.param(queryParams()));
         },
         openChart: function () {
-            $("#chart-modal").modal("show");
-            $.post(prefix + "/statistics", queryParams(), function (res) {
+            $("#chart-modal").modal("show");            $.post(prefix + "/statistics", queryParams(), function (res) {
                 if (res.code !== 0) return;
                 var d = res.data || {};
                 var chart = echarts.init(document.getElementById("list-chart"));
@@ -171,6 +170,9 @@ var borrow = (function () {
                     }]
                 }, true);
             });
+        },
+        openDashboard: function () {
+            window.open(prefix + "/dashboard");
         },
         openImport: function () {
             $("#import-file").val("");

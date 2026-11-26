@@ -14,7 +14,7 @@
         <div class="records-links">
             <a class="records-link" shiro:hasPermission="archiveQuery" th:href="@{/records/register}"><strong>档案登记</strong><span>档案上传入库</span></a>
             <div class="records-link"><strong>档案检索</strong><span>TBC</span></div>
-            <div class="records-link"><strong>阅览与借阅</strong><span>TBC</span></div>
+            <a class="records-link" shiro:hasPermission="borrowQuery" th:href="@{/borrow/list}"><strong>阅览与借阅</strong><span>借阅申请、审批与归还</span></a>
         </div>
     </div>
 
