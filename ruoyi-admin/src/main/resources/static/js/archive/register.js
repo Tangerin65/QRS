@@ -181,11 +181,13 @@ var archive = (function () {
             var form = $("#archive-editor")[0];
             if (!form.reportValidity()) return;
             var data = editorValues();
-            postJson(data.archiveId ? "/edit" : "/add", data, function (res) {
-                showResult(res, function () {
-                    $("#archive-modal").modal("hide");
-                    $.table.refresh();
-                    loadStatistics();
+            $.modal.confirm(data.archiveId ? "确认保存对该草稿的修改？" : "确认保存这份档案草稿？", function () {
+                postJson(data.archiveId ? "/edit" : "/add", data, function (res) {
+                    showResult(res, function () {
+                        $("#archive-modal").modal("hide");
+                        $.table.refresh();
+                        loadStatistics();
+                    });
                 });
             });
         },
