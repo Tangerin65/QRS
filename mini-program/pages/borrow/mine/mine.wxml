@@ -16,7 +16,7 @@
   <view wx:elif="{{rows.length === 0}}" class="state">还没有借阅记录</view>
 
   <view wx:else class="list">
-    <view class="card borrow-item" wx:for="{{rows}}" wx:key="borrowId">
+    <view class="card borrow-item" wx:for="{{rows}}" wx:key="borrowId" data-id="{{item.borrowId}}" bindtap="goDetail">
       <view class="row">
         <text class="no">{{item.borrowNo}}</text>
         <text class="status status-{{item.borrowStatus}}">{{item.statusText}}</text>
@@ -25,6 +25,10 @@
       <view class="meta">借期：{{item.startDate}} 至 {{item.endDate}}</view>
       <view class="meta" wx:if="{{item.overdueText}}">
         <text class="overdue">{{item.overdueText}}</text>
+      </view>
+      <view class="actions" wx:if="{{item.borrowStatus === 'LENT'}}">
+        <button class="mini-button" size="mini" data-id="{{item.borrowId}}" data-end="{{item.endDate}}" catchtap="renew">续借</button>
+        <button class="mini-button danger" size="mini" data-id="{{item.borrowId}}" catchtap="giveBack">归还</button>
       </view>
     </view>
   </view>

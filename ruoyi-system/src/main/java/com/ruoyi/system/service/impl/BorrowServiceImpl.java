@@ -16,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -190,6 +191,31 @@ public class BorrowServiceImpl implements IBorrowService {
     @Override
     public List<Map<String, Object>> selectDepts() {
         return mapper.selectBorrowDepts();
+    }
+
+    @Override
+    public Map<String, Object> authorization(long archiveId, long userId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        Map<String, Object> row = mapper.selectBorrowAuthorization(archiveId, userId);
+        result.put("archiveId", archiveId);
+        result.put("userId", userId);
+        if (row == null) {
+            result.put("allowed", false);
+            result.put("actions", java.util.Collections.emptyList());
+            result.put("status", null);
+            return result;
+        }
+        Object endValue = row.get("endDate");
+        LocalDate endDate = endValue instanceof java.sql.Date d ? d.toLocalDate()
+                : endValue instanceof LocalDate d ? d : null;
+        boolean valid = endDate == null || !endDate.isBefore(LocalDate.now());
+        result.put("allowed", valid);
+        result.put("borrowId", row.get("borrowId"));
+        result.put("borrowNo", row.get("borrowNo"));
+        result.put("status", row.get("borrowStatus"));
+        result.put("expireAt", endDate);
+        result.put("actions", valid ? List.of("VIEW") : java.util.Collections.emptyList());
+        return result;
     }
 
     /** 借阅关键动作写入 arc_audit_event，便于详情页追溯。 */

@@ -73,4 +73,6 @@ public interface BorrowMapper {
     List<Map<String, Object>> selectBorrowAudits(@Param("archiveId") Long archiveId);
 
     List<Map<String, Object>> selectBorrowDepts();
+
+    Map<String, Object> selectBorrowAuthorization(@Param("archiveId") long archiveId, @Param("userId") long userId);
 }

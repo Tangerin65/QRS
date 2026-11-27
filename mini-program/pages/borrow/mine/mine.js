@@ -52,6 +52,32 @@ Page({
     wx.navigateTo({ url: '/pages/borrow/apply/apply' });
   },
 
+  goDetail(event) {
+    wx.navigateTo({ url: '/pages/borrow/detail/detail?id=' + event.currentTarget.dataset.id });
+  },
+
+  renew(event) {
+    const dataset = event.currentTarget.dataset;
+    wx.navigateTo({ url: '/pages/borrow/renew/renew?id=' + dataset.id + '&end=' + (dataset.end || '') });
+  },
+
+  giveBack(event) {
+    const borrowId = event.currentTarget.dataset.id;
+    wx.showModal({
+      title: '确认归还',
+      content: '确认登记归还该借阅单？',
+      success: (res) => {
+        if (!res.confirm) return;
+        request.post('/api/mobile/borrow/return', { borrowId: borrowId })
+          .then(() => {
+            wx.showToast({ title: '已归还' });
+            this.load();
+          })
+          .catch((error) => wx.showToast({ title: (error && error.message) || '归还失败', icon: 'none' }));
+      }
+    });
+  },
+
   goHome() {
     wx.reLaunch({ url: '/pages/home/home' });
   }

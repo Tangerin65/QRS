@@ -1,0 +1,91 @@
+.detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.detail-head .no {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.row {
+  display: flex;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: #1f2d3d;
+}
+
+.row .label {
+  width: 140rpx;
+  color: #7a8999;
+  flex-shrink: 0;
+}
+
+.overdue {
+  color: #d9534f;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2d3d;
+  margin-bottom: 12rpx;
+}
+
+.empty {
+  font-size: 24rpx;
+  color: #9aa8b6;
+}
+
+.timeline {
+  display: flex;
+  padding: 10rpx 0;
+  border-bottom: 1rpx solid #f0f3f7;
+}
+
+.timeline:last-child {
+  border-bottom: none;
+}
+
+.timeline-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #3a7afe;
+  margin: 12rpx 16rpx 0 0;
+  flex-shrink: 0;
+}
+
+.timeline-title {
+  font-size: 26rpx;
+  color: #1f2d3d;
+}
+
+.timeline-meta {
+  font-size: 22rpx;
+  color: #9aa8b6;
+  margin-top: 4rpx;
+}
+
+.timeline-text {
+  font-size: 24rpx;
+  color: #5a6a7a;
+  margin-top: 4rpx;
+}
+
+.renew-item {
+  padding: 10rpx 0;
+  border-bottom: 1rpx solid #f0f3f7;
+}
+
+.renew-item:last-child {
+  border-bottom: none;
+}
+
+.actions {
+  display: flex;
+  gap: 24rpx;
+}
