@@ -206,8 +206,12 @@ public class BorrowServiceImpl implements IBorrowService {
             return result;
         }
         Object endValue = row.get("endDate");
-        LocalDate endDate = endValue instanceof java.sql.Date d ? d.toLocalDate()
-                : endValue instanceof LocalDate d ? d : null;
+        LocalDate endDate = null;
+        if (endValue instanceof java.sql.Date sqlDate) {
+            endDate = sqlDate.toLocalDate();
+        } else if (endValue instanceof LocalDate localDate) {
+            endDate = localDate;
+        }
         boolean valid = endDate == null || !endDate.isBefore(LocalDate.now());
         result.put("allowed", valid);
         result.put("borrowId", row.get("borrowId"));
