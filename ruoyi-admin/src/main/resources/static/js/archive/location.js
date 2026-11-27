@@ -31,8 +31,8 @@ var locationPage = (function () {
 
     function rowActions(row) {
         if (!locationFlags.canManage) return "";
-        return '<a class="btn btn-primary btn-xs" onclick="location.edit(' + row.locationId + ')"><i class="fa fa-edit"></i>编辑</a> '
-            + '<a class="btn btn-danger btn-xs" onclick="location.remove(' + row.locationId + ')"><i class="fa fa-trash"></i>删除</a>';
+        return '<a class="btn btn-primary btn-xs" onclick="locationPage.edit(' + row.locationId + ')"><i class="fa fa-edit"></i>编辑</a> '
+            + '<a class="btn btn-danger btn-xs" onclick="locationPage.remove(' + row.locationId + ')"><i class="fa fa-trash"></i>删除</a>';
     }
 
     function initTable() {
