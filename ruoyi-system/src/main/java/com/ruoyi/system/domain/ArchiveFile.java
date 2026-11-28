@@ -3,7 +3,7 @@ package com.ruoyi.system.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
-
+//getter&setters
 public class ArchiveFile {
     private Long fileId;
     private Long archiveId;
@@ -14,6 +14,9 @@ public class ArchiveFile {
     private Long fileSize;
     private String sha256;
     private String createBy;
+
+    private Integer revoked;
+    private Integer currentVersionNo;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
 
@@ -38,6 +41,21 @@ public class ArchiveFile {
     public void setCreateBy(String createBy) { this.createBy = createBy; }
     public Date getCreateTime() { return createTime; }
     public void setCreateTime(Date createTime) { this.createTime = createTime; }
+    public Integer getRevoked() {
+        return revoked;
+    }
+
+    public void setRevoked(Integer revoked) {
+        this.revoked = revoked;
+    }
+
+    public Integer getCurrentVersionNo() {
+        return currentVersionNo;
+    }
+
+    public void setCurrentVersionNo(Integer currentVersionNo) {
+        this.currentVersionNo = currentVersionNo;
+    }
 
     public String getStorageName() {
         //返回自动生成的存储名称

@@ -1086,12 +1086,57 @@ CREATE TABLE IF NOT EXISTS arc_file (
     sha256 CHAR(64) NOT NULL,
     create_by VARCHAR(64) NOT NULL,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked TINYINT NOT NULL DEFAULT 0 COMMENT '附件撤销标记：0有效，1已撤销',
     PRIMARY KEY (file_id),
     UNIQUE KEY uk_arc_file_store_key (store_key),
-    KEY idx_arc_file_archive (archive_id, file_id)
+    KEY idx_arc_file_archive (archive_id, file_id, revoked)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案附件';
 
+-- 兼容在已有 arc_file 的数据库上重复执行安装脚本。
+SET @m02_add_revoked = IF(
+    EXISTS(SELECT 1 FROM information_schema.columns
+           WHERE table_schema=DATABASE() AND table_name='arc_file' AND column_name='revoked'),
+    'SELECT 1',
+    'ALTER TABLE arc_file ADD COLUMN revoked TINYINT NOT NULL DEFAULT 0 COMMENT ''附件撤销标记：0有效，1已撤销''');
+PREPARE m02_stmt FROM @m02_add_revoked;
+EXECUTE m02_stmt;
+DEALLOCATE PREPARE m02_stmt;
 
+-- M02 文件版本表
+CREATE TABLE IF NOT EXISTS arc_file_version (
+    file_id BIGINT NOT NULL,
+    version_no INT NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    store_key VARCHAR(128) NOT NULL,
+    file_type VARCHAR(16) NOT NULL,
+    file_size BIGINT NOT NULL,
+    sha256 CHAR(64) NOT NULL,
+    create_by VARCHAR(64) NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source_version_no INT DEFAULT NULL,
+    PRIMARY KEY (file_id, version_no),
+    KEY idx_arc_file_version_created (file_id, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案附件文件版本';
+
+INSERT INTO arc_file_version
+    (file_id, version_no, original_name, store_key, file_type, file_size, sha256, create_by, create_time)
+SELECT f.file_id, 1, f.display_name, f.store_key, f.file_type, f.file_size, f.sha256, f.create_by, f.create_time
+FROM arc_file f
+LEFT JOIN arc_file_version v ON v.file_id=f.file_id AND v.version_no=1
+WHERE v.file_id IS NULL;
+
+INSERT INTO sys_menu(menu_name,parent_id,order_num,url,target,menu_type,visible,is_refresh,perms,icon,create_by,create_time,remark)
+SELECT action.menu_name,parent.menu_id,action.order_num,'#','','F','0','1',action.perms,'#','admin',NOW(),'M02 文件利用权限'
+FROM (
+    SELECT '预览档案文件' menu_name,23 order_num,'archiveFilePreview' perms UNION ALL
+    SELECT '下载档案文件',24,'archiveFileDownload' UNION ALL
+    SELECT '打印档案文件',25,'archiveFilePrint'
+) action
+JOIN (SELECT menu_id FROM sys_menu WHERE url='/records/register' ORDER BY menu_id LIMIT 1) parent
+WHERE NOT EXISTS (
+    SELECT 1 FROM sys_menu existing
+    WHERE existing.parent_id=parent.menu_id AND existing.perms=action.perms
+);
 
 -- M10归档与库位
 

@@ -9,7 +9,9 @@ spring:
   datasource:
     druid:
       master:
-        url: ${QRS_DB_URL:jdbc:mysql://localhost:3306/qrs?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+        # MySQL 8+ 默认 caching_sha2_password；非 SSL 连接首次认证需允许获取公钥，否则报
+        # "Public Key Retrieval is not allowed"（如更换了数据库/重启 MySQL 后首次启动）。
+        url: ${QRS_DB_URL:jdbc:mysql://localhost:3306/qrs?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
         username: ${QRS_DB_USERNAME:root}
         password: ${QRS_DB_PASSWORD:}
       statViewServlet:

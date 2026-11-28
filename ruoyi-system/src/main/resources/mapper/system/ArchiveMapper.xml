@@ -176,7 +176,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                     <if test="searchAttachments">
                         or exists (
                             select 1 from arc_file f join arc_file_text t on t.file_id=f.file_id and t.source_sha256=f.sha256
-                            where f.archive_id=a.archive_id and locate(#{keyword},t.content) &gt; 0
+                            where f.archive_id=a.archive_id and f.revoked=0 and locate(#{keyword},t.content) &gt; 0
                         )
                     </if>)
             </if>
