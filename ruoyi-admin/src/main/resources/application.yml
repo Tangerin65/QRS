@@ -23,6 +23,12 @@ wx:
     app-id: ${WX_MINIAPP_APP_ID:}
     app-secret: ${WX_MINIAPP_APP_SECRET:}
 
+# M08 天气采集：数据源 Open-Meteo（免费、免 Key）；采集器用专用令牌调用上报接口
+weather:
+  data-source: open-meteo
+  collect-token: ${QRS_WEATHER_TOKEN:qrs-weather-dev-token}
+  source-url: ${QRS_WEATHER_URL:https://api.open-meteo.com/v1/forecast}
+
 # 开发环境配置
 server:
   # 开发环境端口，避免与IIS占用的端口冲突

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.WeatherMapper">
+
+    <resultMap id="WeatherResult" type="com.ruoyi.system.domain.WeatherRecord">
+        <id property="forecastId" column="forecast_id"/>
+        <result property="cityCode" column="city_code"/>
+        <result property="cityName" column="city_name"/>
+        <result property="forecastTime" column="forecast_time"/>
+        <result property="forecastDate" column="forecast_date"/>
+        <result property="weatherText" column="weather_text"/>
+        <result property="tempMin" column="temp_min"/>
+        <result property="tempMax" column="temp_max"/>
+        <result property="humidity" column="humidity"/>
+        <result property="windLevel" column="wind_level"/>
+        <result property="dataSource" column="data_source"/>
+        <result property="collectTime" column="collect_time"/>
+        <result property="version" column="version"/>
+        <result property="revoked" column="revoked"/>
+        <result property="revokedAt" column="revoked_at"/>
+        <result property="revokedBy" column="revoked_by"/>
+        <result property="revokeReason" column="revoke_reason"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="CityResult" type="com.ruoyi.system.domain.WeatherCity">
+        <id property="cityCode" column="city_code"/>
+        <result property="cityName" column="city_name"/>
+        <result property="latitude" column="latitude"/>
+        <result property="longitude" column="longitude"/>
+        <result property="enabled" column="enabled"/>
+        <result property="dataSource" column="data_source"/>
+        <result property="remark" column="remark"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="CollectLogResult" type="com.ruoyi.system.domain.WeatherCollectLog">
+        <id property="collectId" column="collect_id"/>
+        <result property="cityCode" column="city_code"/>
+        <result property="collectStatus" column="collect_status"/>
+        <result property="forecastCount" column="forecast_count"/>
+        <result property="acceptedCount" column="accepted_count"/>
+        <result property="lastSuccessAt" column="last_success_at"/>
+        <result property="errorCode" column="error_code"/>
+        <result property="message" column="message"/>
+        <result property="requestId" column="request_id"/>
+        <result property="collectTime" column="collect_time"/>
+    </resultMap>
+
+    <sql id="recordColumns">
+        f.forecast_id, f.city_code, c.city_name, f.forecast_time, f.forecast_date, f.weather_text,
+        f.temp_min, f.temp_max, f.humidity, f.wind_level, f.data_source, f.collect_time, f.version,
+        f.revoked, f.revoked_at, f.revoked_by, f.revoke_reason, f.created_at, f.updated_at
+    </sql>
+
+    <sql id="recordWhere">
+        <where>
+            <if test="cityCode != null and cityCode != ''">and f.city_code = #{cityCode}</if>
+            <if test="weatherText != null and weatherText != ''">and f.weather_text like concat('%', #{weatherText}, '%')</if>
+            <if test="dateFrom != null">and f.forecast_time &gt;= #{dateFrom}</if>
+            <if test="dateTo != null">and f.forecast_time &lt; date_add(#{dateTo}, interval 1 day)</if>
+            <choose>
+                <when test="revoked != null and revoked == -1"></when>
+                <when test="revoked != null">and f.revoked = #{revoked}</when>
+                <otherwise>and f.revoked = 0</otherwise>
+            </choose>
+        </where>
+    </sql>
+
+    <select id="selectRecordList" parameterType="com.ruoyi.system.domain.WeatherQuery" resultMap="WeatherResult">
+        select <include refid="recordColumns"/>
+        from weather_forecast f
+        left join weather_city c on c.city_code = f.city_code
+        <include refid="recordWhere"/>
+    </select>
+
+    <select id="selectRecordById" resultMap="WeatherResult">
+        select <include refid="recordColumns"/>
+        from weather_forecast f
+        left join weather_city c on c.city_code = f.city_code
+        where f.forecast_id = #{forecastId}
+    </select>
+
+    <select id="selectLatestByCity" resultMap="WeatherResult">
+        select <include refid="recordColumns"/>
+        from weather_forecast f
+        left join weather_city c on c.city_code = f.city_code
+        where f.city_code = #{cityCode} and f.revoked = 0
+        order by f.forecast_time desc
+        limit 1
+    </select>
+
+    <select id="selectCityList" resultMap="CityResult">
+        select city_code, city_name, latitude, longitude, enabled, data_source, remark, created_at, updated_at
+        from weather_city
+        order by enabled desc, city_code
+    </select>
+
+    <select id="selectCity" resultMap="CityResult">
+        select city_code, city_name, latitude, longitude, enabled, data_source, remark, created_at, updated_at
+        from weather_city where city_code = #{cityCode}
+    </select>
+
+    <insert id="insertCity" parameterType="com.ruoyi.system.domain.WeatherCity">
+        insert into weather_city (city_code, city_name, latitude, longitude, enabled, data_source, remark, create_by)
+        values (#{cityCode}, #{cityName}, #{latitude}, #{longitude}, coalesce(#{enabled}, 1), #{dataSource}, coalesce(#{remark}, ''), #{createBy})
+    </insert>
+
+    <update id="updateCity" parameterType="com.ruoyi.system.domain.WeatherCity">
+        update weather_city
+        set city_name = #{cityName}, latitude = #{latitude}, longitude = #{longitude},
+            enabled = #{enabled}, data_source = #{dataSource}, remark = coalesce(#{remark}, '')
+        where city_code = #{cityCode}
+    </update>
+
+    <insert id="insertRecord" parameterType="com.ruoyi.system.domain.WeatherRecord" useGeneratedKeys="true" keyProperty="forecastId">
+        insert into weather_forecast
+        (city_code, forecast_time, forecast_date, weather_text, temp_min, temp_max, humidity, wind_level,
+         data_source, collect_time, version, revoked)
+        values
+        (#{cityCode}, #{forecastTime}, #{forecastDate}, #{weatherText}, #{tempMin}, #{tempMax}, #{humidity}, #{windLevel},
+         #{dataSource}, coalesce(#{collectTime}, now()), 0, 0)
+    </insert>
+
+    <update id="updateRecord" parameterType="com.ruoyi.system.domain.WeatherRecord">
+        update weather_forecast
+        set weather_text = #{weatherText}, temp_min = #{tempMin}, temp_max = #{tempMax}, humidity = #{humidity},
+            wind_level = #{windLevel}, data_source = #{dataSource}, version = version + 1
+        where forecast_id = #{forecastId} and version = #{version} and revoked = 0
+    </update>
+
+    <update id="revokeRecord">
+        update weather_forecast
+        set revoked = 1, revoked_at = now(), revoked_by = #{operator}, revoke_reason = #{reason},
+            version = version + 1
+        where forecast_id = #{forecastId} and revoked = 0
+    </update>
+
+    <insert id="upsertForecast" parameterType="com.ruoyi.system.domain.WeatherRecord">
+        insert into weather_forecast
+        (city_code, forecast_time, forecast_date, weather_text, temp_min, temp_max, humidity, wind_level,
+         data_source, collect_time, version, revoked)
+        values
+        (#{cityCode}, #{forecastTime}, #{forecastDate}, #{weatherText}, #{tempMin}, #{tempMax}, #{humidity}, #{windLevel},
+         #{dataSource}, coalesce(#{collectTime}, now()), 0, 0)
+        on duplicate key update
+            weather_text = values(weather_text),
+            temp_min = values(temp_min),
+            temp_max = values(temp_max),
+            humidity = values(humidity),
+            wind_level = values(wind_level),
+            data_source = values(data_source),
+            collect_time = values(collect_time),
+            revoked = 0, revoked_at = null, revoked_by = null, revoke_reason = null,
+            version = version + 1
+    </insert>
+
+    <insert id="insertCollectLog" parameterType="com.ruoyi.system.domain.WeatherCollectLog" useGeneratedKeys="true" keyProperty="collectId">
+        insert into weather_collect_log
+        (city_code, collect_status, forecast_count, accepted_count, last_success_at, error_code, message, request_id)
+        values
+        (#{cityCode}, #{collectStatus}, coalesce(#{forecastCount}, 0), coalesce(#{acceptedCount}, 0),
+         #{lastSuccessAt}, #{errorCode}, #{message}, #{requestId})
+    </insert>
+
+    <select id="selectLastCollect" resultMap="CollectLogResult">
+        select collect_id, city_code, collect_status, forecast_count, accepted_count, last_success_at,
+               error_code, message, request_id, collect_time
+        from weather_collect_log
+        where city_code = #{cityCode}
+        order by collect_time desc, collect_id desc
+        limit 1
+    </select>
+
+    <select id="selectStatistics" parameterType="com.ruoyi.system.domain.WeatherQuery" resultType="java.util.Map">
+        select count(1) as total,
+               count(distinct f.city_code) as cityCount,
+               coalesce(sum(case when f.revoked = 1 then 1 else 0 end), 0) as revoked,
+               coalesce(sum(case when f.forecast_time &gt;= curdate() then 1 else 0 end), 0) as upcoming
+        from weather_forecast f
+        <include refid="recordWhere"/>
+    </select>
+</mapper>

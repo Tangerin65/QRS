@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('气象管理')" />
+</head>
+<body class="gray-bg">
+<div class="container-div">
+    <div class="row">
+        <div class="col-sm-12 search-collapse">
+            <form id="weather-form">
+                <div class="select-list">
+                    <ul>
+                        <li>城市：<select id="filter-city" name="cityCode" aria-label="按城市筛选"><option value="">全部城市</option></select></li>
+                        <li>天气：<input type="text" name="weatherText" maxlength="32" placeholder="天气现象" aria-label="按天气筛选"></li>
+                        <li>预报时间：<input type="text" name="dateFrom" class="borrow-date" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off">
+                            至 <input type="text" name="dateTo" class="borrow-date" placeholder="yyyy-mm-dd" maxlength="10" autocomplete="off"></li>
+                        <li>状态：<select name="revoked" aria-label="按状态筛选">
+                            <option value="">有效记录</option>
+                            <option value="0">有效</option>
+                            <option value="1">已撤销</option>
+                            <option value="-1">全部</option>
+                        </select></li>
+                        <li><a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a></li>
+                        <li><a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a></li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+
+        <div class="btn-group-sm" id="toolbar" role="group">
+            <a class="btn btn-success" shiro:hasPermission="weatherManage" onclick="weather.openAdd()"><i class="fa fa-plus"></i> 新增记录</a>
+            <a class="btn btn-info" shiro:hasPermission="weatherManage" onclick="weather.openImport()"><i class="fa fa-upload"></i> Excel导入</a>
+            <a class="btn btn-warning" shiro:hasPermission="weatherExport" onclick="weather.exportExcel()"><i class="fa fa-download"></i> 导出</a>
+            <a class="btn btn-default" onclick="weather.print()"><i class="fa fa-print"></i> 打印</a>
+            <a class="btn btn-default" onclick="weather.openStatistics()"><i class="fa fa-bar-chart"></i> 统计</a>
+            <a class="btn btn-default" shiro:hasPermission="weatherManage" onclick="weather.openCities()"><i class="fa fa-map-marker"></i> 城市配置</a>
+            <span id="summary" class="text-muted" style="margin-left:12px"></span>
+        </div>
+
+        <div class="col-sm-12 select-table table-striped">
+            <table id="bootstrap-table"></table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="record-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">气象记录</h4></div>
+        <div class="modal-body">
+            <input type="hidden" id="record-id">
+            <input type="hidden" id="record-version">
+            <div class="form-group"><label for="record-city">城市 <span class="text-danger">*</span></label><select id="record-city" class="form-control"></select></div>
+            <div class="form-group"><label for="record-time">预报时间 <span class="text-danger">*</span></label><input id="record-time" class="form-control" placeholder="yyyy-mm-dd HH:mm:ss 或 yyyy-mm-dd"></div>
+            <div class="form-group"><label for="record-text">天气现象 <span class="text-danger">*</span></label><input id="record-text" class="form-control" maxlength="64"></div>
+            <div class="row">
+                <div class="col-sm-6"><div class="form-group"><label for="record-min">最低温 <span class="text-danger">*</span></label><input id="record-min" class="form-control" placeholder="℃"></div></div>
+                <div class="col-sm-6"><div class="form-group"><label for="record-max">最高温 <span class="text-danger">*</span></label><input id="record-max" class="form-control" placeholder="℃"></div></div>
+            </div>
+            <div class="row">
+                <div class="col-sm-6"><div class="form-group"><label for="record-humidity">湿度（%）</label><input id="record-humidity" class="form-control" placeholder="0-100"></div></div>
+                <div class="col-sm-6"><div class="form-group"><label for="record-wind">风力</label><input id="record-wind" class="form-control" maxlength="32" placeholder="如 3级"></div></div>
+            </div>
+            <div class="form-group"><label for="record-source">数据来源</label><input id="record-source" class="form-control" maxlength="128" placeholder="open-meteo / manual"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">取消</button><button class="btn btn-primary" onclick="weather.submitRecord()">保存</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="detail-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">气象记录详情</h4></div>
+        <div class="modal-body">
+            <table class="table table-bordered"><tbody id="detail-body"></tbody></table>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="cities-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">采集城市配置</h4></div>
+        <div class="modal-body">
+            <table class="table table-bordered"><thead><tr><th>城市编码</th><th>名称</th><th>纬度</th><th>经度</th><th>启用</th><th>操作</th></tr></thead><tbody id="cities-body"></tbody></table>
+            <hr>
+            <div class="row">
+                <div class="col-sm-3"><input id="city-code" class="form-control" placeholder="城市编码"></div>
+                <div class="col-sm-3"><input id="city-name" class="form-control" placeholder="城市名称"></div>
+                <div class="col-sm-2"><input id="city-lat" class="form-control" placeholder="纬度"></div>
+                <div class="col-sm-2"><input id="city-lng" class="form-control" placeholder="经度"></div>
+                <div class="col-sm-2"><a class="btn btn-primary btn-block" onclick="weather.saveCity()">新增/更新</a></div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="statistics-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">气象统计</h4></div>
+        <div class="modal-body"><table class="table table-bordered"><tbody id="statistics-body"></tbody></table></div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="import-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">导入气象记录</h4></div>
+        <div class="modal-body">
+            <p class="text-muted">先下载模板，按表头填写后上传；每行都会校验，失败行不落库。</p>
+            <a class="btn btn-default" onclick="weather.downloadTemplate()"><i class="fa fa-download"></i> 下载模板</a>
+            <input type="file" id="import-file" accept=".xlsx" style="margin-top:12px">
+            <div id="import-result" class="text-muted" style="margin-top:10px"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button><button class="btn btn-primary" onclick="weather.doImport()">开始导入</button></div>
+    </div></div>
+</div>
+
+<th:block th:include="include :: footer" />
+<script th:inline="javascript">
+    window.weatherFlags = {
+        manage: /*[[${canManage}]]*/ false,
+        canExport: /*[[${canExport}]]*/ false
+    };
+</script>
+<script th:src="@{/js/weather/list.js(v='20261128-b')}"></script>
+</body>
+</html>

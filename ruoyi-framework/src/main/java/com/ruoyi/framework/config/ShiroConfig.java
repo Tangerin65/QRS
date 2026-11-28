@@ -304,6 +304,8 @@ public class ShiroConfig
         // 这里必须整段放行，否则 /api/mobile/** 会被 user 过滤器重定向到登录页，
         // 小程序端只会收到一段 HTML 而不是 JSON。控制器内部逐次校验令牌与账号状态。
         filterChainDefinitionMap.put("/api/mobile/**", "anon");
+        // 天气采集器为独立进程，没有 Shiro 会话；由 Controller 校验专用采集令牌（IF-060）。
+        filterChainDefinitionMap.put("/api/weather/report", "anon");
         // 系统权限列表
         // filterChainDefinitionMap.putAll(SpringUtils.getBean(IMenuService.class).selectPermsAll());
 
