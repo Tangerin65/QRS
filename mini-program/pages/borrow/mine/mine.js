@@ -1,4 +1,5 @@
 const request = require('../../../utils/request');
+const app = getApp();
 
 const STATUS_LABELS = {
   PENDING: '待审批', APPROVED: '已批准', REJECTED: '已驳回',
@@ -13,8 +14,19 @@ Page({
     error: ''
   },
 
+  onLoad() {
+    this._closed = false;
+  },
+
   onShow() {
-    this.load();
+    // 等登录态恢复完成再查；不订阅 session 事件，避免 loading 阶段用空 token 发请求
+    app.refreshSession().catch(() => {}).then(() => {
+      if (!this._closed) this.load();
+    });
+  },
+
+  onUnload() {
+    this._closed = true;
   },
 
   load() {
@@ -52,7 +64,37 @@ Page({
     wx.navigateTo({ url: '/pages/borrow/apply/apply' });
   },
 
+  goDetail(event) {
+    wx.navigateTo({ url: '/pages/borrow/detail/detail?id=' + event.currentTarget.dataset.id });
+  },
+
+  renew(event) {
+    const dataset = event.currentTarget.dataset;
+    wx.navigateTo({ url: '/pages/borrow/renew/renew?id=' + dataset.id + '&end=' + (dataset.end || '') });
+  },
+
+  giveBack(event) {
+    const borrowId = event.currentTarget.dataset.id;
+    wx.showModal({
+      title: '确认归还',
+      content: '确认登记归还该借阅单？',
+      success: (res) => {
+        if (!res.confirm) return;
+        request.post('/api/mobile/borrow/return', { borrowId: borrowId })
+          .then(() => {
+            wx.showToast({ title: '已归还' });
+            this.load();
+          })
+          .catch((error) => wx.showToast({ title: (error && error.message) || '归还失败', icon: 'none' }));
+      }
+    });
+  },
+
   goHome() {
     wx.reLaunch({ url: '/pages/home/home' });
+  },
+
+  relogin() {
+    wx.reLaunch({ url: '/pages/profile/profile' });
   }
 });

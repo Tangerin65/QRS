@@ -42,4 +42,10 @@ public interface IBorrowService {
     List<com.ruoyi.system.domain.BorrowRenew> selectRenews(long borrowId);
 
     List<com.ruoyi.system.domain.BorrowRenew> selectPendingRenews();
+
+    /**
+     * 借阅授权：供权限模块（M13）判断某用户对某档案当前是否可查看原文。
+     * 返回 allowed、actions、expireAt、borrowNo、status；无有效借阅时 allowed=false。
+     */
+    Map<String, Object> authorization(long archiveId, long userId);
 }

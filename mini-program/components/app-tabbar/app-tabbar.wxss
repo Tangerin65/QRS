@@ -43,6 +43,17 @@
   height: 42rpx;
 }
 
+.tab-icon-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid currentColor;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
 .tab-label {
   line-height: 28rpx;
 }

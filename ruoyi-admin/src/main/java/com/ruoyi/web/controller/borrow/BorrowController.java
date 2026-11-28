@@ -170,6 +170,15 @@ public class BorrowController extends BaseController {
         return AjaxResult.success(borrows.selectDepts());
     }
 
+    /** 供 M13 权限模块调用的借阅授权查询：某档案当前是否对被查询用户开放查看。 */
+    @GetMapping("/authorization")
+    @ResponseBody
+    @RequiresPermissions(QUERY)
+    public AjaxResult authorization(long archiveId, @RequestParam(required = false) Long userId) {
+        long target = userId == null ? getUserId() : userId;
+        return AjaxResult.success(borrows.authorization(archiveId, target));
+    }
+
     @GetMapping("/dashboard")
     @RequiresPermissions(QUERY)
     public String dashboard(Model model) {

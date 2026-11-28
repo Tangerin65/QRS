@@ -7,7 +7,9 @@
     "pages/scan/scan",
     "pages/archive-workbench/archive-workbench",
     "pages/borrow/mine/mine",
-    "pages/borrow/apply/apply"
+    "pages/borrow/apply/apply",
+    "pages/borrow/detail/detail",
+    "pages/borrow/renew/renew"
   ],
   "window": {
     "navigationBarTitleText": "档案管理系统",

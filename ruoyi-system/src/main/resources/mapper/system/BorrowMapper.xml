@@ -287,4 +287,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where b.applicant_dept_id is not null
         order by d.dept_name
     </select>
+
+    <select id="selectBorrowAuthorization" resultType="java.util.Map">
+        select b.borrow_id as borrowId, b.borrow_no as borrowNo, b.borrow_status as borrowStatus,
+               b.start_date as startDate, b.end_date as endDate
+        from arc_borrow b
+        where b.archive_id = #{archiveId} and b.applicant_id = #{userId}
+          and b.borrow_status in ('APPROVED', 'LENT')
+        order by b.borrow_id desc
+        limit 1
+    </select>
 </mapper>

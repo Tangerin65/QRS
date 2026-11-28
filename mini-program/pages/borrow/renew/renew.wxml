@@ -1,0 +1,22 @@
+<view class="page">
+  <view class="form">
+    <view class="field">
+      <text class="label">当前应归还日</text>
+      <view class="readonly">{{oldEnd}}</view>
+    </view>
+
+    <view class="field">
+      <text class="label">新的应归还日</text>
+      <picker mode="date" value="{{newEnd}}" bindchange="onDateChange">
+        <view class="picker">{{newEnd}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="label">续借原因</text>
+      <textarea class="textarea" maxlength="500" placeholder="请填写续借原因" value="{{reason}}" bindinput="onReasonInput" />
+    </view>
+
+    <button class="primary-button" loading="{{submitting}}" bindtap="submit">提交续借</button>
+  </view>
+</view>
