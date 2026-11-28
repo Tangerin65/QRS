@@ -1,4 +1,6 @@
+const navigation = require('../../../utils/navigation');
 const request = require('../../../utils/request');
+const app = getApp();
 
 const STATUS_LABELS = {
   PENDING: '待审批', APPROVED: '已批准', REJECTED: '已驳回',
@@ -13,8 +15,26 @@ Page({
     error: ''
   },
 
+  onLoad() {
+    this._closed = false;
+    this._unsubscribe = app.subscribeSession(() => {
+      if (!this._closed) this.load();
+    });
+  },
+
   onShow() {
-    this.load();
+    app.refreshSession().then(() => {
+      if (this._closed) return;
+      if (!navigation.guard('borrow')) return;
+      this.load();
+    }).catch(() => {
+      if (!this._closed) navigation.guard('borrow');
+    });
+  },
+
+  onUnload() {
+    this._closed = true;
+    if (this._unsubscribe) this._unsubscribe();
   },
 
   load() {

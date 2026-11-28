@@ -34,4 +34,5 @@
   </view>
 
   <button class="secondary-button" bindtap="goHome">返回工作台</button>
+  <app-tabbar active="borrow"></app-tabbar>
 </view>
