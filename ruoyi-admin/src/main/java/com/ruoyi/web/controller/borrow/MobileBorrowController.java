@@ -167,7 +167,9 @@ public class MobileBorrowController {
             Map<String, Object> session = binding.session(token, "miniapp");
             Object userId = session == null ? null : session.get("userId");
             if (userId == null) return null;
-            return users.selectUserById(((Number) userId).longValue());
+            // 注意：M12 会话里 userId 是字符串（如 "1"），不能直接强转 Number
+            long id = userId instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(userId).trim());
+            return users.selectUserById(id);
         } catch (RuntimeException e) {
             return null;
         }
