@@ -33,6 +33,7 @@ import com.ruoyi.system.mapper.SysRoleMapper;
 import com.ruoyi.system.mapper.SysUserMapper;
 import com.ruoyi.system.mapper.SysUserPostMapper;
 import com.ruoyi.system.mapper.SysUserRoleMapper;
+import com.ruoyi.system.service.IArchiveBindingService;
 import com.ruoyi.system.service.ISysConfigService;
 import com.ruoyi.system.service.ISysDeptService;
 import com.ruoyi.system.service.ISysUserService;
@@ -46,6 +47,9 @@ import com.ruoyi.system.service.ISysUserService;
 public class SysUserServiceImpl implements ISysUserService
 {
     private static final Logger log = LoggerFactory.getLogger(SysUserServiceImpl.class);
+
+    /** 系统内置超级管理员角色ID（只允许 1 号账号持有） */
+    private static final long SUPER_ADMIN_ROLE_ID = 1L;
 
     @Autowired
     private SysUserMapper userMapper;
@@ -184,7 +188,10 @@ public class SysUserServiceImpl implements ISysUserService
         userRoleMapper.deleteUserRoleByUserId(userId);
         // 删除用户与岗位表
         userPostMapper.deleteUserPostByUserId(userId);
-        return userMapper.deleteUserById(userId);
+        int rows = userMapper.deleteUserById(userId);
+        // M12：删除账号后解除微信绑定并撤销全部令牌，避免“人已删除、小程序仍可用”
+        unbindOnDeletedAccount(userId);
+        return rows;
     }
 
     /**
@@ -207,7 +214,13 @@ public class SysUserServiceImpl implements ISysUserService
         userRoleMapper.deleteUserRole(userIds);
         // 删除用户与岗位关联
         userPostMapper.deleteUserPost(userIds);
-        return userMapper.deleteUserByIds(userIds);
+        int rows = userMapper.deleteUserByIds(userIds);
+        // M12：批量删除同样需要解除微信绑定、撤销令牌
+        for (Long userId : userIds)
+        {
+            unbindOnDeletedAccount(userId);
+        }
+        return rows;
     }
 
     /**
@@ -220,6 +233,8 @@ public class SysUserServiceImpl implements ISysUserService
     @Transactional
     public int insertUser(SysUser user)
     {
+        // M12：超级管理员角色只允许 1 号账号持有（新建账号 userId 为空，天然不允许）
+        checkRoleAssignable(user.getUserId(), user.getRoleIds());
         // 新增用户信息
         int rows = userMapper.insertUser(user);
         // 新增用户岗位关联
@@ -252,6 +267,8 @@ public class SysUserServiceImpl implements ISysUserService
     @Transactional
     public int updateUser(SysUser user)
     {
+        // M12：不允许把超级管理员角色分配给非 1 号账号
+        checkRoleAssignable(user.getUserId(), user.getRoleIds());
         Long userId = user.getUserId();
         // 删除用户与角色关联
         userRoleMapper.deleteUserRoleByUserId(userId);
@@ -311,6 +328,8 @@ public class SysUserServiceImpl implements ISysUserService
     @Transactional
     public void insertUserAuth(Long userId, Long[] roleIds)
     {
+        // M12：授权入口同样拦截超级管理员角色
+        checkRoleAssignable(userId, roleIds);
         userRoleMapper.deleteUserRoleByUserId(userId);
         insertUserRole(userId, roleIds);
     }
@@ -445,6 +464,47 @@ public class SysUserServiceImpl implements ISysUserService
         {
             throw new ServiceException("不允许操作超级管理员用户");
         }
+    }
+
+    /**
+     * M12：超级管理员角色（role_id=1）只允许系统内置 1 号账号持有。
+     *
+     * 若依的 isAdmin() 只认 user_id == 1，把 role_id=1 发给别人不会带来任何菜单，
+     * 反而会造成“有管理员角色、却一个菜单都没有”的错觉，因此统一在入口拦掉。
+     *
+     * @param userId  账号ID（新增时为空）
+     * @param roleIds 待分配的角色
+     */
+    private void checkRoleAssignable(Long userId, Long[] roleIds)
+    {
+        if (roleIds == null || roleIds.length == 0)
+        {
+            return;
+        }
+        for (Long roleId : roleIds)
+        {
+            if (roleId != null && roleId.longValue() == SUPER_ADMIN_ROLE_ID
+                    && (userId == null || userId.longValue() != 1L))
+            {
+                throw new ServiceException("超级管理员角色只能由系统内置 1 号账号持有");
+            }
+        }
+    }
+
+    /**
+     * M12：删除账号时解除微信绑定并撤销该账号全部小程序令牌。
+     *
+     * 若依的删除只清 sys_user_role / sys_user_post，不会碰 wx_binding / wx_token，
+     * 这里补上联动，避免“账号已删除、小程序仍能用到令牌过期”。
+     *
+     * 用 SpringUtils 延迟取 Bean：核心用户服务不直接构造依赖档案绑定服务，
+     * 避免两个 @Service 之间形成构造器强依赖。
+     *
+     * @param userId 账号ID
+     */
+    private void unbindOnDeletedAccount(Long userId)
+    {
+        SpringUtils.getBean(IArchiveBindingService.class).unbindByUser(userId, "账号删除");
     }
 
     /**

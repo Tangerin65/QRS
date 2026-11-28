@@ -67,6 +67,22 @@ public interface IArchiveAccountService
     boolean isValidUserNo(String userNo);
 
     /**
+     * 取下一个未占用的用户编号（从 0001 起，含 del_flag=2 的历史账号占用的编号）。
+     *
+     * @return 4 位编号，例如 0006
+     */
+    String nextUserNo();
+
+    /**
+     * 编号冲突说明：可用返回 null，被占用返回给用户看的原因。
+     *
+     * @param userNo 用户编号
+     * @param userId 当前编辑的账号ID（新增传 null）
+     * @return 冲突说明；无冲突返回 null
+     */
+    String explainUserNoConflict(String userNo, Long userId);
+
+    /**
      * 查询账号当前的微信绑定状态。
      *
      * @param userId 账号ID
@@ -103,6 +119,17 @@ public interface IArchiveAccountService
      * @param operator 操作者
      */
     void changeStatus(Long userId, String status, String operator);
+
+    /**
+     * 删除账号：逻辑删除 + 解除微信绑定 + 撤销小程序令牌。
+     *
+     * 仅档案模块提供删除入口；1 号内置管理员不可删除；最后一个档案管理员不可删除。
+     *
+     * @param userId   账号ID
+     * @param operator 操作者
+     * @return true 表示删除的是当前登录账号，调用方需要让前端退出登录
+     */
+    boolean deleteAccount(Long userId, String operator);
 
     /**
      * 批量导入账号。

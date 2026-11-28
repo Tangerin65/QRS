@@ -48,6 +48,15 @@ dt,small,.hint { color:var(--muted); } dd { margin:0; white-space:pre-wrap; over
 .role-boxes { display:flex; flex-wrap:wrap; gap:8px; }
 .role-chip { display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid #c5d4dd; border-radius:20px; font-weight:400; background:#fff; cursor:pointer; }
 .role-chip input { margin:0; }
+/* 新增/编辑账号：编号行（输入框 + 重新取号），以及不嵌套 label 的“角色”分组 */
+.field-group { display:grid; gap:4px; font-weight:600; }
+.field-label { font-weight:600; }
+.number-row { display:flex; align-items:center; gap:8px; }
+.number-row input { flex:1 1 auto; min-width:0; }
+.conflict-hint { color:#832525; }
+.role-chip:has(input:checked) { border-color:var(--accent); background:var(--wash); color:#125948; }
+.button.danger { color:#832525; border-color:#e6b8b2; }
+.button.danger:hover { background:#fff0ee; }
 .charts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:14px 18px 18px; }
 .charts figure { display:grid; gap:8px; }
 .charts figcaption { color:var(--muted); font-size:13px; }

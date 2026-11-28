@@ -171,6 +171,13 @@ public interface SysUserMapper
     public SysUser checkUserNoUnique(String userNo);
 
     /**
+     * 查询全部用户编号（M12，含 del_flag=2 的历史账号，供“自动取号”跳过已占用编号）
+     *
+     * @return 用户编号列表
+     */
+    public List<String> selectAllUserNos();
+
+    /**
      * 通过用户编号查询用户（M12，含状态与角色，用于绑定核对）
      *
      * @param userNo 用户编号

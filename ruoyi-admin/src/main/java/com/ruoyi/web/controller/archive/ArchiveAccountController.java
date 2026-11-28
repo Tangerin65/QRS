@@ -15,6 +15,7 @@ import org.apache.shiro.authz.annotation.Logical;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ import com.ruoyi.common.constant.ShiroConstants;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.domain.entity.SysDept;
+import com.ruoyi.common.core.domain.entity.SysRole;
 import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
@@ -350,7 +352,24 @@ public class ArchiveAccountController extends BaseController
     @RequiresPermissions(VIEW)
     public AjaxResult roles()
     {
-        return AjaxResult.success(roleService.selectRoleAll());
+        // M12：角色白名单——只开放“普通角色(common)”与“档案管理员(arc_admin)”
+        // 超级管理员（role_id=1）只属于系统内置 1 号账号，不作为可分配角色下发
+        List<SysRole> roles = roleService.selectRoleAll().stream()
+                .filter(role -> role != null && role.getRoleKey() != null
+                        && ("common".equals(role.getRoleKey()) || "arc_admin".equals(role.getRoleKey())))
+                .toList();
+        return AjaxResult.success(roles);
+    }
+
+    /**
+     * 自动取号：返回下一个未被占用的用户编号（含已删除账号占用的编号）。
+     */
+    @GetMapping("/nextUserNo")
+    @ResponseBody
+    @RequiresPermissions(VIEW)
+    public AjaxResult nextUserNo()
+    {
+        return AjaxResult.success(accountService.nextUserNo());
     }
 
     /**
@@ -392,9 +411,26 @@ public class ArchiveAccountController extends BaseController
     @RequiresPermissions(VIEW)
     public AjaxResult checkUserNo(@RequestParam Long userId, @RequestParam String userNo)
     {
-        SysUser probe = new SysUser();
-        probe.setUserId(userId == null || userId == 0L ? null : userId);
-        probe.setUserNo(userNo);
-        return AjaxResult.success(accountService.checkUserNoUnique(probe));
+        Long probeUserId = (userId == null || userId == 0L) ? null : userId;
+        String conflict = accountService.explainUserNoConflict(userNo, probeUserId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("available", conflict == null);
+        result.put("message", conflict == null ? "" : conflict);
+        return AjaxResult.success(result);
+    }
+
+    /**
+     * 删除账号：逻辑删除 + 解除微信绑定 + 撤销小程序令牌。
+     *
+     * 返回 data=true 表示删除的是当前登录账号，前端需要主动退出登录。
+     */
+    @DeleteMapping("/{userId}")
+    @ResponseBody
+    @RequiresPermissions(value = { VIEW, MANAGE }, logical = Logical.AND)
+    @Log(title = "档案账号管理", businessType = BusinessType.DELETE)
+    public AjaxResult remove(@PathVariable Long userId)
+    {
+        boolean self = accountService.deleteAccount(userId, getLoginName());
+        return AjaxResult.success(self ? "当前账号已删除，正在退出登录" : "账号已删除", self);
     }
 }
