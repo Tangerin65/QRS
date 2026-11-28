@@ -15,7 +15,8 @@ const content = byId("account-content");
 const statuses = { "0": "正常", "1": "停用" };
 const state = {
   rows: [], params: "", page: 1, request: 0, onSave: null,
-  busy: false, loading: false, depts: [], roles: [], charts: {}
+  busy: false, loading: false, depts: [], roles: [], charts: {},
+  redirect: ""
 };
 const pageSize = 15;
 
@@ -327,6 +328,7 @@ function openDialog(title, parts, submit, label = "保存") {
   byId("save").hidden = !submit;
   byId("save").textContent = label;
   state.onSave = submit;
+  state.redirect = "";
   if (!dialog.open) dialog.showModal();
 }
 
@@ -354,18 +356,22 @@ async function openDetails(userId) {
     const items = [list];
     if (canManage) {
       const actions = element("div", undefined, "actions");
-      actions.append(button("编辑", () => openEditor(detail)));
-      actions.append(button(detail.status === "0" ? "停用" : "启用", () => {
-        const disabling = detail.status === "0";
-        openDialog(disabling ? "停用账号" : "启用账号", [
-          element("p", (detail.loginName || "") + "。" + (disabling
-            ? "停用后该账号立即无法登录，微信小程序会话同时失效；记录与审计保留，可随时恢复。"
-            : "启用后该账号可正常登录，微信绑定关系保持不变。"))
-        ], async () => {
-          await send("PUT", "status", { userId: detail.userId, status: disabling ? "1" : "0" });
-          return disabling ? "账号已停用。" : "账号已启用。";
-        }, disabling ? "确认停用" : "确认启用");
-      }));
+      // 1 号账号是若依内置管理员，档案模块不提供编辑、停用、删除入口
+      const builtInAdmin = detail.userId === 1;
+      if (!builtInAdmin) {
+        actions.append(button("编辑", () => openEditor(detail)));
+        actions.append(button(detail.status === "0" ? "停用" : "启用", () => {
+          const disabling = detail.status === "0";
+          openDialog(disabling ? "停用账号" : "启用账号", [
+            element("p", (detail.loginName || "") + "。" + (disabling
+              ? "停用后该账号立即无法登录，微信小程序会话同时失效；记录与审计保留，可随时恢复。"
+              : "启用后该账号可正常登录，微信绑定关系保持不变。"))
+          ], async () => {
+            await send("PUT", "status", { userId: detail.userId, status: disabling ? "1" : "0" });
+            return disabling ? "账号已停用。" : "账号已启用。";
+          }, disabling ? "确认停用" : "确认启用");
+        }));
+      }
       if (detail.wxBound) {
         actions.append(button("解除微信绑定", () => {
           openDialog("解除微信绑定", [
@@ -378,12 +384,33 @@ async function openDetails(userId) {
       }
       // 绑定二维码：内容只有用户编号，扫码工具解析结果可肉眼核对
       actions.append(button("绑定二维码", () => openQrCode(detail)));
+      if (!builtInAdmin) {
+        actions.append(button("删除账号", () => openDelete(detail), "danger"));
+      }
       items.push(actions);
     }
     openDialog("账号详情", items);
   } catch (error) {
     loading.textContent = error.message;
   }
+}
+
+// 删除账号：二次确认（输入登录账号），后端会同时解除微信绑定、撤销小程序令牌
+function openDelete(detail) {
+  const confirm = input("text", "");
+  confirm.placeholder = "输入登录账号 " + (detail.loginName || "") + " 以确认";
+  openDialog("删除账号", [
+    element("p", "删除后该账号立即无法登录；微信绑定同时解除，小程序令牌立即失效。", "hint"),
+    element("p", "账号记录仍保留在“若依用户管理”中（标记为已删除），用户编号按现有策略不回收。", "hint"),
+    field("确认登录账号", confirm)
+  ], async () => {
+    if (confirm.value.trim() !== (detail.loginName || "")) {
+      throw new Error("输入的登录账号不一致，已取消删除");
+    }
+    const self = await send("DELETE", String(detail.userId));
+    if (self) state.redirect = "/logout";
+    return self ? "当前账号已删除，正在退出登录…" : "账号「" + (detail.userName || detail.loginName) + "」已删除。";
+  }, "确认删除");
 }
 
 // 绑定二维码预览：后端返回 PNG，内容为纯文本用户编号（保留前导零）
@@ -450,29 +477,67 @@ function openEditor(row) {
   }
   dept.value = row?.deptId ? String(row.deptId) : "";
   dept.required = true;
+  // 用户编号：新增时自动带出一个空号，并支持手动“重新取号”
+  const userNoHint = element("p", "", "hint conflict-hint");
+  userNoHint.hidden = true;
+  const userNoRow = element("div", undefined, "number-row");
+  userNoRow.append(userNo);
+  const userNoField = element("div", undefined, "field-group");
+  userNoField.append(element("span", "用户编号", "field-label"), userNoRow, userNoHint);
+  if (creating) {
+    userNoRow.append(button("重新取号", async () => {
+      try {
+        userNo.value = await request("nextUserNo");
+        userNoHint.hidden = true;
+      } catch (error) {
+        userNoHint.textContent = error.message;
+        userNoHint.hidden = false;
+      }
+    }, "small"));
+    // 打开弹窗就先带出一个空号，免得用户自己猜；已删除账号占用的编号也会被跳过
+    request("nextUserNo").then(no => { if (!userNo.value) userNo.value = no; }).catch(() => {});
+    userNo.addEventListener("blur", async () => {
+      const value = userNo.value.trim();
+      if (!value) return;
+      try {
+        const info = await request("checkUserNo?userId=0&userNo=" + encodeURIComponent(value));
+        userNoHint.textContent = info && info.available === false ? info.message : "";
+        userNoHint.hidden = !userNoHint.textContent;
+      } catch (error) { /* 失焦校验失败不打断填写 */ }
+    });
+  }
+
+  // 角色：外层用 div 包裹、chip 改成 label[for] 独立绑定。
+  // 原实现是 <label> 里再套 <label>，点“角色”这两个字会勾到第一个复选框，
+  // 表现为勾上又自动取消，用户以为“选不了角色”。
   const roleBoxes = element("div", undefined, "role-boxes");
   const selected = new Set(creating ? [] : (row.roleIds || []));
-  for (const role of state.roles) {
-    if (role.roleKey === "admin" && !row?.userId) continue; // 新增时不直接给超管角色，避免误授
-    const label = element("label", undefined, "role-chip");
+  state.roles.forEach((role, index) => {
+    const boxId = "role-box-" + role.roleId + "-" + index;
     const box = document.createElement("input");
     box.type = "checkbox";
+    box.id = boxId;
     box.value = String(role.roleId);
     box.checked = selected.has(role.roleId) || (row?.roles || []).some(item => item.roleId === role.roleId);
+    const label = element("label", undefined, "role-chip");
+    label.htmlFor = boxId;
     label.append(box, document.createTextNode(role.roleName));
     roleBoxes.append(label);
-  }
+  });
+  const roleField = element("div", undefined, "field-group");
+  roleField.append(element("span", "角色", "field-label"), roleBoxes);
   const remark = element("textarea");
   remark.value = row?.remark || "";
   remark.maxLength = 500;
 
   openDialog(creating ? "新增账号" : "编辑账号",
-    [field("用户编号", userNo), field("登录账号", loginName), field("姓名", userName),
-      field("部门", dept), field("角色", roleBoxes), field("手机号码", phonenumber),
+    [userNoField, field("登录账号", loginName), field("姓名", userName),
+      field("部门", dept), roleField, field("手机号码", phonenumber),
       field("邮箱", email), field("档案员", archivist), field("密级上限引用", secretLevel),
       field("备注", remark)],
     async () => {
       const roleIds = Array.from(roleBoxes.querySelectorAll("input:checked")).map(box => Number(box.value));
+      if (!roleIds.length) throw new Error("请至少选择一个角色");
       const payload = {
         userId: row?.userId, userNo: userNo.value.trim(), userName: userName.value.trim(),
         deptId: dept.value ? Number(dept.value) : null, roleIds,
@@ -552,6 +617,11 @@ byId("editor").addEventListener("submit", async event => {
     const done = await state.onSave();
     dialog.close();
     feedback(done);
+    // 删除的是当前登录账号：令牌已被后端撤销，直接回登录页
+    if (state.redirect) {
+      location.href = state.redirect;
+      return;
+    }
     await load();
   } catch (error) {
     errorBox.textContent = error.message;

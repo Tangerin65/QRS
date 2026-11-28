@@ -4,6 +4,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -60,6 +62,12 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
     /** 越权改动他人资料的业务码，按项目统一业务码表 3001 */
     private static final int CODE_FORBIDDEN = 3001;
 
+    /** M12：账号模块只开放这两个业务角色（超级管理员角色永远不在此列） */
+    private static final Set<String> ASSIGNABLE_ROLE_KEYS = Set.of("common", "arc_admin");
+
+    /** 档案管理员角色标识，用于“最后一个管理员”保护 */
+    private static final String ARCHIVE_ADMIN_ROLE_KEY = "arc_admin";
+
     private final SysUserMapper userMapper;
 
     private final ISysUserService userService;
@@ -102,6 +110,8 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
     @DataScope(deptAlias = "d", userAlias = "u")
     public List<SysUser> selectAccountList(SysUser query)
     {
+        // 1 号内置管理员不在档案模块展示（清单、统计、导出同一口径）
+        excludeBuiltInAdmin(query);
         List<SysUser> rows = userMapper.selectUserList(query);
         fillListExtras(rows);
         return rows;
@@ -222,6 +232,8 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
     @DataScope(deptAlias = "d", userAlias = "u")
     public Map<String, Object> selectAccountStatistics(SysUser query)
     {
+        // 与清单同一口径：排除 1 号内置管理员，避免“清单看不到、总数却多一个”
+        excludeBuiltInAdmin(query);
         List<SysUser> rows = userMapper.selectUserList(query);
         // 统计必须与清单同源：角色、绑定标记都由同一个 fillListExtras 补齐，
         // 否则明细「角色」列有值而「按角色」图表全是「未分配角色」，两个数字对不上。
@@ -303,6 +315,11 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
         {
             throw new ServiceException("请填写账号信息");
         }
+        // 1 号账号是若依内置管理员，菜单与权限不依赖角色，档案模块不提供修改入口
+        if (change.getUserId() != null && change.getUserId().longValue() == 1L)
+        {
+            throw new ServiceException("系统内置管理员账号不支持在档案模块修改");
+        }
         String userNo = StringUtils.strip(change.getUserNo());
         if (!isValidUserNo(userNo))
         {
@@ -332,9 +349,17 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
             // 越权改他人资料统一用业务码 3001
             checkManageAllowed(change);
         }
-        if (!checkUserNoUnique(change))
+        // 账号必须有角色：零角色账号登录后菜单为空，是最常见的问题来源
+        Long[] roleIds = change.getRoleIds();
+        if (roleIds == null || roleIds.length == 0)
         {
-            throw new ServiceException("用户编号「" + userNo + "」已被占用，请更换");
+            throw new ServiceException("请至少选择一个角色");
+        }
+        checkRolesAssignable(roleIds);
+        SysUser noOwner = userMapper.checkUserNoUnique(userNo);
+        if (noOwner != null && !Objects.equals(noOwner.getUserId(), change.getUserId()))
+        {
+            throw new ServiceException(describeUserNoConflict(noOwner, userNo));
         }
         if (!userService.checkLoginNameUnique(change))
         {
@@ -393,6 +418,11 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
         {
             throw new ServiceException("请选择要执行的状态");
         }
+        // 1 号账号是系统内置管理员，停用后无人能恢复，直接拦住
+        if (userId.longValue() == 1L)
+        {
+            throw new ServiceException("系统内置管理员账号不允许停用");
+        }
         SysUser target = userMapper.selectUserById(userId);
         if (target == null)
         {
@@ -411,6 +441,45 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
             // 停用后移动端会话必须立即失效，不能等自然过期
             bindingService.revokeForDisabledAccount(userId);
         }
+    }
+
+    /**
+     * 删除账号。
+     *
+     * 语义：逻辑删除（del_flag=2）+ 解除微信绑定 + 撤销全部小程序令牌 + 清角色/岗位关联。
+     * 记录仍保留在 sys_user，可按“已删除”追溯；编号按现有策略不回收。
+     *
+     * 三道保护：1 号内置管理员不可删；非本人资料需数据范围允许；最后一个档案管理员不可删。
+     *
+     * @return true 表示删除的是当前登录账号（调用方需要让前端退出登录）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteAccount(Long userId, String operator)
+    {
+        if (userId == null)
+        {
+            throw new ServiceException("请先选择要删除的账号");
+        }
+        if (userId.longValue() == 1L)
+        {
+            throw new ServiceException("系统内置管理员账号不允许删除");
+        }
+        SysUser target = userMapper.selectUserById(userId);
+        if (target == null)
+        {
+            throw new ServiceException("账号不存在，请刷新列表");
+        }
+        userService.checkUserDataScope(userId);
+        // 至少保留一个可用档案管理员，避免把自己删成“没人能管账号”
+        if (holdsArchiveAdmin(userId) && countEnabledArchiveAdmins() <= 1)
+        {
+            throw new ServiceException("请先指定另一位档案管理员，再删除当前账号");
+        }
+        boolean self = Objects.equals(currentUserId(), userId);
+        // 内部已完成：解除微信绑定、撤销全部令牌、清角色与岗位关联、逻辑删除
+        userService.deleteUserById(userId);
+        return self;
     }
 
     /**
@@ -501,15 +570,21 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
             change.setDeptId(existing.getDeptId());
         }
         change.setRoleIds(resolveRoleIds(row.roleName(), existing));
+        // 导入新增时如果“角色名称”留空，默认给普通角色，避免导出一批没有菜单的账号
+        if (existing == null && (change.getRoleIds() == null || change.getRoleIds().length == 0))
+        {
+            change.setRoleIds(defaultCommonRoleIds());
+        }
 
         if (existing != null)
         {
             change.setUserId(existing.getUserId());
             // 导入不改状态与口令，只更新基础资料
             change.setStatus(null);
-            if (!checkUserNoUnique(change))
+            SysUser noOwner = userMapper.checkUserNoUnique(userNo);
+            if (noOwner != null && !Objects.equals(noOwner.getUserId(), change.getUserId()))
             {
-                throw new ServiceException("用户编号「" + userNo + "」已被其他账号占用");
+                throw new ServiceException(describeUserNoConflict(noOwner, userNo));
             }
             change.setUpdateBy(operator);
             userService.updateUser(change);
@@ -562,6 +637,54 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
         return StringUtils.isNotEmpty(userNo) && USER_NO_PATTERN.matcher(userNo.strip()).matches();
     }
 
+    /**
+     * 自动取号：从 0001 起找第一个没有被占用的编号。
+     *
+     * 必须把 del_flag=2 的历史账号算进来——数据库的 uk_sys_user_user_no 是整表唯一索引，
+     * 已删除的行同样占着编号；否则会出现“系统给我 0003，一保存就报占用”的死循环。
+     */
+    @Override
+    public String nextUserNo()
+    {
+        List<String> existing = userMapper.selectAllUserNos();
+        Set<String> taken = new HashSet<>();
+        if (existing != null)
+        {
+            for (String no : existing)
+            {
+                if (StringUtils.isNotEmpty(no))
+                {
+                    taken.add(no.strip());
+                }
+            }
+        }
+        for (int i = 1; i <= 9999; i++)
+        {
+            String candidate = String.format("%04d", i);
+            if (!taken.contains(candidate))
+            {
+                return candidate;
+            }
+        }
+        throw new ServiceException("4 位编号已用尽，请手工指定更长的编号");
+    }
+
+    @Override
+    public String explainUserNoConflict(String userNo, Long userId)
+    {
+        String no = StringUtils.strip(userNo);
+        if (!isValidUserNo(no))
+        {
+            return "用户编号须为1-64位字母、数字、下划线或连字符";
+        }
+        SysUser owner = userMapper.checkUserNoUnique(no);
+        if (owner == null || Objects.equals(owner.getUserId(), userId))
+        {
+            return null;
+        }
+        return describeUserNoConflict(owner, no);
+    }
+
     @Override
     public boolean isWxBound(Long userId)
     {
@@ -575,9 +698,116 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
         return deptService.selectDeptList(new SysDept());
     }
 
+    /**
+     * 角色白名单校验：只允许“普通角色(common)”与“档案管理员(arc_admin)”。
+     *
+     * 前端下拉已在 Controller 过滤，这里再做一次，防止有人直接构造请求塞超管角色。
+     */
+    private void checkRolesAssignable(Long[] roleIds)
+    {
+        for (Long roleId : roleIds)
+        {
+            if (roleId == null)
+            {
+                throw new ServiceException("角色参数不正确");
+            }
+            if (roleId.longValue() == 1L)
+            {
+                throw new ServiceException("超级管理员角色只能由系统内置 1 号账号持有");
+            }
+            SysRole role = roleService.selectRoleById(roleId);
+            if (role == null)
+            {
+                throw new ServiceException("角色不存在，请刷新页面后重试");
+            }
+            if (!ASSIGNABLE_ROLE_KEYS.contains(role.getRoleKey()))
+            {
+                throw new ServiceException("角色只支持“普通角色”与“档案管理员”");
+            }
+            if (!UserConstants.NORMAL.equals(role.getStatus()))
+            {
+                throw new ServiceException("角色“" + role.getRoleName() + "”已停用，请先在角色管理中启用");
+            }
+        }
+    }
+
+    /**
+     * 导入新增时若没填角色，默认给“普通角色”，避免导入出一批“零角色、登录没菜单”的账号。
+     */
+    private Long[] defaultCommonRoleIds()
+    {
+        for (SysRole role : roleService.selectRoleAll())
+        {
+            if (role != null && "common".equals(role.getRoleKey()) && UserConstants.NORMAL.equals(role.getStatus()))
+            {
+                return new Long[] { role.getRoleId() };
+            }
+        }
+        throw new ServiceException("系统缺少“普通角色”，请先在角色管理中创建后再导入");
+    }
+
+    /**
+     * 该账号是否持有档案管理员角色。
+     */
+    private boolean holdsArchiveAdmin(Long userId)
+    {
+        Integer count = jdbc.queryForObject("""
+                select count(1) from sys_user_role ur
+                join sys_role r on r.role_id = ur.role_id
+                where ur.user_id = ? and r.role_key = ? and r.del_flag = '0'
+                """, Integer.class, userId, ARCHIVE_ADMIN_ROLE_KEY);
+        return count != null && count > 0;
+    }
+
+    /**
+     * 当前可用（未删除、未停用）的档案管理员数量，用于“最后一个管理员不可删”保护。
+     */
+    private long countEnabledArchiveAdmins()
+    {
+        Long count = jdbc.queryForObject("""
+                select count(distinct u.user_id) from sys_user u
+                join sys_user_role ur on ur.user_id = u.user_id
+                join sys_role r on r.role_id = ur.role_id
+                where u.del_flag = '0' and u.status = '0' and r.del_flag = '0' and r.role_key = ?
+                """, Long.class, ARCHIVE_ADMIN_ROLE_KEY);
+        return count == null ? 0L : count;
+    }
+
+    /**
+     * 编号冲突文案：区分“被现有账号占用”和“属于已删除账号（编号不回收）”。
+     */
+    private static String describeUserNoConflict(SysUser owner, String userNo)
+    {
+        String who = StringUtils.isEmpty(owner.getLoginName()) ? "未知账号" : StringUtils.strip(owner.getLoginName());
+        if ("2".equals(owner.getDelFlag()))
+        {
+            return "用户编号「" + userNo + "」属于已删除账号（登录名 " + who + "）。编号不回收，请点“重新取号”或换一个编号";
+        }
+        return "用户编号「" + userNo + "」已被账号 " + who + " 使用，请换一个编号";
+    }
+
     // ------------------------------------------------------------------
     // 内部工具
     // ------------------------------------------------------------------
+
+    /**
+     * 档案模块统一排除系统内置 1 号账号：清单、统计、导出都不展示它，
+     * 避免被误停用/误删（后端另有 1 号账号禁改、禁停、禁删的保护）。
+     */
+    private void excludeBuiltInAdmin(SysUser query)
+    {
+        if (query == null)
+        {
+            return;
+        }
+        Map<String, Object> params = query.getParams();
+        if (params == null)
+        {
+            params = new HashMap<>();
+            query.setParams(params);
+        }
+        params.put("excludeUserId", 1L);
+    }
 
     /**
      * 校验当前登录账号能否改动目标账号：不能越权改他人资料（业务码 3001）。
@@ -594,8 +824,9 @@ public class ArchiveAccountServiceImpl implements IArchiveAccountService
             throw new ServiceException("登录状态已失效，请重新登录");
         }
         boolean self = Objects.equals(current.getUserId(), target.getUserId());
-        // 非管理员只能改自己的资料；管理员受数据范围约束
-        if (!self && !current.isAdmin())
+        // 本人可改自己；1 号内置管理员与“档案管理员(arc_admin)”可改他人（后者仍受数据范围约束），
+        // 其余角色只能看不能改——按钮本身也由 archive:account:manage 权限控制。
+        if (!self && !current.isAdmin() && !holdsArchiveAdmin(current.getUserId()))
         {
             throw new ArchiveBizException(CODE_FORBIDDEN, "没有修改其他账号资料的权限");
         }

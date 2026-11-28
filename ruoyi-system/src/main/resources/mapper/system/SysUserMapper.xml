@@ -69,6 +69,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		<if test="userId != null and userId != 0">
 			AND u.user_id = #{userId}
 		</if>
+		<!-- M12：档案账号模块排除系统内置 1 号管理员（params.excludeUserId），不影响若依用户管理页 -->
+		<if test="params.excludeUserId != null">
+			AND u.user_id &lt;&gt; #{params.excludeUserId}
+		</if>
 		<if test="userNo != null and userNo != ''">
 			AND u.user_no = #{userNo}
 		</if>
@@ -166,9 +170,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		select user_id, email from sys_user where email=#{email} and del_flag = '0' limit 1
 	</select>
 
-	<!-- M12：用户编号唯一性校验（含已逻辑删除的账号，避免编号被回收后再分配） -->
+	<!-- M12：用户编号唯一性校验（含已逻辑删除的账号，避免编号被回收后再分配）
+	     多取 login_name / del_flag，用于给用户返回“被哪个账号、什么状态占用”的明确提示 -->
 	<select id="checkUserNoUnique" parameterType="String" resultMap="SysUserResult">
-		select user_id, user_no from sys_user where user_no=#{userNo} limit 1
+		select user_id, user_no, login_name, del_flag from sys_user where user_no=#{userNo} limit 1
+	</select>
+
+	<!-- M12：全部用户编号（含 del_flag=2），自动取号时用来跳过已占用编号 -->
+	<select id="selectAllUserNos" resultType="String">
+		select user_no from sys_user where user_no is not null and user_no &lt;&gt; ''
 	</select>
 
 	<!-- M12：按用户编号精确查询，用于绑定二维码核对与小程序绑定 -->
