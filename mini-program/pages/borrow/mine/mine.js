@@ -23,12 +23,9 @@ Page({
   },
 
   onShow() {
-    app.refreshSession().then(() => {
-      if (this._closed) return;
-      if (!navigation.guard('borrow')) return;
-      this.load();
-    }).catch(() => {
-      if (!this._closed) navigation.guard('borrow');
+    // 不用 guard 重定向：登录态异常时留在本页给出提示，避免被弹回工作台
+    app.refreshSession().catch(() => {}).then(() => {
+      if (!this._closed) this.load();
     });
   },
 
@@ -100,5 +97,9 @@ Page({
 
   goHome() {
     wx.reLaunch({ url: '/pages/home/home' });
+  },
+
+  relogin() {
+    wx.reLaunch({ url: '/pages/profile/profile' });
   }
 });

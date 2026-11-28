@@ -12,9 +12,11 @@
   </view>
 
   <view wx:if="{{loading}}" class="state">加载中…</view>
-  <view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <view wx:elif="{{error}}" class="state error">
+    <text>{{error}}</text>
+    <button class="secondary-button" size="mini" bindtap="relogin">重新登录</button>
+  </view>
   <view wx:elif="{{rows.length === 0}}" class="state">还没有借阅记录</view>
-
   <view wx:else class="list">
     <view class="card borrow-item" wx:for="{{rows}}" wx:key="borrowId" data-id="{{item.borrowId}}" bindtap="goDetail">
       <view class="row">
