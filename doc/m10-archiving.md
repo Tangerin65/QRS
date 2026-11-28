@@ -68,18 +68,27 @@ retention_end_date = archive_date + N 年   （有限年限）
 retention_end_date = NULL                 （永久）
 ```
 
-编码识别按「字典键值 → 名称快照 → 直接解析」顺序，同时兼容仓库里存在的两套字典键值：
+识别顺序是「字典值 → 字典标签」→ 直接解析编码（字典缺项时兜底）→ `retention_name` 名称快照。字典是唯一真源，两套键值都靠标签解析，因此都能识别：
 
 | 初始化脚本 | 键值示例 | 说明 |
 | --- | --- | --- |
-| `sql/setup_qrs.sql` | `PERMANENT`、`Y30` | 直接解析 |
-| `sql/arc_m01_dictionary.sql` | `1`=永久、`2`=30年 … `10`=50年 | 先按 `sys_dict_data` 标签换算，字典缺失时回退 `retention_name` 快照 |
+| `sql/setup_qrs.sql` | `PERMANENT`、`Y30` | 标签为 `永久`/`30年`，按标签解析 |
+| `sql/arc_m01_dictionary.sql` | `1`=永久、`2`=30年 … `10`=50年 | 同上，键值不同不影响识别 |
 
 不同机器用了不同初始化脚本时，登记出来的 `retention_code` 会不同；上表两种都能正常计算到期日。
 
 保管期限在登记时即为必选项，归档校验仍把它作为第 5 项复核（`RETENTION`，标签「保管期限可识别」）。编码无法识别（UNKNOWN）时校验不通过、`submit()` 拒绝归档，不会出现 `retention_end_date` 静默留空的归档记录；批次明细记 `reason_code=RETENTION`，档案留在待归档并标「待补正」。修数据或补字典后重新校验即可，两套字典键值任选其一。
 
 到期提醒只按参数化窗口实现（当前未接定时任务），文档未规定具体提前天数。
+
+## 保管期限字典约定
+
+- 字典类型固定 `arc_retention_period`，`arc_archive.retention_code` 存的是 `sys_dict_data.dict_value`；识别时只信任同一行的 `dict_label`，不硬编码任何 `dict_value`。
+- `dict_value` 只是键，允许管理员改：仓库种子 `sql/arc_m01_dictionary.sql` 用 `1`..`10`，部分机器用 `PERMANENT`/`Y30`/`Y20`/`Y10`/`Y5`，两种都靠标签解析，互不影响，不要求统一键值。
+- `dict_label` 约定：永久类必须含「永久」；有限年限必须是阿拉伯数字 +「年」（如 `30年`）。解析容忍 `Y30`、`30`、`30 年` 等写法。
+- 识别顺序：`dict_value` → `dict_label`；键在字典里查不到时退回直接解析编码（兼容字典未初始化或被改的机器）；再退到 `retention_name` 名称快照。
+- 失败分两种提示，便于定位：编码不在字典里 →「字典 arc_retention_period 中不存在该编码 X99」；标签解析不出 →「字典标签无法解析，应为「永久」或阿拉伯数字+年（编码 9，标签 长期）」。
+- 管理员把标签改成无法解析的写法后，M10 判 UNKNOWN 并阻断正式登记（校验项 `RETENTION` 不通过、提交归档被拒，档案留待补正）。这是设计保护，不是缺陷：改字典时请保持可解析写法。
 
 ## 校验报告之追溯
 
@@ -123,9 +132,22 @@ retention_end_date = NULL                 （永久）
 4. **退回补正**：待归档档案退回并填原因 → 状态回到 DRAFT，审计出现 `ARCHIVE_RETURN`。
 5. **库位保护**：删除被档案引用的柜架 → 拒绝；删除有下级的库房 → 拒绝；编码重复保存 → 拒绝。
 6. **期限计算**：Y10 档案归档后 `retention_end_date` = 归档日 + 10 年；PERMANENT 档案为 NULL。
-7. **期限无法识别阻断**：把 `retention_code` 改成字典里没有的值（如 `X99`）并清空 `retention_name` → 校验第 5 项「保管期限可识别」不通过，提交归档失败且 `reason_code=RETENTION`，档案仍为 SUBMITTED、列表标「待补正」；改回 `Y30` 或 `30` 后重新校验通过，可正常归档。
+7. **期限无法识别阻断**：把 `retention_code` 改成字典里没有的值（如 `X99`）并清空 `retention_name` → 校验第 5 项「保管期限可识别」不通过，详情为「字典 arc_retention_period 中不存在该编码 X99」，提交归档失败且 `reason_code=RETENTION`，档案仍为 SUBMITTED、列表标「待补正」；改回 `Y30` 或 `30` 后重新校验通过，可正常归档。把字典标签改成「长期」这类写法，则提示「字典标签无法解析，应为「永久」或阿拉伯数字+年」。
 8. **报告可追溯**：点「校验」→ `arc_archive_check_report` 新增一行 `report_source=CHECK`，`items_json` 含 7 项；点「报告」能看到逐项结果、校验人和校验时版本。
 9. **换版本强制复检**：校验通过后修改该档案（`version+1`）→「报告」弹窗提示「档案已改版，需复检」；此时直接提交归档会在事务内重新校验并写新的 `SUBMIT` 报告，不会用旧报告放行。
+
+## 单元测试
+
+```
+mvn -pl ruoyi-system -am test "-Dtest=ArchiveArchivingRetentionTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+```
+
+依赖已缓存时加 `-o` 可离线跑；首次运行需联网拉 surefire 插件与 JUnit。PowerShell 里 `-Dsurefire...` 含点号，必须加引号。
+
+- 位置：`ruoyi-system/src/test/java/com/ruoyi/system/service/ArchiveArchivingRetentionTest.java`，6 个用例。
+- 覆盖：setup_qrs 键值（`PERMANENT`/`Y30`/`Y20`/`Y10`/`Y5`）与 M01 数字键值（`1`..`10`）的永久/年限识别、字典缺项退回直接解析、编码不在字典的提示、标签无法解析的提示、未知期限在 `check()` 中失败且 `submit()` 被拒。
+- 不连库、不动字典：字典通过测试内覆写 `dictLabel` 注入；`submit()` 用假 `JdbcTemplate` + 动态代理的 `IArchiveService`，只回答归档流程用到的几条 SQL，遇到新查询直接失败。
+- 依赖：`ruoyi-system/pom.xml` 增 `junit-jupiter`（test 作用域）与 `maven-surefire-plugin 3.5.4`（Maven 默认 3.2.5 带不动 JUnit 5.12 的 Platform 1.12）。
 
 ## 已知边界
 

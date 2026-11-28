@@ -111,7 +111,7 @@ public class ArchiveArchivingService {
         items.add(new CheckItem("CATEGORY", "分类为启用末级", categoryOk, categoryDetail));
         RetentionSpec retention = resolveRetention(record.getRetentionCode(), record.getRetentionName());
         items.add(new CheckItem("RETENTION", "保管期限可识别", retention.recognized(),
-            retention.recognized() ? retention.display() : "保管期限为空或无法识别：" + retentionLabel(record)));
+            retention.recognized() ? retention.display() : retention.message()));
         long fileCount = countFiles(record.getArchiveId());
         items.add(new CheckItem("FILE", "至少一个附件", fileCount > 0, "附件 " + fileCount + " 个"));
         long openDestroy = countOpenDestroy(record.getArchiveId());
@@ -119,9 +119,24 @@ public class ArchiveArchivingService {
         return items;
     }
 
-    /** 保管期限识别结果：永久或有限年限。 */
-    public record RetentionSpec(boolean recognized, boolean permanent, Integer years) {
-        static final RetentionSpec UNKNOWN = new RetentionSpec(false, false, null);
+    /**
+     * 保管期限识别结果。识别失败时 message 区分两种原因：编码不在字典里（数据/字典不同步），
+     * 或字典标签解析不出年限（字典被改成不可解析的写法），避免统一报「无法识别」导致难定位。
+     */
+    public record RetentionSpec(boolean recognized, boolean permanent, Integer years, String message) {
+        static final RetentionSpec UNKNOWN = new RetentionSpec(false, false, null, "无法识别");
+
+        static RetentionSpec knownPermanent() {
+            return new RetentionSpec(true, true, null, "");
+        }
+
+        static RetentionSpec knownYears(int years) {
+            return new RetentionSpec(true, false, years, "");
+        }
+
+        static RetentionSpec unknown(String message) {
+            return new RetentionSpec(false, false, null, message);
+        }
 
         public String display() {
             if (permanent) return "永久";
@@ -130,21 +145,28 @@ public class ArchiveArchivingService {
     }
 
     /**
-     * 识别保管期限编码。兼容两套字典键值：setup_qrs.sql 的 PERMANENT/Y30，
-     * 与 arc_m01_dictionary.sql 的 1..10 数字键值；数字键值按字典标签换算，
-     * 字典缺失时回退到登记时保存的名称快照。
+     * 识别保管期限。字典 arc_retention_period 是唯一真源，dict_value 只是键：
+     * 先按 dict_value 取 dict_label 解析；键在字典里查不到时退回直接解析编码（兼容字典未初始化或被删改的机器），
+     * 再退到登记时保存的 retention_name 快照。仍失败时给出可定位的原因。
+     * 两套种子（setup_qrs 的 PERMANENT/Y30… 与 arc_m01_dictionary 的 1..10）都靠标签解析，因此都能识别。
      */
     public RetentionSpec resolveRetention(String retentionCode, String retentionName) {
         String code = retentionCode == null ? "" : retentionCode.trim();
-        if (code.matches("\\d{1,3}")) {
-            RetentionSpec fromDict = parseRetentionText(dictLabel(code), true);
-            if (fromDict.recognized()) return fromDict;
+        if (code.isEmpty()) return RetentionSpec.unknown("保管期限为空");
+        String label = dictLabel(code);
+        if (label != null) {
+            RetentionSpec fromLabel = parseRetentionText(label, true);
+            if (fromLabel.recognized()) return fromLabel;
             RetentionSpec fromName = parseRetentionText(retentionName, true);
-            return fromName.recognized() ? fromName : RetentionSpec.UNKNOWN;
+            if (fromName.recognized()) return fromName;
+            return RetentionSpec.unknown("字典标签无法解析，应为「永久」或阿拉伯数字+年（编码 "
+                + code + "，标签 " + label.trim() + "）");
         }
         RetentionSpec direct = parseRetentionText(code, false);
         if (direct.recognized()) return direct;
-        return parseRetentionText(retentionName, true);
+        RetentionSpec fromName = parseRetentionText(retentionName, true);
+        if (fromName.recognized()) return fromName;
+        return RetentionSpec.unknown("字典 arc_retention_period 中不存在该编码 " + code);
     }
 
     /** 保管到期日：永久为空；有限年限按基准日加年。 */
@@ -154,7 +176,8 @@ public class ArchiveArchivingService {
             ? baseDate.plusYears(spec.years()) : null;
     }
 
-    private String dictLabel(String dictValue) {
+    /** 字典是唯一真源。protected 仅为单测覆盖字典读取，业务代码不要覆盖。 */
+    protected String dictLabel(String dictValue) {
         try {
             List<String> labels = jdbc.queryForList(
                 "select dict_label from sys_dict_data where dict_type='arc_retention_period' and dict_value=? and status='0'",
@@ -169,25 +192,17 @@ public class ArchiveArchivingService {
         if (text == null) return RetentionSpec.UNKNOWN;
         String value = text.trim();
         if (value.isEmpty()) return RetentionSpec.UNKNOWN;
-        if (value.contains("永久")) return new RetentionSpec(true, true, null);
+        if (value.contains("永久")) return RetentionSpec.knownPermanent();
         String upper = value.toUpperCase();
-        if ("PERMANENT".equals(upper) || "P".equals(upper)) return new RetentionSpec(true, true, null);
+        if ("PERMANENT".equals(upper) || "P".equals(upper)) return RetentionSpec.knownPermanent();
         java.util.regex.Matcher matcher =
             java.util.regex.Pattern.compile("^Y?\\s*(\\d{1,3})\\s*年?$").matcher(upper);
         if (matcher.matches()) {
             if (!allowBareNumber && upper.matches("\\d{1,3}")) return RetentionSpec.UNKNOWN;
             int years = Integer.parseInt(matcher.group(1));
-            if (years > 0) return new RetentionSpec(true, false, years);
+            if (years > 0) return RetentionSpec.knownYears(years);
         }
         return RetentionSpec.UNKNOWN;
-    }
-
-    /** 报告里记下登记时保存的原始期限值，方便判断是哪套键值没识别出来。 */
-    private static String retentionLabel(ArchiveRecord record) {
-        String code = record.getRetentionCode() == null ? "" : record.getRetentionCode().trim();
-        String name = record.getRetentionName() == null ? "" : record.getRetentionName().trim();
-        String text = (code + " " + name).trim();
-        return text.isEmpty() ? "登记时未填保管期限" : text;
     }
 
     /**
@@ -314,8 +329,8 @@ public class ArchiveArchivingService {
                     // 防御：RETENTION 校验项已拦截 UNKNOWN，走到这里说明校验项被改动过，仍拒绝归档。
                     fail++;
                     items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", "RETENTION",
-                        "保管期限为空或无法识别（" + retentionLabel(record) + "）"));
-                    insertItem(batchId, record, "FAIL", "RETENTION", "保管期限为空或无法识别");
+                        retention.message()));
+                    insertItem(batchId, record, "FAIL", "RETENTION", retention.message());
                     continue;
                 }
                 LocalDate endDate = retention.permanent() ? null : today.plusYears(retention.years());
