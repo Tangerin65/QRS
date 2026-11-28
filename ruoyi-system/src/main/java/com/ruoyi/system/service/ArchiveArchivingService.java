@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.LongPredicate;
 import java.util.stream.Collectors;
 import com.github.pagehelper.PageHelper;
@@ -49,15 +50,60 @@ public class ArchiveArchivingService {
 
     public record CheckItem(String code, String label, boolean passed, String detail) {}
 
-    public record SubmitItem(long archiveId, String archiveCode, String title, String result, String reasonCode, String reason) {}
+    public record SubmitItem(long archiveId, String archiveCode, String title, String result, String reasonCode, String reason,
+                             List<CheckItem> failedChecks) {}
 
     public record SubmitResult(long batchId, String batchNo, int total, int success, int fail, List<SubmitItem> items) {}
 
     public record BatchRow(long batchId, String batchNo, String applicantName, int totalCount, int successCount,
-                           int failCount, String batchStatus, String submitTime, String finishTime, Long locationId) {}
+                           int failCount, String batchStatus, String submitTime, String finishTime, Long locationId,
+                           String remark) {}
 
     public record BatchItemRow(long itemId, long batchId, long archiveId, String archiveCode, String title,
                                String itemResult, String reasonCode, String reason) {}
+
+    /** 阶段2 归档属性：存储介质与电子存储位置，PC 与小程序同名同义。 */
+    public record Storage(String media, String electronicLocation) {
+        public static final Storage NONE = new Storage("", "");
+    }
+
+    /** 批次来源等阶段2 属性；列未迁移时各字段为空串。 */
+    public record BatchFacts(String sourceType, String sourceRef, String locationCode) {}
+
+    /**
+     * 档案的阶段2 归档属性（批次号、介质、电子存储位置、归档人、库位路径）。
+     * 列未迁移时除库位外都为空串，接口按契约降级而不是报错。
+     */
+    public record ArchiveFacts(long archiveId, String batchNo, String storageMedia, String electronicLocation,
+                               String archivedBy, String archiveDate, Long locationId, String locationCode,
+                               String locationPath) {}
+
+    /** 带机器可读错误码的业务异常：PC 只用 msg，小程序额外用 code/data 映射契约错误码。 */
+    public static class ArchivingException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        private final String code;
+        private final Map<String, Object> data;
+
+        public ArchivingException(String code, String message) {
+            this(code, message, Map.of());
+        }
+
+        public ArchivingException(String code, String message, Map<String, Object> data) {
+            super(message);
+            this.code = code;
+            this.data = data == null ? Map.of() : data;
+        }
+
+        public String code() { return code; }
+        public Map<String, Object> data() { return data; }
+    }
+
+    /** 重新组批结果：原批次号 + 新批次。 */
+    public record RetryResult(String sourceBatchNo, SubmitResult batch) {}
+
+    private static final Set<String> MEDIA = Set.of("PAPER", "ELECTRONIC", "MIXED");
+    private static final Map<String, String> MEDIA_LABELS = Map.of(
+        "PAPER", "纸质", "ELECTRONIC", "电子", "MIXED", "混合");
 
     /** 单次校验报告：逐项结果与当时档案版本，归档前换版本即需复检。 */
     public record CheckReportRow(long reportId, long archiveId, String archiveCode, int archiveVersion, Long batchId,
@@ -68,7 +114,7 @@ public class ArchiveArchivingService {
         rs.getLong("batch_id"), rs.getString("batch_no"), rs.getString("applicant_name"),
         rs.getInt("total_count"), rs.getInt("success_count"), rs.getInt("fail_count"),
         rs.getString("batch_status"), rs.getString("submit_time"), rs.getString("finish_time"),
-        rs.getObject("location_id", Long.class));
+        rs.getObject("location_id", Long.class), rs.getString("remark"));
 
     private static final RowMapper<BatchItemRow> ITEM_ROW = (rs, i) -> new BatchItemRow(
         rs.getLong("item_id"), rs.getLong("batch_id"), rs.getLong("archive_id"),
@@ -84,6 +130,18 @@ public class ArchiveArchivingService {
     /** 待归档列表：沿用 M01 的数据范围与密级过滤，只取 SUBMITTED。 */
     public List<ArchiveRecord> pending(ArchiveQuery query) {
         query.setArchiveStatus(SUBMITTED);
+        return archives.selectArchiveList(query);
+    }
+
+    /** 状态查询列表：SUBMITTED（默认）或 ARCHIVED，沿用同一套数据范围。 */
+    public List<ArchiveRecord> list(ArchiveQuery query) {
+        String status = query.getArchiveStatus();
+        if (status == null || status.isBlank()) query.setArchiveStatus(SUBMITTED);
+        return archives.selectArchiveList(query);
+    }
+
+    /** 不限归档状态的分页查询（小程序状态查询的 ALL），数据范围与 M01 一致。 */
+    public List<ArchiveRecord> anyStatus(ArchiveQuery query) {
         return archives.selectArchiveList(query);
     }
 
@@ -260,8 +318,7 @@ public class ArchiveArchivingService {
     }
 
     /** 每条档案最新报告的结果，供待归档列表标记「待补正」。 */
-    public Map<Long, String> latestCheckStates(List<Long> archiveIds) {
-        if (archiveIds == null || archiveIds.isEmpty()) return Collections.emptyMap();
+    public Map<Long, String> latestCheckStates(List<Long> archiveIds) {        if (archiveIds == null || archiveIds.isEmpty()) return Collections.emptyMap();
         String placeholders = archiveIds.stream().map(id -> "?").collect(Collectors.joining(","));
         Map<Long, String> states = new HashMap<>();
         try {
@@ -274,6 +331,28 @@ public class ArchiveArchivingService {
             log.warn("读取校验状态失败（请执行 sql/setup_qrs.sql 的 M10 校验报告建表段）：{}", e.getMessage());
         }
         return states;
+    }
+
+    /** 一批档案各自最新一份报告，键为 archive_id；列表页一次取出，避免逐条查库。 */
+    public Map<Long, CheckReportRow> latestReports(List<Long> archiveIds) {
+        if (archiveIds == null || archiveIds.isEmpty()) return Collections.emptyMap();
+        String placeholders = archiveIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        Map<Long, CheckReportRow> reports = new HashMap<>();
+        try {
+            jdbc.query("select r.report_id,r.archive_id,r.archive_code,r.archive_version,r.batch_id,r.report_source,"
+                    + "r.report_result,r.item_total,r.fail_count,r.items_json,r.checked_by,"
+                    + "date_format(r.check_time,'%Y-%m-%d %H:%i:%s') check_time "
+                    + "from arc_archive_check_report r join (select archive_id,max(report_id) report_id "
+                    + "from arc_archive_check_report where archive_id in (" + placeholders + ") group by archive_id) t "
+                    + "on r.report_id=t.report_id",
+                (RowCallbackHandler) rs -> {
+                    CheckReportRow row = REPORT_ROW.mapRow(rs, 0);
+                    reports.put(row.archiveId(), row);
+                }, archiveIds.toArray());
+        } catch (DataAccessException e) {
+            log.warn("批量读取校验报告失败（请执行 sql/setup_qrs.sql 的 M10 校验报告建表段）：{}", e.getMessage());
+        }
+        return reports;
     }
 
     /** 报告是否已过期：档案版本变了，上次校验结论不再适用，必须复检。 */
@@ -304,13 +383,29 @@ public class ArchiveArchivingService {
     @Transactional
     public SubmitResult submit(List<Long> archiveIds, Long locationId, String actor, long actorId, boolean admin,
                                LongPredicate categoryAllowed, int maxSecretLevel) {
+        // PC 手工勾选提交：批次来源记 MANUAL，介质与电子存储位置由弹窗采集。
+        return submit(archiveIds, locationId, Storage.NONE, "MANUAL", "", actor, actorId, admin,
+            categoryAllowed, maxSecretLevel);
+    }
+
+    /**
+     * 批量归档。PC 与小程序同一条路径，只差来源与介质参数：
+     * 小程序单件组批按 sourceType=MOBILE，重新组批按 REBATCH 并记原批次号。
+     */
+    @Transactional
+    public SubmitResult submit(List<Long> archiveIds, Long locationId, Storage storage, String sourceType,
+                               String sourceRef, String actor, long actorId, boolean admin,
+                               LongPredicate categoryAllowed, int maxSecretLevel) {
         if (archiveIds == null || archiveIds.isEmpty()) throw new ServiceException("请选择待归档档案");
         if (archiveIds.size() > MAX_BATCH) throw new ServiceException("单批最多 " + MAX_BATCH + " 条");
+        Storage media = requireStorage(storage);
         if (locationId != null) requireLocation(locationId);
+        // 阶段2 列未迁移时退回旧语句，避免整批归档因列缺失失败。
+        boolean stage2 = stage2Ready();
         LocalDate today = LocalDate.now();
         String batchNo = nextBatchNo();
-        jdbc.update("insert into arc_archive_batch(batch_no,applicant_id,applicant_name,total_count,batch_status,location_id) "
-            + "values(?,?,?,?,'RUNNING',?)", batchNo, actorId, actor, archiveIds.size(), locationId);
+        insertBatch(batchNo, actorId, actor, archiveIds.size(), locationId, stage2,
+            sourceType == null ? "" : sourceType, sourceRef == null ? "" : sourceRef);
         Long batchId = jdbc.queryForObject("select batch_id from arc_archive_batch where batch_no=?", Long.class, batchNo);
         int ok = 0;
         int fail = 0;
@@ -331,7 +426,8 @@ public class ArchiveArchivingService {
                     String reasonCode = failedChecks.size() == 1 && "RETENTION".equals(failedChecks.get(0).code())
                         ? "RETENTION" : "CHECK";
                     fail++;
-                    items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", reasonCode, reason));
+                    items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", reasonCode, reason,
+                        failedChecks));
                     insertItem(batchId, record, "FAIL", reasonCode, reason);
                     continue;
                 }
@@ -340,29 +436,38 @@ public class ArchiveArchivingService {
                     // 防御：RETENTION 校验项已拦截 UNKNOWN，走到这里说明校验项被改动过，仍拒绝归档。
                     fail++;
                     items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", "RETENTION",
-                        retention.message()));
+                        retention.message(), checks));
                     insertItem(batchId, record, "FAIL", "RETENTION", retention.message());
                     continue;
                 }
                 LocalDate endDate = retention.permanent() ? null : today.plusYears(retention.years());
-                int updated = jdbc.update("update arc_archive set archive_status='ARCHIVED',archive_date=?,retention_end_date=?,"
+                int updated = stage2
+                    ? jdbc.update("update arc_archive set archive_status='ARCHIVED',archive_date=?,retention_end_date=?,"
+                        + "location_id=?,storage_media=?,electronic_location=?,archived_by=?,archive_batch_id=?,"
+                        + "version=version+1,update_by=?,update_time=now() "
+                        + "where archive_id=? and version=? and archive_status='SUBMITTED' and del_flag='0'",
+                        today, endDate, locationId, media.media(), media.electronicLocation(), actor, batchId, actor,
+                        archiveId, record.getVersion())
+                    : jdbc.update("update arc_archive set archive_status='ARCHIVED',archive_date=?,retention_end_date=?,"
                         + "location_id=?,version=version+1,update_by=?,update_time=now() "
                         + "where archive_id=? and version=? and archive_status='SUBMITTED' and del_flag='0'",
-                    today, endDate, locationId, actor, archiveId, record.getVersion());
+                        today, endDate, locationId, actor, archiveId, record.getVersion());
                 if (updated == 0) {
                     fail++;
-                    items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", "CONFLICT", "档案已被修改，刷新后重试"));
+                    items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", "CONFLICT",
+                        "档案已被修改，刷新后重试", checks));
                     insertItem(batchId, record, "FAIL", "CONFLICT", "档案已被修改");
                     continue;
                 }
                 audit(archiveId, record.getArchiveCode(), "ARCHIVE_OK", actorId, actor,
-                    "归档成功，批次 " + batchNo + (locationId == null ? "" : "，库位 " + locationId));
+                    "归档成功，批次 " + batchNo + (locationId == null ? "" : "，库位 " + locationId)
+                        + (media.media().isEmpty() ? "" : "，介质 " + MEDIA_LABELS.get(media.media())));
                 ok++;
-                items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "OK", "", ""));
+                items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "OK", "", "", checks));
                 insertItem(batchId, record, "OK", "", "");
             } catch (ServiceException e) {
                 fail++;
-                items.add(new SubmitItem(archiveId, "", "", "FAIL", "DENIED", e.getMessage()));
+                items.add(new SubmitItem(archiveId, "", "", "FAIL", "DENIED", e.getMessage(), List.of()));
             }
         }
         String status = fail == 0 ? "SUCCESS" : (ok == 0 ? "FAILED" : "PARTIAL");
@@ -423,7 +528,7 @@ public class ArchiveArchivingService {
         pageArgs.add(Math.max(0, (Math.max(1, pageNum) - 1) * pageSize));
         List<BatchRow> rows = jdbc.query("select batch_id,batch_no,applicant_name,total_count,success_count,fail_count,"
             + "batch_status,date_format(submit_time,'%Y-%m-%d %H:%i:%s') submit_time,"
-            + "date_format(finish_time,'%Y-%m-%d %H:%i:%s') finish_time,location_id from arc_archive_batch"
+            + "date_format(finish_time,'%Y-%m-%d %H:%i:%s') finish_time,location_id,remark from arc_archive_batch"
             + where + " order by batch_id desc limit ? offset ?", BATCH_ROW, pageArgs.toArray());
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("rows", rows);
@@ -434,7 +539,7 @@ public class ArchiveArchivingService {
     public BatchRow batchDetail(long batchId) {
         List<BatchRow> rows = jdbc.query("select batch_id,batch_no,applicant_name,total_count,success_count,fail_count,"
             + "batch_status,date_format(submit_time,'%Y-%m-%d %H:%i:%s') submit_time,"
-            + "date_format(finish_time,'%Y-%m-%d %H:%i:%s') finish_time,location_id from arc_archive_batch where batch_id=?",
+            + "date_format(finish_time,'%Y-%m-%d %H:%i:%s') finish_time,location_id,remark from arc_archive_batch where batch_id=?",
             BATCH_ROW, batchId);
         if (rows.isEmpty()) throw new ServiceException("批次不存在");
         return rows.get(0);
@@ -443,6 +548,253 @@ public class ArchiveArchivingService {
     public List<BatchItemRow> batchItems(long batchId) {
         return jdbc.query("select item_id,batch_id,archive_id,archive_code,title,item_result,reason_code,reason "
             + "from arc_archive_batch_item where batch_id=? order by item_id", ITEM_ROW, batchId);
+    }
+
+    /** 小程序 hub 汇总（契约 §4.1）：待归档类指标按本人数据范围，批次与库位按全局口径。 */
+    public Map<String, Object> hubSummary(ArchiveQuery query) {
+        ArchiveQuery scoped = scopedCopy(query);
+        scoped.setArchiveStatus(SUBMITTED);
+        scoped.setMaxRows(HUB_SCAN);
+        scoped.setPageNum(1);
+        scoped.setPageSize(HUB_SCAN);
+        List<ArchiveRecord> pendingRows = archives.selectArchiveList(scoped);
+        Map<String, String> dict = retentionDict();
+        Map<Long, CheckReportRow> reports = latestReports(pendingRows.stream().map(ArchiveRecord::getArchiveId).toList());
+        int unknown = 0;
+        int needFix = 0;
+        for (ArchiveRecord record : pendingRows) {
+            boolean unknownRetention = !resolveRetention(record.getRetentionCode(), record.getRetentionName(), dict)
+                .recognized();
+            // 口径与待归档列表的 NEED_FIX 筛选一致：期限无法识别，或最近一份报告失败且档案未换版本。
+            CheckReportRow report = reports.get(record.getArchiveId());
+            boolean failed = report != null && "FAIL".equals(report.reportResult()) && !reportStale(report, record);
+            if (unknownRetention) unknown++;
+            if (unknownRetention || failed) needFix++;
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("pending", pendingRows.size());
+        data.put("needFix", needFix);
+        data.put("unknownRetention", unknown);
+        data.put("batchOpen", count("select count(*) from arc_archive_batch where batch_status='RUNNING'"));
+        data.put("batchReturned", count("select count(*) from arc_archive_batch where batch_status in ('PARTIAL','FAILED')"));
+        data.put("locationTotal", count("select count(*) from arc_location where location_level='RACK'"));
+        data.put("locationAvailable", count("select count(*) from arc_location l where l.location_level='RACK' "
+            + "and l.status=0 and (l.capacity is null or (select count(*) from arc_archive a "
+            + "where a.location_id=l.location_id and a.del_flag='0') < l.capacity)"));
+        data.put("archivedThisMonth", count("select count(*) from arc_archive where del_flag='0' "
+            + "and archive_status='ARCHIVED' and archive_date >= date_format(curdate(),'%Y-%m-01')"));
+        data.put("scanCapped", pendingRows.size() >= HUB_SCAN);
+        return data;
+    }
+
+    /** 小程序批次列表（契约 §4.6）：筛选 ALL/OPEN/RETURNED，返回契约字段名。 */
+    public Map<String, Object> mobileBatches(String keyword, String filter, String from, String to,
+                                             int pageNum, int pageSize) {
+        StringBuilder where = new StringBuilder(" where 1=1 ");
+        List<Object> args = new ArrayList<>();
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" and (batch_no like ? or applicant_name like ?) ");
+            args.add("%" + keyword.trim() + "%");
+            args.add("%" + keyword.trim() + "%");
+        }
+        if ("OPEN".equalsIgnoreCase(filter)) {
+            where.append(" and batch_status='RUNNING' ");
+        } else if ("RETURNED".equalsIgnoreCase(filter)) {
+            where.append(" and batch_status in ('PARTIAL','FAILED') ");
+        }
+        if (from != null && !from.isBlank()) {
+            where.append(" and submit_time >= ? ");
+            args.add(from.trim() + " 00:00:00");
+        }
+        if (to != null && !to.isBlank()) {
+            where.append(" and submit_time <= ? ");
+            args.add(to.trim() + " 23:59:59");
+        }
+        int size = Math.max(1, Math.min(50, pageSize));
+        int page = Math.max(1, pageNum);
+        long total = count("select count(*) from arc_archive_batch" + where, args.toArray());
+        List<Object> pageArgs = new ArrayList<>(args);
+        pageArgs.add(size);
+        pageArgs.add((page - 1) * size);
+        List<BatchRow> rows = jdbc.query("select batch_id,batch_no,applicant_name,total_count,success_count,fail_count,"
+            + "batch_status,date_format(submit_time,'%Y-%m-%d %H:%i:%s') submit_time,"
+            + "date_format(finish_time,'%Y-%m-%d %H:%i:%s') finish_time,location_id,remark from arc_archive_batch"
+            + where + " order by batch_id desc limit ? offset ?", BATCH_ROW, pageArgs.toArray());
+        List<Long> ids = rows.stream().map(BatchRow::batchId).toList();
+        Map<Long, BatchFacts> facts = batchFacts(ids);
+        Map<Long, String> reasons = batchReturnedReasons(ids);
+        Map<Long, String> retentions = batchRetentionText(ids);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("rows", rows.stream()
+            .map(row -> mobileBatchView(row, facts.get(row.batchId()), reasons.get(row.batchId()),
+                retentions.get(row.batchId())))
+            .toList());
+        data.put("total", total);
+        data.put("pageNum", page);
+        data.put("pageSize", size);
+        data.put("hasMore", (long) page * size < total);
+        return data;
+    }
+
+    /**
+     * 批次明细的归档属性（介质、电子存储位置、归档人、库位编码），PC 与小程序共用同一份口径。
+     * 底层就是 facts()，阶段2 列未迁移时除库位外为空串。
+     */
+    public Map<Long, ArchiveFacts> batchItemFacts(long batchId) {
+        return facts(batchItems(batchId).stream().map(BatchItemRow::archiveId).toList());
+    }
+
+    /** 小程序批次详情（契约 §4.7）：batch + items（含介质、归档人与关联校验报告 ID）。 */
+    public Map<String, Object> mobileBatchDetail(String batchNo) {
+        BatchRow row = batchByNo(batchNo);
+        Map<Long, BatchFacts> facts = batchFacts(List.of(row.batchId()));
+        Map<Long, String> reasons = batchReturnedReasons(List.of(row.batchId()));
+        Map<Long, String> retentions = batchRetentionText(List.of(row.batchId()));
+        List<BatchItemRow> itemRows = batchItems(row.batchId());
+        Map<Long, ArchiveFacts> itemFacts = facts(itemRows.stream().map(BatchItemRow::archiveId).toList());
+        Map<Long, Long> reports = new HashMap<>();
+        try {
+            jdbc.query("select archive_id,max(report_id) report_id from arc_archive_check_report where batch_id=? "
+                    + "group by archive_id",
+                (RowCallbackHandler) rs -> reports.put(rs.getLong("archive_id"), rs.getLong("report_id")), row.batchId());
+        } catch (DataAccessException e) {
+            // 报告表未建：明细不带 checkReportId，其余照常返回。
+        }
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (BatchItemRow item : itemRows) {
+            ArchiveFacts archiveFacts = itemFacts.get(item.archiveId());
+            String media = archiveFacts == null ? "" : archiveFacts.storageMedia();
+            Map<String, Object> view = new LinkedHashMap<>();
+            view.put("archiveId", Long.toString(item.archiveId()));
+            view.put("archiveCode", nullSafe(item.archiveCode()));
+            view.put("title", nullSafe(item.title()));
+            view.put("itemResult", nullSafe(item.itemResult()));
+            view.put("reasonCode", nullSafe(item.reasonCode()));
+            view.put("reason", nullSafe(item.reason()));
+            view.put("medium", media);
+            view.put("mediumLabel", mediumLabel(media));
+            view.put("archivedBy", archiveFacts == null ? "" : archiveFacts.archivedBy());
+            Long reportId = reports.get(item.archiveId());
+            view.put("checkReportId", reportId == null ? "" : Long.toString(reportId));
+            items.add(view);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("batch", mobileBatchView(row, facts.get(row.batchId()), reasons.get(row.batchId()),
+            retentions.get(row.batchId())));
+        data.put("items", items);
+        return data;
+    }
+
+    /**
+     * 重新组批（契约 §4.8）：取原批次 FAIL 明细逐条重新校验，写新批次并记 source_type=REBATCH、
+     * source_ref=原批次号；原批次不改写。
+     */
+    @Transactional
+    public RetryResult retryBatch(String batchNo, String actor, long actorId, boolean admin,
+                                  LongPredicate categoryAllowed, int maxSecretLevel) {
+        BatchRow row = batchByNo(batchNo);
+        List<Long> failIds = jdbc.queryForList("select archive_id from arc_archive_batch_item "
+            + "where batch_id=? and item_result='FAIL' order by item_id", Long.class, row.batchId());
+        if (failIds.isEmpty()) {
+            throw new ArchivingException("BATCH_NOT_RETRYABLE", "该批次没有可重新组批的失败项");
+        }
+        SubmitResult submitted = submit(failIds, row.locationId(), Storage.NONE, "REBATCH", row.batchNo(), actor,
+            actorId, admin, categoryAllowed, maxSecretLevel);
+        return new RetryResult(row.batchNo(), submitted);
+    }
+
+    private BatchRow batchByNo(String batchNo) {
+        List<BatchRow> rows = jdbc.query("select batch_id,batch_no,applicant_name,total_count,success_count,fail_count,"
+            + "batch_status,date_format(submit_time,'%Y-%m-%d %H:%i:%s') submit_time,"
+            + "date_format(finish_time,'%Y-%m-%d %H:%i:%s') finish_time,location_id,remark from arc_archive_batch "
+            + "where batch_no=?", BATCH_ROW, batchNo == null ? "" : batchNo.trim());
+        if (rows.isEmpty()) throw new ArchivingException("BATCH_NOT_FOUND", "批次不存在");
+        return rows.get(0);
+    }
+
+
+    /** 批次失败明细聚合，作为「退回原因」展示；无失败为空串。 */
+    private Map<Long, String> batchReturnedReasons(List<Long> batchIds) {
+        if (batchIds == null || batchIds.isEmpty()) return Collections.emptyMap();
+        String placeholders = batchIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        Map<Long, String> reasons = new HashMap<>();
+        jdbc.query("select batch_id,group_concat(distinct reason separator '；') reasons from arc_archive_batch_item "
+                + "where item_result='FAIL' and batch_id in (" + placeholders + ") group by batch_id",
+            (RowCallbackHandler) rs -> reasons.put(rs.getLong("batch_id"), limit(rs.getString("reasons"), 200)),
+            batchIds.toArray());
+        return reasons;
+    }
+
+    private Map<String, Object> mobileBatchView(BatchRow row, BatchFacts facts, String returnedReason,
+                                                String retentionText) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("batchId", Long.toString(row.batchId()));
+        view.put("batchNo", nullSafe(row.batchNo()));
+        String remark = nullSafe(row.remark());
+        view.put("name", !remark.isBlank() ? remark
+            : nullSafe(row.applicantName()) + " " + datePart(row.submitTime()) + " 归档批次");
+        String sourceType = facts == null ? "" : nullSafe(facts.sourceType());
+        view.put("source", sourceType);
+        view.put("sourceLabel", sourceLabel(sourceType));
+        view.put("sourceDetail", "REBATCH".equals(sourceType) && facts != null && !facts.sourceRef().isBlank()
+            ? "原批次 " + facts.sourceRef() : "");
+        view.put("total", row.totalCount());
+        view.put("success", row.successCount());
+        view.put("fail", row.failCount());
+        view.put("retentionText", retentionText == null ? "" : retentionText);
+        view.put("status", nullSafe(row.batchStatus()));
+        view.put("statusLabel", batchStatusLabel(row.batchStatus()));
+        view.put("applicantName", nullSafe(row.applicantName()));
+        view.put("locationCode", facts == null ? "" : nullSafe(facts.locationCode()));
+        view.put("createdAt", nullSafe(row.submitTime()));
+        view.put("updatedAt", nullSafe(row.finishTime()));
+        view.put("canRetry", row.failCount() > 0);
+        view.put("returnedReason", returnedReason == null ? "" : returnedReason);
+        view.put("returnedBy", "");
+        view.put("returnedAt", "");
+        return view;
+    }
+
+    public static String batchStatusLabel(String status) {
+        return switch (status == null ? "" : status) {
+            case "RUNNING" -> "进行中";
+            case "SUCCESS" -> "已完成";
+            case "PARTIAL" -> "部分失败";
+            case "FAILED" -> "全部失败";
+            default -> nullSafe(status);
+        };
+    }
+
+    public static String sourceLabel(String sourceType) {
+        return switch (sourceType == null ? "" : sourceType) {
+            case "MANUAL" -> "手工归档";
+            case "MOBILE" -> "小程序归档";
+            case "REBATCH" -> "重新组批";
+            case "TRANSFER" -> "移交入库";
+            case "AUTO" -> "自动归档";
+            default -> "未登记";
+        };
+    }
+
+    /** 待归档筛选与统计的扫描上限：NEED_FIX/UNKNOWN 需逐条判定期限，SQL 无法等价表达。 */
+    public static final int HUB_SCAN = 1000;
+
+    private static String datePart(String datetime) {
+        return datetime == null || datetime.length() < 10 ? "" : datetime.substring(0, 10);
+    }
+
+    private long count(String sql, Object... args) {
+        Long value = jdbc.queryForObject(sql, Long.class, args);
+        return value == null ? 0 : value;
+    }
+
+    private static ArchiveQuery scopedCopy(ArchiveQuery query) {
+        ArchiveQuery scoped = new ArchiveQuery();
+        scoped.setOwnerName(query.getOwnerName());
+        scoped.setAdmin(query.isAdmin());
+        scoped.setAllowedCategoryIds(query.getAllowedCategoryIds());
+        scoped.setMaxSecretLevel(query.getMaxSecretLevel());
+        return scoped;
     }
 
     /** 按当前用户的分类/密级范围统计某状态数量。 */
@@ -475,8 +827,195 @@ public class ArchiveArchivingService {
 
     private void requireLocation(long locationId) {
         List<Integer> rows = jdbc.queryForList("select status from arc_location where location_id=?", Integer.class, locationId);
-        if (rows.isEmpty()) throw new ServiceException("库位不存在");
-        if (rows.get(0) != 0) throw new ServiceException("库位已停用");
+        if (rows.isEmpty()) throw new ArchivingException("LOCATION_NOT_FOUND", "库位不存在");
+        if (rows.get(0) != 0) throw new ArchivingException("LOCATION_DISABLED", "库位已停用");
+    }
+
+    /** 校验并规范化存储介质：可选（空表示未登记），电子/混合必须给电子存储位置。 */
+    private Storage requireStorage(Storage storage) {
+        if (storage == null) return Storage.NONE;
+        String media = storage.media() == null ? "" : storage.media().trim().toUpperCase();
+        String electronic = storage.electronicLocation() == null ? "" : storage.electronicLocation().trim();
+        if (!media.isEmpty() && !MEDIA.contains(media)) {
+            throw new ArchivingException("PARAM_INVALID", "参数不合法：storageMedia", Map.of("field", "storageMedia"));
+        }
+        if (("ELECTRONIC".equals(media) || "MIXED".equals(media)) && electronic.isEmpty()) {
+            throw new ArchivingException("STORAGE_UNBOUND", "存储介质为电子或混合时，必须填写电子存储位置");
+        }
+        if (electronic.length() > 500) {
+            throw new ArchivingException("PARAM_INVALID", "参数不合法：electronicLocation", Map.of("field", "electronicLocation"));
+        }
+        return new Storage(media, electronic);
+    }
+
+    public static String mediumLabel(String media) {
+        return media == null || media.isEmpty() ? "未登记" : MEDIA_LABELS.getOrDefault(media, media);
+    }
+
+    private void insertBatch(String batchNo, long applicantId, String applicantName, int total, Long locationId,
+                             boolean stage2, String sourceType, String sourceRef) {
+        if (stage2) {
+            jdbc.update("insert into arc_archive_batch(batch_no,applicant_id,applicant_name,total_count,batch_status,"
+                    + "location_id,source_type,source_ref) values(?,?,?,?,'RUNNING',?,?,?)",
+                batchNo, applicantId, applicantName, total, locationId, sourceType, sourceRef);
+            return;
+        }
+        jdbc.update("insert into arc_archive_batch(batch_no,applicant_id,applicant_name,total_count,batch_status,location_id) "
+            + "values(?,?,?,?,'RUNNING',?)", batchNo, applicantId, applicantName, total, locationId);
+    }
+
+    /**
+     * 阶段2 列是否已迁移（storage_media/electronic_location/archived_by/archive_batch_id）。
+     * 没迁移时归档与查询退回旧语句，页面按契约显示「未登记」而不是整页报错；结果缓存 30 秒。
+     */
+    public boolean stage2Ready() {
+        long now = System.currentTimeMillis();
+        if (now - stage2CheckedAt < 30_000L) return stage2Columns;
+        boolean ready;
+        try {
+            Integer count = jdbc.queryForObject("select count(*) from information_schema.columns where table_schema=database() "
+                + "and table_name='arc_archive' and column_name in "
+                + "('storage_media','electronic_location','archived_by','archive_batch_id')", Integer.class);
+            ready = count != null && count >= 4;
+        } catch (DataAccessException e) {
+            ready = false;
+        }
+        stage2Columns = ready;
+        stage2CheckedAt = now;
+        return ready;
+    }
+
+    private volatile long stage2CheckedAt = 0L;
+    private volatile boolean stage2Columns = false;
+
+    /** 一批档案的阶段2 归档属性，键为 archive_id；列未迁移时除库位外均为空串。 */
+    public Map<Long, ArchiveFacts> facts(List<Long> archiveIds) {
+        if (archiveIds == null || archiveIds.isEmpty()) return Collections.emptyMap();
+        boolean stage2 = stage2Ready();
+        String placeholders = archiveIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        String extra = stage2
+            ? "a.archive_batch_id,a.storage_media,a.electronic_location,a.archived_by,b.batch_no,"
+            : "null archive_batch_id,'' storage_media,'' electronic_location,'' archived_by,'' batch_no,";
+        String batchJoin = stage2 ? "left join arc_archive_batch b on b.batch_id=a.archive_batch_id " : "";
+        String sql = "select a.archive_id," + extra + "date_format(a.archive_date,'%Y-%m-%d') archive_date,"
+            + "a.location_id,l.location_code,"
+            + "concat_ws(' / ', gw.location_code, ga.location_code, p.location_code, l.location_code) location_path "
+            + "from arc_archive a left join arc_location l on l.location_id=a.location_id "
+            + "left join arc_location p on p.location_id=l.parent_id "
+            + "left join arc_location ga on ga.location_id=p.parent_id "
+            + "left join arc_location gw on gw.location_id=ga.parent_id " + batchJoin
+            + "where a.archive_id in (" + placeholders + ")";
+        Map<Long, ArchiveFacts> facts = new HashMap<>();
+        try {
+            jdbc.query(sql, (RowCallbackHandler) rs -> {
+                long id = rs.getLong("archive_id");
+                facts.put(id, new ArchiveFacts(id, nullSafe(rs.getString("batch_no")),
+                    nullSafe(rs.getString("storage_media")), nullSafe(rs.getString("electronic_location")),
+                    nullSafe(rs.getString("archived_by")), nullSafe(rs.getString("archive_date")),
+                    rs.getObject("location_id", Long.class), nullSafe(rs.getString("location_code")),
+                    nullSafe(rs.getString("location_path"))));
+            }, archiveIds.toArray());
+        } catch (DataAccessException e) {
+            log.warn("读取归档属性失败（请执行 sql/setup_qrs.sql 的 M10 阶段2 迁移段）：{}", e.getMessage());
+        }
+        return facts;
+    }
+
+    /** 批次的阶段2 属性（来源、来源引用、库位编码），键为 batch_id；来源两列未迁移时为空串。 */
+    public Map<Long, BatchFacts> batchFacts(List<Long> batchIds) {
+        if (batchIds == null || batchIds.isEmpty()) return Collections.emptyMap();
+        String placeholders = batchIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        String extra = stage2Ready() ? "b.source_type,b.source_ref," : "'' source_type,'' source_ref,";
+        Map<Long, BatchFacts> facts = new HashMap<>();
+        try {
+            jdbc.query("select b.batch_id," + extra
+                    + "(select l.location_code from arc_location l where l.location_id=b.location_id) location_code "
+                    + "from arc_archive_batch b where b.batch_id in (" + placeholders + ")",
+                (RowCallbackHandler) rs -> facts.put(rs.getLong("batch_id"),
+                    new BatchFacts(nullSafe(rs.getString("source_type")), nullSafe(rs.getString("source_ref")),
+                        nullSafe(rs.getString("location_code")))), batchIds.toArray());
+        } catch (DataAccessException e) {
+            log.warn("读取批次来源失败（请执行 sql/setup_qrs.sql 的 M10 阶段2 迁移段）：{}", e.getMessage());
+        }
+        return facts;
+    }
+
+    /** 批次内保管期限分布文案，如「永久 3 / 30年 7」；无档案或列未迁移时为空串。 */
+    public Map<Long, String> batchRetentionText(List<Long> batchIds) {
+        if (batchIds == null || batchIds.isEmpty()) return Collections.emptyMap();
+        String placeholders = batchIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        Map<Long, Map<String, Integer>> counts = new LinkedHashMap<>();
+        Map<Long, List<String>> order = new LinkedHashMap<>();
+        Map<String, String> dict = retentionDict();
+        try {
+            jdbc.query("select i.batch_id,a.retention_code,a.retention_name,count(*) total "
+                    + "from arc_archive_batch_item i join arc_archive a on a.archive_id=i.archive_id "
+                    + "where i.batch_id in (" + placeholders + ") "
+                    + "group by i.batch_id,a.retention_code,a.retention_name order by i.batch_id,count(*) desc",
+                (RowCallbackHandler) rs -> {
+                    long batchId = rs.getLong("batch_id");
+                    RetentionSpec spec = resolveRetention(rs.getString("retention_code"),
+                        rs.getString("retention_name"), dict);
+                    String label = spec.recognized() ? spec.display() : "无法识别";
+                    counts.computeIfAbsent(batchId, key -> new LinkedHashMap<>())
+                        .merge(label, rs.getInt("total"), Integer::sum);
+                    order.computeIfAbsent(batchId, key -> new ArrayList<>());
+                    if (!order.get(batchId).contains(label)) order.get(batchId).add(label);
+                }, batchIds.toArray());
+        } catch (DataAccessException e) {
+            return Collections.emptyMap();
+        }
+        Map<Long, String> texts = new LinkedHashMap<>();
+        counts.forEach((batchId, byLabel) -> texts.put(batchId, order.get(batchId).stream()
+            .map(label -> label + " " + byLabel.get(label)).collect(Collectors.joining(" / "))));
+        return texts;
+    }
+
+    /** 字典 arc_retention_period 全量（编码 → 标签），列表类接口一次读出后内存判定。 */
+    public Map<String, String> retentionDict() {
+        Map<String, String> dict = new LinkedHashMap<>();
+        try {
+            jdbc.query("select dict_value,dict_label from sys_dict_data where dict_type='arc_retention_period' and status='0'",
+                (RowCallbackHandler) rs -> dict.put(rs.getString("dict_value"), rs.getString("dict_label")));
+        } catch (DataAccessException e) {
+            return Collections.emptyMap();
+        }
+        return dict;
+    }
+
+    /** 契约 §3 的期限三态：code/label/state/years/message。 */
+    public Map<String, Object> retentionView(ArchiveRecord record, Map<String, String> dict) {
+        RetentionSpec spec = resolveRetention(record.getRetentionCode(), record.getRetentionName(), dict);
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("code", nullSafe(record.getRetentionCode()));
+        view.put("label", spec.recognized() ? spec.display()
+            : (record.getRetentionName() == null || record.getRetentionName().isBlank()
+                ? "无法识别" : record.getRetentionName()));
+        view.put("state", !spec.recognized() ? "UNKNOWN" : (spec.permanent() ? "PERMANENT" : "FIXED"));
+        view.put("years", spec.recognized() && !spec.permanent() ? spec.years() : null);
+        view.put("message", spec.recognized() ? "" : spec.message());
+        return view;
+    }
+
+    /** 用整份字典判定保管期限，避免列表逐条查库。 */
+    public RetentionSpec resolveRetention(String retentionCode, String retentionName, Map<String, String> dict) {
+        if (dict == null || dict.isEmpty()) return resolveRetention(retentionCode, retentionName);
+        String code = retentionCode == null ? "" : retentionCode.trim();
+        if (code.isEmpty()) return RetentionSpec.unknown("保管期限为空");
+        String label = dict.get(code);
+        if (label != null) {
+            RetentionSpec fromLabel = parseRetentionText(label, true);
+            if (fromLabel.recognized()) return fromLabel;
+            RetentionSpec fromName = parseRetentionText(retentionName, true);
+            if (fromName.recognized()) return fromName;
+            return RetentionSpec.unknown("字典标签无法解析，应为「永久」或阿拉伯数字+年（编码 "
+                + code + "，标签 " + label.trim() + "）");
+        }
+        RetentionSpec direct = parseRetentionText(code, false);
+        if (direct.recognized()) return direct;
+        RetentionSpec fromName = parseRetentionText(retentionName, true);
+        if (fromName.recognized()) return fromName;
+        return RetentionSpec.unknown("字典 arc_retention_period 中不存在该编码 " + code);
     }
 
     private void insertItem(Long batchId, ArchiveRecord record, String result, String reasonCode, String reason) {

@@ -62,10 +62,25 @@ var archiving = (function () {
     function rowActions(row) {
         var html = [];
         html.push('<a class="btn btn-info btn-xs" onclick="archiving.detail(' + row.archiveId + ')"><i class="fa fa-eye"></i>详情</a> ');
-        html.push('<a class="btn btn-primary btn-xs" onclick="archiving.checkOne(' + row.archiveId + ')"><i class="fa fa-check"></i>校验</a> ');
+        if (row.archiveStatus === "SUBMITTED") {
+            html.push('<a class="btn btn-primary btn-xs" onclick="archiving.checkOne(' + row.archiveId + ')"><i class="fa fa-check"></i>校验</a> ');
+        }
         html.push('<a class="btn btn-default btn-xs" onclick="archiving.showReport(' + row.archiveId + ')"><i class="fa fa-file-text-o"></i>报告</a>');
-        if (typeof archivingFlags !== "undefined" && archivingFlags.canReturn) html.push(' <a class="btn btn-danger btn-xs" onclick="archiving.openReturn(' + row.archiveId + ',' + row.version + ')"><i class="fa fa-reply"></i>退回</a>');
+        if (row.archiveStatus === "SUBMITTED" && typeof archivingFlags !== "undefined" && archivingFlags.canReturn) {
+            html.push(' <a class="btn btn-danger btn-xs" onclick="archiving.openReturn(' + row.archiveId + ',' + row.version + ')"><i class="fa fa-reply"></i>退回</a>');
+        }
         return html.join("");
+    }
+
+    function statusCell(value, row) {
+        if (value === "ARCHIVED") return '<span class="label label-success">已归档</span>';
+        if (row.checkState === "FAIL") return '<span class="label label-warning">待补正</span>';
+        return "待归档";
+    }
+
+    // 阶段2 字段（批次号/介质/电子存储位置/归档人）空值统一「未登记」，与契约 §7 和小程序一致。
+    function stage2Cell(value) {
+        return value == null || value === "" ? "未登记" : escape(value);
     }
 
     // 校验失败但未归档的档案标「待补正」：按最新一份报告判定，不改档案状态。
@@ -100,11 +115,11 @@ var archiving = (function () {
                 { field: "categoryName", title: "分类" },
                 { field: "secretName", title: "密级", formatter: function (value) { return escape(value); } },
                 { field: "retentionName", title: "保管期限" },
-                { field: "archiveStatus", title: "状态", formatter: function (value, row) {
-                    return row.checkState === "FAIL"
-                        ? '<span class="label label-warning">待补正</span>'
-                        : "待归档";
-                } },
+                { field: "archiveStatus", title: "状态", formatter: statusCell },
+                { field: "batchNo", title: "批次号", formatter: stage2Cell },
+                { field: "mediumLabel", title: "介质", formatter: stage2Cell },
+                { field: "electronicLocation", title: "电子存储位置", formatter: stage2Cell },
+                { field: "archivedBy", title: "归档人", formatter: stage2Cell },
                 { field: "createBy", title: "登记人" },
                 { field: "createTime", title: "登记时间" },
                 { title: "操作", align: "center", formatter: function (_, row) { return rowActions(row); } }
@@ -192,7 +207,17 @@ var archiving = (function () {
             selected = selectedIds();
             if (!selected.length) return $.modal.alertWarning("请先勾选待归档档案");
             $("#submit-count").text("已选择 " + selected.length + " 条待归档档案");
+            $("#submit-medium").val("PAPER");
+            $("#submit-electronic").val("");
+            archiving.toggleStorage();
             $("#submit-modal").modal("show");
+        },
+        // 介质为电子或混合时，电子存储位置必填（后端 STORAGE_UNBOUND 同一口径）。
+        toggleStorage: function () {
+            var medium = $("#submit-medium").val();
+            var required = medium === "ELECTRONIC" || medium === "MIXED";
+            $("#submit-electronic-group").toggle(required);
+            if (!required) $("#submit-electronic").val("");
         },
         checkSelected: function (fromModal) {
             var ids = fromModal ? selected : selectedIds();
@@ -221,7 +246,17 @@ var archiving = (function () {
             var ids = selected.length ? selected : selectedIds();
             if (!ids.length) return $.modal.alertWarning("请先勾选待归档档案");
             var locationId = $("#submit-location").val() || null;
-            postJson(prefix + "/submit", { archiveIds: ids, locationId: locationId }, function (res) {
+            var storageMedia = $("#submit-medium").val() || "";
+            var electronicLocation = $.trim($("#submit-electronic").val() || "");
+            if ((storageMedia === "ELECTRONIC" || storageMedia === "MIXED") && !electronicLocation) {
+                return $.modal.alertWarning("存储介质为电子或混合时，必须填写电子存储位置");
+            }
+            postJson(prefix + "/submit", {
+                archiveIds: ids,
+                locationId: locationId,
+                storageMedia: storageMedia,
+                electronicLocation: electronicLocation
+            }, function (res) {
                 var data = res.data || {};
                 $("#submit-modal").modal("hide");
                 selected = [];
@@ -258,9 +293,16 @@ var archiving = (function () {
             $.get(prefix + "/detail/" + id, function (res) {
                 if (res.code !== 0) return $.modal.alertWarning(res.msg || "读取失败");
                 var item = res.data.archive;
+                var facts = res.data.facts || {};
                 var fields = ["archiveCode", "title", "formingDate", "categoryName", "secretName", "retentionName", "summary", "archiveStatus"];
                 var labels = ["档号", "题名", "形成日期", "分类", "密级", "保管期限", "摘要", "状态"];
                 var lines = fields.map(function (field, index) { return labels[index] + "：" + (item[field] == null ? "" : item[field]); });
+                lines.push("归档批次号：" + (facts.batchNo || "未登记"));
+                lines.push("存储介质：" + (res.data.mediumLabel || "未登记"));
+                lines.push("电子存储位置：" + (facts.electronicLocation || "未登记"));
+                lines.push("归档人：" + (facts.archivedBy || "未登记"));
+                lines.push("库位：" + (facts.locationPath || "未上架"));
+                lines.push("归档日期：" + (facts.archiveDate || "未归档"));
                 $("#detail-text").text(lines.join("\n"));
                 var checks = "";
                 $.each(res.data.items || [], function (_, check) {

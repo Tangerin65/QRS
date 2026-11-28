@@ -47,7 +47,7 @@
             <p id="batch-summary" class="text-info"></p>
             <div class="table-responsive" style="max-height:380px;overflow:auto">
                 <table class="table table-bordered table-condensed">
-                    <thead><tr><th>档号</th><th>题名</th><th>结果</th><th>原因</th></tr></thead>
+                    <thead><tr><th>档号</th><th>题名</th><th>结果</th><th>介质</th><th>归档人</th><th>原因</th></tr></thead>
                     <tbody id="batch-items"></tbody>
                 </table>
             </div>
@@ -57,6 +57,6 @@
 </div>
 
 <th:block th:include="include :: footer" />
-<script th:src="@{/js/archive/batch.js(v=2)}"></script>
+<script th:src="@{/js/archive/batch.js(v=3)}"></script>
 </body>
 </html>

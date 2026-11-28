@@ -59,3 +59,7 @@ mini-program/project.config.json
 mini-program/project.private.config.json
 mini-program/config/index.js
 mini-program/.idea/
+
+######################################################################
+# 本地数据库备份（结构+数据，不入库）
+/.backup/

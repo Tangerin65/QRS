@@ -2,6 +2,8 @@ package com.ruoyi.system.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ruoyi.system.domain.ArchiveRecord;
@@ -113,8 +115,77 @@ class ArchiveArchivingRetentionTest {
         assertTrue(result.items().get(0).reason().contains("保管期限"), result.items().get(0).reason());
     }
 
-    private static ArchiveRecord submittedRecord(String retentionCode) {
-        ArchiveRecord record = new ArchiveRecord();
+    @Test
+    @DisplayName("介质为电子但未填电子存储位置：提交前拒绝，错误码 STORAGE_UNBOUND")
+    void rejectsElectronicStorageWithoutLocation() {
+        ArchiveArchivingService svc = new ArchiveArchivingService(new FakeJdbc(), archiveService(submittedRecord("Y30")),
+            null) {
+            @Override
+            protected String dictLabel(String dictValue) {
+                return SETUP_STYLE.get(dictValue);
+            }
+        };
+        ArchiveArchivingService.ArchivingException error = assertThrows(
+            ArchiveArchivingService.ArchivingException.class,
+            () -> svc.submit(List.of(7L), null, new ArchiveArchivingService.Storage("ELECTRONIC", "  "), "MOBILE", "",
+                "tester", 1L, true, id -> true, 3));
+        assertEquals("STORAGE_UNBOUND", error.code());
+        assertEquals("存储介质为电子或混合时，必须填写电子存储位置", error.getMessage());
+    }
+
+    @Test
+    @DisplayName("介质取值越界：PARAM_INVALID，不进入归档流程")
+    void rejectsUnknownStorageMedia() {
+        ArchiveArchivingService svc = new ArchiveArchivingService(new FakeJdbc(), archiveService(submittedRecord("Y30")),
+            null);
+        ArchiveArchivingService.ArchivingException error = assertThrows(
+            ArchiveArchivingService.ArchivingException.class,
+            () -> svc.submit(List.of(7L), null, new ArchiveArchivingService.Storage("TAPE", ""), "MANUAL", "",
+                "tester", 1L, true, id -> true, 3));
+        assertEquals("PARAM_INVALID", error.code());
+    }
+
+    @Test
+    @DisplayName("契约 §3 期限三态：PERMANENT / FIXED / UNKNOWN")
+    void buildsRetentionThreeState() {
+        ArchiveArchivingService svc = service(SETUP_STYLE);
+        ArchiveRecord record = submittedRecord("Y30");
+        Map<String, Object> fixed = svc.retentionView(record, SETUP_STYLE);
+        assertEquals("FIXED", fixed.get("state"));
+        assertEquals(30, fixed.get("years"));
+        assertEquals("30 年", fixed.get("label"));
+        assertEquals("", fixed.get("message"));
+
+        record.setRetentionCode("PERMANENT");
+        Map<String, Object> permanent = svc.retentionView(record, SETUP_STYLE);
+        assertEquals("PERMANENT", permanent.get("state"));
+        assertNull(permanent.get("years"));
+
+        record.setRetentionCode("X99");
+        Map<String, Object> unknown = svc.retentionView(record, SETUP_STYLE);
+        assertEquals("UNKNOWN", unknown.get("state"));
+        assertNull(unknown.get("years"));
+        assertTrue(String.valueOf(unknown.get("message")).contains("X99"), String.valueOf(unknown.get("message")));
+    }
+
+    @Test
+    @DisplayName("介质/来源/批次状态标签与契约 §4.6、§5 口径一致")
+    void rendersStage2Labels() {
+        assertEquals("纸质", ArchiveArchivingService.mediumLabel("PAPER"));
+        assertEquals("电子", ArchiveArchivingService.mediumLabel("ELECTRONIC"));
+        assertEquals("混合", ArchiveArchivingService.mediumLabel("MIXED"));
+        assertEquals("未登记", ArchiveArchivingService.mediumLabel(""));
+        assertEquals("小程序归档", ArchiveArchivingService.sourceLabel("MOBILE"));
+        assertEquals("重新组批", ArchiveArchivingService.sourceLabel("REBATCH"));
+        assertEquals("手工归档", ArchiveArchivingService.sourceLabel("MANUAL"));
+        assertEquals("未登记", ArchiveArchivingService.sourceLabel(""));
+        assertEquals("进行中", ArchiveArchivingService.batchStatusLabel("RUNNING"));
+        assertEquals("已完成", ArchiveArchivingService.batchStatusLabel("SUCCESS"));
+        assertEquals("部分失败", ArchiveArchivingService.batchStatusLabel("PARTIAL"));
+        assertEquals("全部失败", ArchiveArchivingService.batchStatusLabel("FAILED"));
+    }
+
+    private static ArchiveRecord submittedRecord(String retentionCode) {        ArchiveRecord record = new ArchiveRecord();
         record.setArchiveId(7L);
         record.setArchiveCode("DA-2026-007");
         record.setTitle("测试档案");
@@ -139,11 +210,19 @@ class ArchiveArchivingRetentionTest {
             return 1;
         }
 
-        @Override
+            @Override
+        public <T> T queryForObject(String sql, Class<T> requiredType) {
+            // JdbcTemplate 的 (sql, Class) 与 (sql, Class, Object...) 是两个重载，两个都要接住。
+            return queryForObject(sql, requiredType, new Object[0]);
+        }
+
+    @Override
         public <T> T queryForObject(String sql, Class<T> requiredType, Object... args) {
             if (sql.contains("arc_destroy")) return requiredType.cast(0L);
             if (sql.contains("arc_file")) return requiredType.cast(1L);
             if (sql.contains("arc_archive_batch")) return requiredType.cast(1L);
+            // 阶段2 列探测：假库按「未迁移」处理，归档语句走旧分支。
+            if (sql.contains("information_schema.columns")) return requiredType.cast(0);
             throw new IllegalStateException("单测未覆盖的查询：" + sql);
         }
 
