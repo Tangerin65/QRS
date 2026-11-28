@@ -23,6 +23,7 @@
         <text class="item-title">{{item.name}}</text>
         <view class="tags">
           <text class="tag">共 {{item.total}} 件</text>
+          <text class="tag">来源 {{item.sourceLabelText}}</text>
           <text wx:if="{{item.retentionText}}" class="tag">{{item.retentionText}}</text>
         </view>
         <view class="item-foot">
@@ -35,6 +36,10 @@
         <view class="kv">
           <text class="kv-key">成功 / 失败</text>
           <text class="kv-val">{{item.success}} / {{item.fail}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">批次来源</text>
+          <text class="kv-val">{{item.sourceText}}</text>
         </view>
         <view class="kv">
           <text class="kv-key">保管库位</text>
@@ -62,6 +67,7 @@
             <view class="check-main">
               <text class="check-name">{{entry.archiveCode}}</text>
               <text class="check-msg">{{entry.title}}{{entry.reason ? '：' + entry.reason : ''}}</text>
+              <text class="check-msg">介质 {{entry.mediumText}} · 归档人 {{entry.archivedByText}}</text>
             </view>
             <text class="tag tag-{{entry.itemResult === 'OK' ? 'pass' : 'fail'}}">{{entry.itemResult === 'OK' ? '成功' : '失败'}}</text>
           </view>

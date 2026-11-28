@@ -117,6 +117,11 @@
 .tag-SUBMITTED { background: #eef4fd; color: #2e65af; }
 .tag-ARCHIVED { background: #eaf7ee; color: #2f8f4e; }
 
+/* 存储介质（与 PC 同色：纸质 primary / 电子 info / 混合 warning / 空为灰） */
+.tag-PAPER { background: #eaf3ff; color: #2e65af; }
+.tag-ELECTRONIC { background: #e8f6fa; color: #2b7f96; }
+.tag-MIXED { background: #fff4e6; color: #c07a12; }
+
 .item-foot {
   display: flex;
   align-items: center;

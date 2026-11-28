@@ -6,7 +6,7 @@
 
   <request-state wx:if="{{status === 'loading'}}" status="loading" />
   <request-state wx:elif="{{status === 'error'}}" status="error" message="{{error}}" bind:retry="retry" />
-  <request-state wx:elif="{{status === 'empty'}}" status="empty" message="当前介质下没有库位" />
+  <request-state wx:elif="{{status === 'empty'}}" status="empty" message="没有匹配的库位" />
 
   <block wx:else>
     <view wx:for="{{rows}}" wx:key="locationCode" class="card item">
@@ -18,6 +18,7 @@
         <text class="item-title">{{item.locationName}}</text>
         <view class="tags">
           <text class="tag">占用 {{item.capacityText}}</text>
+          <text class="tag tag-{{item.mediumTone}}">介质 {{item.mediumText}}</text>
         </view>
         <view class="bar">
           <view class="bar-fill {{item.percentClamped >= 100 ? 'bar-fill-full' : ''}}"
@@ -49,6 +50,14 @@
         <view class="kv">
           <text class="kv-key">容量占用</text>
           <text class="kv-val">{{item.capacityText}}（{{item.percentClamped}}%）</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">介质</text>
+          <text class="kv-val">{{item.mediumText}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">电子存储位置</text>
+          <text class="kv-val">{{item.electronicText}}</text>
         </view>
         <view class="kv" wx:if="{{item.remark}}">
           <text class="kv-key">备注</text>

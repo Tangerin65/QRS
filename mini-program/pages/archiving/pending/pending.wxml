@@ -23,6 +23,7 @@
         <text class="item-title">{{item.title}}</text>
         <view class="tags">
           <text class="tag">{{item.categoryName}}</text>
+          <text class="tag tag-{{item.mediumTone}}">介质 {{item.mediumText}}</text>
           <text class="tag tag-{{item.check.tone}}">通过 {{item.check.passed}}/{{item.check.total}}</text>
         </view>
         <view class="item-foot">
@@ -50,8 +51,34 @@
           <text class="kv-val">{{item.batchText}}</text>
         </view>
         <view class="kv">
+          <text class="kv-key">电子存储位置</text>
+          <text class="kv-val">{{item.electronicText}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">归档人</text>
+          <text class="kv-val">{{item.archivedByText}}</text>
+        </view>
+        <view class="kv">
           <text class="kv-key">最近检查</text>
           <text class="kv-val">{{item.check.checkedAt || '未校验'}}</text>
+        </view>
+
+        <text class="detail-label">存储介质</text>
+        <view class="chips">
+          <view wx:for="{{mediums}}" wx:key="value"
+                class="chip {{storageMedia === item.value ? 'chip-on' : ''}}"
+                data-value="{{item.value}}" bindtap="pickMedium">{{item.label}}</view>
+        </view>
+        <view wx:if="{{needsElectronic}}" class="kv">
+          <text class="kv-key">电子存储位置</text>
+          <input class="kv-input" value="{{electronicLocation}}" placeholder="必填，如 /data/archive/2026/QRS"
+                 maxlength="500" bindinput="onElectronic" />
+        </view>
+        <view wx:if="{{locations.length}}" class="detail-label">库位（可选）</view>
+        <view wx:if="{{locations.length}}" class="chips">
+          <view wx:for="{{locations}}" wx:key="locationId"
+                class="chip {{locationId === item.locationId ? 'chip-on' : ''}}"
+                data-value="{{item.locationId}}" bindtap="pickLocation">{{item.locationCode}} {{item.mediumText}}</view>
         </view>
 
         <view class="actions">

@@ -30,7 +30,12 @@ Page({
 
   onLoad() {
     this._closed = false;
-    this.load();
+    // 会话只在内存里：冷启动直接进 hub 时先用 wx.login 恢复绑定，再拉汇总（与其他页一致）
+    const app = getApp();
+    const ready = app && app.refreshSession ? app.refreshSession().catch(() => {}) : Promise.resolve();
+    ready.then(() => {
+      if (!this._closed) this.load();
+    });
   },
 
   onUnload() {

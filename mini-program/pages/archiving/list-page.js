@@ -38,7 +38,13 @@ function createListPage(spec) {
     onLoad() {
       this._closed = false;
       this._ticket = 0;
-      this.reload();
+      // 会话只在内存里：冷启动或深链直接进子页时先按 wx.login 恢复绑定关系，
+      // 否则首屏必 401「登录已失效」（与 archive-workbench 同一做法）。
+      const app = getApp();
+      const ready = app && app.refreshSession ? app.refreshSession().catch(() => {}) : Promise.resolve();
+      ready.then(() => {
+        if (!this._closed) this.reload();
+      });
     },
 
     onUnload() {

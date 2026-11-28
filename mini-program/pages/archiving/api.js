@@ -1,11 +1,13 @@
-// M10 归档接口层（阶段 1：接口桩）
+// M10 归档接口层（阶段 2：契约与后端字段已对齐，MOCK 待切 false）
 // 字段与文案按 doc/m10-mobile-api.md 对齐；只保留 arc_archive / arc_archive_batch / arc_location 里真实存在的列。
-// 阶段 2 才有的列（storage_media、electronic_location、source_type）在接口里不带、页面也不渲染。
-// 接入真实接口：把 MOCK 改成 false 即可。
+// 阶段 2 列已随 sql/setup_qrs.sql 迁移落地：storage_media、electronic_location、archived_by、
+// archive_batch_id、arc_archive_batch.source_type/source_ref，因此页面按契约渲染 medium/mediumLabel、
+// electronicLocation、batchNo、archivedBy、source/sourceLabel/sourceDetail。
+// 接入真实接口：把 MOCK 改成 false 即可（第二轮联调）。
 
 const request = require('../../utils/request');
 
-const MOCK = true;
+const MOCK = false;
 
 // 契约 §4 的 9 个接口
 const PATH = {
@@ -92,25 +94,28 @@ const ARCHIVE_STATUS = {
 
 const ARCHIVES = [
   {
-    archiveId: '10241', archiveCode: 'QRS-2025-WS-0107', title: '2025年第三季度办公会会议纪要',
-    categoryName: '文书档案', formingDate: '2025-09-30', version: 3,
+    archiveId: '10241', archiveCode: 'QRS-2026-WS-0107', title: '2026年第三季度办公会会议纪要',
+    categoryName: '文书档案', formingDate: '2026-09-30', version: 3,
     retention: retention('PERMANENT', '永久', 'PERMANENT'),
-    archiveStatus: 'SUBMITTED', batchNo: 'BATCH-2025-013',
+    archiveStatus: 'SUBMITTED', batchNo: 'BATCH-2026-013',
     locationCode: 'A2-03-05', locationPath: '三号库房 / A2 排 / 03 架 / 05 层',
-    checkedAt: '2025-10-08 09:32', archivedAt: '',
+    checkedAt: '2026-10-08 09:32', archivedAt: '',
+    medium: 'PAPER', mediumLabel: '纸质', electronicLocation: '', archivedBy: '',
     checks: [
       chk('STATUS', true), chk('CODE', true), chk('TITLE', true), chk('CATEGORY', true),
       chk('RETENTION', true), chk('FILE', true), chk('DESTROY', true)
     ]
   },
   {
-    archiveId: '10253', archiveCode: 'QRS-2025-DZ-0031', title: '智慧档案平台上线验收材料',
-    categoryName: '科技档案', formingDate: '2025-09-25', version: 1,
+    archiveId: '10253', archiveCode: 'QRS-2026-DZ-0031', title: '智慧档案平台上线验收材料',
+    categoryName: '科技档案', formingDate: '2026-09-25', version: 1,
     retention: retention('X99', '无法识别', 'UNKNOWN', null,
       '字典 arc_retention_period 中不存在该编码 X99'),
-    archiveStatus: 'SUBMITTED', batchNo: 'BATCH-2025-012',
+    archiveStatus: 'SUBMITTED', batchNo: 'BATCH-2026-012',
     locationCode: 'E-01-02', locationPath: '电子档案库房 / 节点 E-01-02',
-    checkedAt: '2025-10-10 09:05', archivedAt: '',
+    checkedAt: '2026-10-10 09:05', archivedAt: '',
+    medium: 'ELECTRONIC', mediumLabel: '电子',
+    electronicLocation: '/data/archive/2026/qrs/QRS-2026-DZ-0031', archivedBy: '',
     checks: [
       chk('STATUS', true), chk('CODE', true), chk('TITLE', true), chk('CATEGORY', true),
       chk('RETENTION', false, '字典 arc_retention_period 中不存在该编码 X99'),
@@ -118,48 +123,53 @@ const ARCHIVES = [
     ]
   },
   {
-    archiveId: '10260', archiveCode: 'QRS-2025-WS-0119', title: '职工代表大会材料汇编',
-    categoryName: '文书档案', formingDate: '2025-09-22', version: 1,
+    archiveId: '10260', archiveCode: 'QRS-2026-WS-0119', title: '职工代表大会材料汇编',
+    categoryName: '文书档案', formingDate: '2026-09-22', version: 1,
     retention: retention('Y30', '30年', 'FIXED', 30),
-    archiveStatus: 'SUBMITTED', batchNo: 'BATCH-2025-012',
+    archiveStatus: 'SUBMITTED', batchNo: 'BATCH-2026-012',
     locationCode: 'A2-03-05', locationPath: '三号库房 / A2 排 / 03 架 / 05 层',
-    checkedAt: '2025-10-09 15:02', archivedAt: '',
+    checkedAt: '2026-10-09 15:02', archivedAt: '',
+    medium: 'PAPER', mediumLabel: '纸质', electronicLocation: '', archivedBy: '',
     checks: [
       chk('STATUS', true), chk('CODE', true), chk('TITLE', true), chk('CATEGORY', true),
       chk('RETENTION', true), chk('FILE', false, '附件 0 个'), chk('DESTROY', true)
     ]
   },
   {
-    archiveId: '10248', archiveCode: 'QRS-2025-WS-0112', title: '2025年度财务决算报告',
-    categoryName: '会计档案', formingDate: '2025-09-28', version: 2,
+    archiveId: '10248', archiveCode: 'QRS-2026-WS-0112', title: '2026年度财务决算报告',
+    categoryName: '会计档案', formingDate: '2026-09-28', version: 2,
     retention: retention('Y30', '30年', 'FIXED', 30),
-    archiveStatus: 'ARCHIVED', batchNo: 'BATCH-2025-011',
+    archiveStatus: 'ARCHIVED', batchNo: 'BATCH-2026-011',
     locationCode: 'A2-03-06', locationPath: '三号库房 / A2 排 / 03 架 / 06 层',
-    checkedAt: '2025-10-06 10:48', archivedAt: '2025-10-06 11:20',
+    checkedAt: '2026-10-06 10:48', archivedAt: '2026-10-06 11:20',
+    medium: 'PAPER', mediumLabel: '纸质', electronicLocation: '', archivedBy: '李强',
     checks: [
       chk('STATUS', true), chk('CODE', true), chk('TITLE', true), chk('CATEGORY', true),
       chk('RETENTION', true), chk('FILE', true), chk('DESTROY', true)
     ]
   },
   {
-    archiveId: '10266', archiveCode: 'QRS-2025-KY-0008', title: '馆藏数字化项目结项报告',
-    categoryName: '科技档案', formingDate: '2025-09-18', version: 4,
+    archiveId: '10266', archiveCode: 'QRS-2026-KY-0008', title: '馆藏数字化项目结项报告',
+    categoryName: '科技档案', formingDate: '2026-09-18', version: 4,
     retention: retention('Y10', '10年', 'FIXED', 10),
-    archiveStatus: 'ARCHIVED', batchNo: 'BATCH-2025-011',
+    archiveStatus: 'ARCHIVED', batchNo: 'BATCH-2026-011',
     locationCode: 'E-01-01', locationPath: '电子档案库房 / 节点 E-01-01',
-    checkedAt: '2025-10-01 02:10', archivedAt: '2025-10-01 02:14',
+    checkedAt: '2026-10-01 02:10', archivedAt: '2026-10-01 02:14',
+    medium: 'ELECTRONIC', mediumLabel: '电子',
+    electronicLocation: '/data/archive/2026/qrs/QRS-2026-KY-0008', archivedBy: '李强',
     checks: [
       chk('STATUS', true), chk('CODE', true), chk('TITLE', true), chk('CATEGORY', true),
       chk('RETENTION', true), chk('FILE', true), chk('DESTROY', true)
     ]
   },
   {
-    archiveId: '10301', archiveCode: 'QRS-2025-WS-0144', title: '2025年干部教育培训记录',
-    categoryName: '文书档案', formingDate: '2025-07-28', version: 1,
+    archiveId: '10301', archiveCode: 'QRS-2026-WS-0144', title: '2026年干部教育培训记录',
+    categoryName: '文书档案', formingDate: '2026-07-28', version: 1,
     retention: retention('Y10', '10年', 'FIXED', 10),
     archiveStatus: 'DRAFT', batchNo: '',
     locationCode: '', locationPath: '',
-    checkedAt: '2025-10-08 11:20', archivedAt: '',
+    checkedAt: '2026-10-08 11:20', archivedAt: '',
+    medium: '', mediumLabel: '', electronicLocation: '', archivedBy: '',
     checks: [
       chk('STATUS', false, '当前状态 DRAFT'), chk('CODE', true), chk('TITLE', true),
       chk('CATEGORY', true), chk('RETENTION', true), chk('FILE', true), chk('DESTROY', true)
@@ -170,43 +180,46 @@ const ARCHIVES = [
 // 批次只放 arc_archive_batch 的列（batch_no/remark/total_count/success_count/fail_count/batch_status/submit_time/finish_time/…）
 const BATCH_RAW = [
   {
-    batchId: '9003', batchNo: 'BATCH-2025-013', name: '馆藏数字化项目电子档案批次',
+    batchId: '9003', batchNo: 'BATCH-2026-013', name: '馆藏数字化项目电子档案批次',
     total: 1, success: 0, fail: 0,
     retentionText: '永久 2 / 30年 3 / 10年 1',
     status: 'RUNNING', applicantName: '张敏', locationCode: 'A2-03-05',
-    createdAt: '2025-10-10 08:30', updatedAt: '2025-10-10 09:05',
+    source: 'MOBILE', sourceLabel: '小程序归档', sourceDetail: '',
+    createdAt: '2026-10-10 08:30', updatedAt: '2026-10-10 09:05',
     returnedReason: ''
   },
   {
-    batchId: '9002', batchNo: 'BATCH-2025-012', name: '2025 年三季度文书档案批次',
+    batchId: '9002', batchNo: 'BATCH-2026-012', name: '2026 年三季度文书档案批次',
     total: 2, success: 0, fail: 2,
     retentionText: '30年 1 / 无法识别 1',
     status: 'PARTIAL', applicantName: '张敏', locationCode: 'A2-03-05',
-    createdAt: '2025-10-09 14:10', updatedAt: '2025-10-09 15:02',
+    source: 'MANUAL', sourceLabel: '手工归档', sourceDetail: '',
+    createdAt: '2026-10-09 14:10', updatedAt: '2026-10-09 15:02',
     returnedReason: '保管期限无法识别：字典 arc_retention_period 中不存在该编码 X99；附件 0 个'
   },
   {
-    batchId: '9001', batchNo: 'BATCH-2025-011', name: '2025 年度会计与科技档案批次',
+    batchId: '9001', batchNo: 'BATCH-2026-011', name: '2026 年度会计与科技档案批次',
     total: 2, success: 2, fail: 0,
     retentionText: '30年 1 / 10年 1',
     status: 'SUCCESS', applicantName: '李强', locationCode: 'A2-03-06',
-    createdAt: '2025-10-06 10:05', updatedAt: '2025-10-06 11:20',
+    source: 'REBATCH', sourceLabel: '重新组批', sourceDetail: '原批次 BATCH-2026-010',
+    createdAt: '2026-10-06 10:05', updatedAt: '2026-10-06 11:20',
     returnedReason: ''
   }
 ];
 
-// 批次明细（契约 §4.7）
+// 批次明细（契约 §4.7）：items 带 medium/mediumLabel/archivedBy（与 PC 同一 batchItemFacts 口径）
 const BATCH_ITEMS = {
-  'BATCH-2025-013': [
-    { archiveId: '10241', archiveCode: 'QRS-2025-WS-0107', title: '2025年第三季度办公会会议纪要', itemResult: 'OK', reasonCode: '', reason: '' }
+  'BATCH-2026-013': [
+    { archiveId: '10241', archiveCode: 'QRS-2026-WS-0107', title: '2026年第三季度办公会会议纪要', itemResult: 'OK', reasonCode: '', reason: '', medium: 'PAPER', mediumLabel: '纸质', archivedBy: '' }
   ],
-  'BATCH-2025-012': [
-    { archiveId: '10253', archiveCode: 'QRS-2025-DZ-0031', title: '智慧档案平台上线验收材料', itemResult: 'FAIL', reasonCode: 'RETENTION', reason: '字典 arc_retention_period 中不存在该编码 X99' },
-    { archiveId: '10260', archiveCode: 'QRS-2025-WS-0119', title: '职工代表大会材料汇编', itemResult: 'FAIL', reasonCode: 'CHECK', reason: '附件 0 个' }
+  'BATCH-2026-012': [
+    { archiveId: '10253', archiveCode: 'QRS-2026-DZ-0031', title: '智慧档案平台上线验收材料', itemResult: 'FAIL', reasonCode: 'RETENTION', reason: '字典 arc_retention_period 中不存在该编码 X99', medium: 'ELECTRONIC', mediumLabel: '电子', archivedBy: '' },
+    { archiveId: '10260', archiveCode: 'QRS-2026-WS-0119', title: '职工代表大会材料汇编', itemResult: 'FAIL', reasonCode: 'CHECK', reason: '附件 0 个', medium: 'PAPER', mediumLabel: '纸质', archivedBy: '' }
   ],
-  'BATCH-2025-011': [
-    { archiveId: '10248', archiveCode: 'QRS-2025-WS-0112', title: '2025年度财务决算报告', itemResult: 'OK', reasonCode: '', reason: '' },
-    { archiveId: '10266', archiveCode: 'QRS-2025-KY-0008', title: '馆藏数字化项目结项报告', itemResult: 'OK', reasonCode: '', reason: '' }
+  'BATCH-2026-011': [
+    { archiveId: '10248', archiveCode: 'QRS-2026-WS-0112', title: '2026年度财务决算报告', itemResult: 'OK', reasonCode: '', reason: '', medium: 'PAPER', mediumLabel: '纸质', archivedBy: '李强' },
+    { archiveId: '10266', archiveCode: 'QRS-2026-KY-0008', title: '馆藏数字化项目结项报告', itemResult: 'OK', reasonCode: '', reason: '', medium: 'ELECTRONIC', mediumLabel: '电子', archivedBy: '李强' }
   ]
 };
 
@@ -216,25 +229,28 @@ const LOCATION_RAW = [
     locationId: '501', locationCode: 'A2-03-05', locationName: '三号库房 A2 排 03 架 05 层',
     level: 'RACK', levelName: '柜架', levelPath: '三号库房 / A2 排 / 03 架 / 05 层',
     house: '三号库房', capacity: 30, used: 2, unit: '件', percent: 7,
+    medium: 'PAPER', mediumLabel: '纸质', electronicPath: '',
     status: 0, statusLabel: '启用', remark: '恒温恒湿',
     archives: [
-      { archiveCode: 'QRS-2025-WS-0107', title: '2025年第三季度办公会会议纪要' },
-      { archiveCode: 'QRS-2025-WS-0119', title: '职工代表大会材料汇编' }
+      { archiveCode: 'QRS-2026-WS-0107', title: '2026年第三季度办公会会议纪要' },
+      { archiveCode: 'QRS-2026-WS-0119', title: '职工代表大会材料汇编' }
     ]
   },
   {
     locationId: '502', locationCode: 'A2-03-06', locationName: '三号库房 A2 排 03 架 06 层',
     level: 'RACK', levelName: '柜架', levelPath: '三号库房 / A2 排 / 03 架 / 06 层',
     house: '三号库房', capacity: 30, used: 1, unit: '件', percent: 3,
+    medium: 'PAPER', mediumLabel: '纸质', electronicPath: '',
     status: 0, statusLabel: '启用', remark: '会计档案专架',
     archives: [
-      { archiveCode: 'QRS-2025-WS-0112', title: '2025年度财务决算报告' }
+      { archiveCode: 'QRS-2026-WS-0112', title: '2026年度财务决算报告' }
     ]
   },
   {
     locationId: '503', locationCode: 'B1-01-02', locationName: '一号库房 B1 排 01 架 02 层',
     level: 'RACK', levelName: '柜架', levelPath: '一号库房 / B1 排 / 01 架 / 02 层',
     house: '一号库房', capacity: 40, used: 0, unit: '件', percent: 0,
+    medium: '', mediumLabel: '', electronicPath: '',
     status: 0, statusLabel: '启用', remark: '',
     archives: []
   },
@@ -242,15 +258,18 @@ const LOCATION_RAW = [
     locationId: '601', locationCode: 'E-01-01', locationName: '电子档案库房 节点 E-01-01',
     level: 'RACK', levelName: '存储节点', levelPath: '电子档案库房 / 节点 E-01-01',
     house: '电子档案库房', capacity: 2048, used: 1, unit: '件', percent: 1,
+    medium: 'ELECTRONIC', mediumLabel: '电子',
+    electronicPath: '/data/archive/2026/qrs/QRS-2026-KY-0008',
     status: 0, statusLabel: '启用', remark: '每 24 小时增量备份',
     archives: [
-      { archiveCode: 'QRS-2025-KY-0008', title: '馆藏数字化项目结项报告' }
+      { archiveCode: 'QRS-2026-KY-0008', title: '馆藏数字化项目结项报告' }
     ]
   },
   {
     locationId: '602', locationCode: 'E-01-02', locationName: '电子档案库房 节点 E-01-02',
     level: 'RACK', levelName: '存储节点', levelPath: '电子档案库房 / 节点 E-01-02',
     house: '电子档案库房', capacity: 5120, used: 0, unit: '件', percent: 0,
+    medium: '', mediumLabel: '', electronicPath: '',
     status: 0, statusLabel: '启用', remark: '永久保管电子档案专用',
     archives: []
   },
@@ -258,6 +277,7 @@ const LOCATION_RAW = [
     locationId: '504', locationCode: 'C3-02-01', locationName: '二号库房 C3 排 02 架 01 层',
     level: 'RACK', levelName: '柜架', levelPath: '二号库房 / C3 排 / 02 架 / 01 层',
     house: '二号库房', capacity: 40, used: 0, unit: '件', percent: 0,
+    medium: '', mediumLabel: '', electronicPath: '',
     status: 1, statusLabel: '停用', remark: '除湿设备检修，暂停上架',
     archives: []
   }
@@ -297,10 +317,17 @@ function summarize(checks, checkedAt) {
   };
 }
 
+// 空值统一「未登记」（契约 §7：列/字段为空时前端显示「未登记」），label 一律用后端返回值
+const BLANK = '未登记';
+
 function presentArchive(row) {
   return Object.assign({}, row, {
     statusLabel: ARCHIVE_STATUS[row.archiveStatus] || row.archiveStatus,
-    batchText: row.batchNo || '尚未组批',
+    mediumText: row.mediumLabel || BLANK,
+    mediumTone: row.medium || '',
+    electronicText: row.electronicLocation || BLANK,
+    archivedByText: row.archivedBy || BLANK,
+    batchText: row.batchNo || BLANK,
     locationText: row.locationCode || '未上架',
     archivedText: row.archivedAt || '未归档',
     lastCheckAt: row.checkedAt || '',
@@ -309,8 +336,12 @@ function presentArchive(row) {
 }
 
 function presentBatch(row) {
+  // 与 PC 同口径：sourceLabel + （原批次 X），空来源显示「未登记」（PC batch.js sourceText）
+  const label = row.sourceLabel || BLANK;
   return Object.assign({}, row, {
     statusLabel: BATCH_STATUS[row.status] || row.status,
+    sourceLabelText: label,
+    sourceText: row.sourceDetail ? label + '（' + row.sourceDetail + '）' : label,
     canRetry: Number(row.fail || 0) > 0,
     hasReturnedReason: Boolean(row.returnedReason)
   });
@@ -319,10 +350,29 @@ function presentBatch(row) {
 function presentLocation(row) {
   return Object.assign({}, row, {
     capacityText: row.capacity ? row.used + ' / ' + row.capacity + ' ' + row.unit : row.used + ' 件（不限容量）',
+    mediumText: row.mediumLabel || BLANK,
+    mediumTone: row.medium || '',
+    electronicText: row.electronicPath || BLANK,
     statusTone: Number(row.status) === 0 ? 'available' : 'disabled',
     percentClamped: Math.min(100, Math.max(0, Number(row.percent) || 0)),
     isOverCapacity: Boolean(row.capacity) && Number(row.used) > Number(row.capacity)
   });
+}
+
+// 批次明细行（契约 §4.7 items）：介质、归档人由后端 batchItemFacts() 给出，空值「未登记」
+function presentItem(item) {
+  return Object.assign({}, item, {
+    mediumText: item.mediumLabel || BLANK,
+    mediumTone: item.medium || '',
+    archivedByText: item.archivedBy || BLANK
+  });
+}
+
+// 真接口与桩走同一套展示映射：页面只认 present* 产出的字段，切 MOCK=false 不用改页面。
+function presentRows(data, mapper) {
+  const result = Object.assign({}, data || {});
+  result.rows = ((data && data.rows) || []).map(mapper);
+  return result;
 }
 
 // ---------------------------------------------------------------- 对外接口
@@ -345,7 +395,7 @@ function hubSummary() {
 }
 
 function pendingList(query) {
-  if (!MOCK) return request.post(PATH.pending, query);
+  if (!MOCK) return request.post(PATH.pending, query).then((data) => presentRows(data, presentArchive));
   const filter = (query && query.filter) || 'ALL';
   const keyword = String((query && query.keyword) || '').trim().toUpperCase();
   let rows = ARCHIVES.filter((row) => row.archiveStatus === 'SUBMITTED').map(presentArchive);
@@ -356,6 +406,14 @@ function pendingList(query) {
       row.archiveCode.toUpperCase().indexOf(keyword) >= 0 || row.title.indexOf(keyword) >= 0);
   }
   return delay(paginate(rows, query));
+}
+
+// 校验报告开关（契约 §6）：本地未建 arc_archive_check_report 表时后端返回 reportEnabled:false，
+// 页面据此区分「报告未启用」与「暂无报告」。桩里默认启用，联调前可用 setReportEnabled(false) 复现未建表态。
+let reportEnabled = true;
+
+function setReportEnabled(value) {
+  reportEnabled = Boolean(value);
 }
 
 // 通用校验（契约 §4.3）：两个页面共用，真写 CHECK 报告由后端做，桩里刷新检查时间
@@ -373,8 +431,8 @@ function check(query) {
     archiveCode: row.archiveCode,
     pass: passed,
     retention: row.retention,
-    reportId: '8802',
-    reportEnabled: true,
+    reportId: reportEnabled ? '8802' : '',
+    reportEnabled,
     checkedAt,
     checks,
     message: passed ? '重新检查完成：全部通过' : '重新检查完成：仍有未通过项'
@@ -393,16 +451,14 @@ function joinBatch(query) {
   if (row.archiveStatus !== 'SUBMITTED') {
     return fail('ARCHIVE_STATUS_CONFLICT', { status: ARCHIVE_STATUS[row.archiveStatus] || row.archiveStatus });
   }
-  if (query && query.version !== undefined && Number(query.version) !== Number(row.version)) {
-    return fail('VERSION_CONFLICT');
-  }
+  // 契约 §4.4：入参不带 version，服务端在事务内按当时读到的版本做乐观锁
   const retentionFailed = row.checks.find((item) => item.code === 'RETENTION' && !item.passed);
   if (retentionFailed) return fail('RETENTION_UNRECOGNIZED', { message: retentionFailed.detail });
   const otherFailed = row.checks.find((item) => !item.passed);
   if (otherFailed) {
     return fail('CHECK_NOT_PASSED', { label: otherFailed.label, detail: otherFailed.detail });
   }
-  const batchNo = 'BATCH-2025-' + String(900 + ARCHIVES.indexOf(row));
+  const batchNo = 'BATCH-2026-' + String(900 + ARCHIVES.indexOf(row));
   row.archiveStatus = 'ARCHIVED';
   row.batchNo = batchNo;
   row.archivedAt = nowText();
@@ -419,7 +475,7 @@ function joinBatch(query) {
 }
 
 function statusSearch(query) {
-  if (!MOCK) return request.post(PATH.status, query);
+  if (!MOCK) return request.post(PATH.status, query).then((data) => presentRows(data, presentArchive));
   const keyword = String((query && query.keyword) || '').trim().toUpperCase();
   const filter = (query && query.filter) || 'ALL';
   let rows = ARCHIVES.map(presentArchive);
@@ -434,7 +490,7 @@ function statusSearch(query) {
 }
 
 function batchList(query) {
-  if (!MOCK) return request.post(PATH.batchList, query);
+  if (!MOCK) return request.post(PATH.batchList, query).then((data) => presentRows(data, presentBatch));
   const filter = (query && query.filter) || 'ALL';
   const keyword = String((query && query.keyword) || '').trim().toUpperCase();
   let rows = BATCH_RAW.map(presentBatch);
@@ -450,10 +506,15 @@ function batchList(query) {
 }
 
 function batchDetail(batchNo) {
-  if (!MOCK) return request.get(PATH.batchDetail, { batchNo });
+  if (!MOCK) {
+    return request.get(PATH.batchDetail, { batchNo }).then((data) => ({
+      batch: presentBatch((data && data.batch) || {}),
+      items: ((data && data.items) || []).map(presentItem)
+    }));
+  }
   const row = BATCH_RAW.find((item) => item.batchNo === batchNo);
   if (!row) return fail('BATCH_NOT_FOUND');
-  const items = BATCH_ITEMS[batchNo] || [];
+  const items = (BATCH_ITEMS[batchNo] || []).map(presentItem);
   return delay({ batch: presentBatch(row), items });
 }
 
@@ -463,7 +524,7 @@ function batchRetry(batchNo) {
   const row = BATCH_RAW.find((item) => item.batchNo === batchNo);
   if (!row) return fail('BATCH_NOT_FOUND');
   if (Number(row.fail || 0) === 0) return fail('BATCH_NOT_RETRYABLE');
-  const newNo = 'BATCH-2025-' + String(950 + BATCH_RAW.length);
+  const newNo = 'BATCH-2026-' + String(950 + BATCH_RAW.length);
   BATCH_RAW.unshift({
     batchId: String(9100 + BATCH_RAW.length),
     batchNo: newNo,
@@ -484,7 +545,7 @@ function batchRetry(batchNo) {
 }
 
 function locationList(query) {
-  if (!MOCK) return request.post(PATH.location, query);
+  if (!MOCK) return request.post(PATH.location, query).then((data) => presentRows(data, presentLocation));
   const keyword = String((query && query.keyword) || '').trim().toUpperCase();
   let rows = LOCATION_RAW.map(presentLocation);
   if (keyword) {
@@ -499,6 +560,7 @@ module.exports = {
   MOCK,
   PATH,
   ERRORS,
+  setReportEnabled,
   hub: hubSummary,
   pending: pendingList,
   check,

@@ -32,3 +32,15 @@
   color: #fff;
   font-size: 26rpx;
 }
+
+.report-notice {
+  display: block;
+  margin-top: 14rpx;
+  padding: 16rpx 18rpx;
+  border-left: 4rpx solid #d98b2b;
+  border-radius: 4rpx;
+  background: #fff6e9;
+  color: #9b6c30;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
