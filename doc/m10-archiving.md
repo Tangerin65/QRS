@@ -96,6 +96,7 @@ retention_end_date = NULL                 （永久）
 - 报告记录写入时的 `arc_archive.version`；档案被修改（版本 +1）后旧报告标记「需复检」，页面的「报告」弹窗会提示档案已改版。
 - `submit()` 不复用列表页的旧报告，事务内一律重新校验并写新报告，所以归档结论永远对应当前版本，不存在拿旧报告归档。
 - 失败报告就是「失败项 + 当时取值」的凭据：档案留在待归档并标「待补正」，不自动回草稿；人工「退回补正」仍按需单独操作。
+- 报告表未建时（例如只升了代码没执行迁移），「报告」弹窗显示「校验报告未启用，请在数据库执行 sql/setup_qrs.sql 的 M10 段（arc_archive_check_report）后重试」，不会说成「暂无报告」。
 - 降级说明：M02 版本变更事件尚不可用，本期按「每次提交前强制复检」实现；M02 能推送版本事件后，再补「版本变更即自动触发复检」，届时可省掉人工点校验。
 
 ## 接口
@@ -123,6 +124,8 @@ retention_end_date = NULL                 （永久）
 | GET | /records/location/export | archiveLocationQuery | 导出 xlsx |
 | GET | /records/location/template | archiveLocationQuery | 导入模板 |
 | POST | /records/location/import | archiveLocationManage | Excel 导入 |
+
+> 小程序端 `/api/mobile/archiving/**` 的 9 个接口契约见 [m10-mobile-api.md](m10-mobile-api.md)：已按后端现状评审并修正（检查项 code、错误码、批次退回口径），阶段2 实现以它为准。
 
 ## 验收步骤（TC-M10-01～06 + 阶段1 整改 7～9）
 
@@ -155,4 +158,4 @@ mvn -pl ruoyi-system -am test "-Dtest=ArchiveArchivingRetentionTest" "-Dsurefire
 - `arc_destroy`（M11）尚未建表，校验项「无未结销毁申请」在表不存在时按通过处理，M11 落地后自动生效。
 - 校验报告只覆盖归档校验 7 项；M02 版本事件未接入，版本变更不会自动触发复检，需人工点「校验」或直接提交触发事务内复检。
 - 到期提醒只保留参数位，未挂 ruoyi-quartz 定时任务。
-- 小程序端三个只读页面（待归档、批次、库位）未接入，接口已就绪。
+- 小程序端 4 个页面（待归档、批次、库位、状态查询）阶段1 已出桩，后端 `/api/mobile/archiving/**` 9 个接口待阶段2 实现，契约见 [m10-mobile-api.md](m10-mobile-api.md)。

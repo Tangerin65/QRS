@@ -143,7 +143,9 @@ var archiving = (function () {
     function renderReport(data) {
         var latest = data.latest;
         if (!latest) {
-            $("#report-body").html('<p class="text-muted">暂无校验报告。执行「归档校验」或「提交归档」后自动生成。</p>');
+            $("#report-body").html(data.reportEnabled === false
+                ? '<p class="text-warning">校验报告未启用，请在数据库执行 sql/setup_qrs.sql 的 M10 段（arc_archive_check_report）后重试。</p>'
+                : '<p class="text-muted">该档案还没有校验报告，点「校验」生成第一份报告。</p>');
             $("#report-modal").modal("show");
             return;
         }

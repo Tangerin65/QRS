@@ -220,6 +220,8 @@ public class ArchiveArchivingController extends BaseController {
         data.put("history", archiving.reports(archiveId, 20));
         data.put("stale", ArchiveArchivingService.reportStale(latest, record));
         data.put("archiveVersion", record.getVersion());
+        // 未建报告表时提示「未启用」，避免看起来像功能缺失。
+        data.put("reportEnabled", archiving.reportEnabled());
         return AjaxResult.success(data);
     }
 

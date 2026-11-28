@@ -228,6 +228,17 @@ public class ArchiveArchivingService {
         }
     }
 
+    /** 校验报告表是否已建；未建时前端提示「未启用」而不是「暂无报告」。 */
+    public boolean reportEnabled() {
+        try {
+            Integer count = jdbc.queryForObject("select count(*) from information_schema.tables "
+                + "where table_schema=database() and table_name='arc_archive_check_report'", Integer.class);
+            return count != null && count > 0;
+        } catch (DataAccessException e) {
+            return false;
+        }
+    }
+
     /** 最新一次校验报告；没有报告或未执行迁移时返回 null。 */
     public CheckReportRow latestReport(long archiveId) {
         List<CheckReportRow> rows = reports(archiveId, 1);
