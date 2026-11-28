@@ -1,4 +1,3 @@
-const navigation = require('../../../utils/navigation');
 const request = require('../../../utils/request');
 const app = getApp();
 
@@ -17,13 +16,10 @@ Page({
 
   onLoad() {
     this._closed = false;
-    this._unsubscribe = app.subscribeSession(() => {
-      if (!this._closed) this.load();
-    });
   },
 
   onShow() {
-    // 不用 guard 重定向：登录态异常时留在本页给出提示，避免被弹回工作台
+    // 等登录态恢复完成再查；不订阅 session 事件，避免 loading 阶段用空 token 发请求
     app.refreshSession().catch(() => {}).then(() => {
       if (!this._closed) this.load();
     });
@@ -31,7 +27,6 @@ Page({
 
   onUnload() {
     this._closed = true;
-    if (this._unsubscribe) this._unsubscribe();
   },
 
   load() {
