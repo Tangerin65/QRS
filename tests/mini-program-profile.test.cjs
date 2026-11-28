@@ -39,7 +39,13 @@ function harness() {
     getApp: () => app
   });
   function load(relative) {
-    const filename = path.resolve(root, relative);
+    let filename = path.resolve(root, relative);
+    if (!fs.existsSync(filename)) {
+      // 本地 config/index.js 不提交仓库；缺失时回退到模板，保证全新克隆也能运行测试。
+      const template = filename.endsWith(path.join('config', 'index.js'))
+        ? path.join(path.dirname(filename), 'index.example.js') : '';
+      if (template && fs.existsSync(template)) filename = template;
+    }
     if (modules.has(filename)) return modules.get(filename).exports;
     const mod = { exports: {} };
     modules.set(filename, mod);

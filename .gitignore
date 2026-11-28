@@ -57,4 +57,5 @@ nbdist/
 /project.private.config.json
 mini-program/project.config.json
 mini-program/project.private.config.json
+mini-program/config/index.js
 mini-program/.idea/
