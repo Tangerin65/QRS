@@ -5,6 +5,10 @@
       {
         "value": "README.md",
         "type": "file"
+      },
+      {
+        "value": "config/index.example.js",
+        "type": "file"
       }
     ],
     "include": []

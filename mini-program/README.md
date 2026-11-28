@@ -9,10 +9,11 @@
 ## 查看
 
 1. 首次拉取后，将 project.config.example.json 复制为 project.config.json，填入团队确认的 AppID；已有本地配置可继续使用。
-2. 微信开发者工具导入本目录。project.config.json 和 project.private.config.json 仅在本机保留，不提交 Git。
-3. baseUrl 留空可查看公共页面。此时没有真实登录，不显示业务权限菜单。
-4. 在 config/index.js 配置已部署的 HTTPS 地址，按团队实际接口协议调整路径及权限名。
-5. 与成员 6 提供的账号、绑定和扫码登录后端联调。接口是待确认契约，不能只填地址就视为流程验收完成。
+2. 再将 config/index.example.js 复制为 config/index.js，按本机后端填写 baseUrl（本地联调如 http://localhost:8080；留空只看页面）。
+3. 微信开发者工具导入本目录。project.config.json、project.private.config.json 与 config/index.js 仅在本机保留，不提交 Git。
+4. baseUrl 留空可查看公共页面。此时没有真实登录，不显示业务权限菜单。
+5. 在 config/index.js 配置已部署的 HTTPS 地址，按团队实际接口协议调整路径及权限名。
+6. 与成员 6 提供的账号、绑定和扫码登录后端联调。接口是待确认契约，不能只填地址就视为流程验收完成。
 
 详细接口字段、分工、安全边界与测试步骤见 [接入说明](../doc/team/小程序公共部分接入说明.md)。
 
@@ -25,7 +26,7 @@
 - 微信 AppSecret 和 OpenID 兑换只在服务端处理。
 - 主动退出不会解除平台绑定。换绑需管理员解除原绑定后重新扫码。
 - 同一请求提交期间禁止重复点击；错误重试不自动重复发送写入操作。
-- 不提交开发工具私有配置或编译产物。
+- 不提交开发工具私有配置、本地 config/index.js 或编译产物；填入各自环境的地址与端口，互不覆盖。
 - 后端仍需逐次校验角色、部门、密级与账号状态。
 
 ## 测试
