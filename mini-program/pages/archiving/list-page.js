@@ -1,6 +1,19 @@
 // 归档子页共用的列表骨架：加载状态、分页、错误重试、逐项展开、单项操作。
 // 与 borrow / archive-workbench 的写法保持一致：request-state 三态 + 「加载更多」按钮。
-// 页面传入：fetch（返回 {rows,total,hasMore}）、query（附加过滤条件）、action（单项操作）。
+// 页面传入：fetch（返回 {rows,total,hasMore}）、query（附加过滤条件）、action（单项操作）、confirm（二次确认文案）。
+
+function confirmModal(options) {
+  return new Promise((resolve) => {
+    wx.showModal({
+      title: options.title,
+      content: options.content,
+      confirmText: options.confirmText || '确定',
+      cancelText: options.cancelText || '取消',
+      success: ({ confirm }) => resolve(Boolean(confirm)),
+      fail: () => resolve(false)
+    });
+  });
+}
 
 function createListPage(spec) {
   const options = spec || {};
@@ -105,14 +118,19 @@ function createListPage(spec) {
       const id = String(event.currentTarget.dataset.id);
       const name = event.currentTarget.dataset.action;
       if (!action || this.data.actionId) return;
-      this.setData({ actionId: id, actionError: '' });
-      return action(id, name, this).then((result) => {
-        if (this._closed) return;
-        wx.showToast({ title: (result && result.message) || '操作已完成', icon: 'none' });
-        return this.reload();
-      }).catch((error) => {
-        if (this._closed) return;
-        this.setData({ actionError: (error && error.message) || '操作未完成，请稍后重试' });
+      const ask = options.confirm ? options.confirm.call(this, id, name) : null;
+      const ready = ask ? confirmModal(ask) : Promise.resolve(true);
+      return ready.then((confirmed) => {
+        if (!confirmed) return;
+        this.setData({ actionId: id, actionError: '' });
+        return action(id, name, this).then((result) => {
+          if (this._closed) return;
+          wx.showToast({ title: (result && result.message) || '操作已完成', icon: 'none' });
+          return this.reload();
+        }).catch((error) => {
+          if (this._closed) return;
+          this.setData({ actionError: (error && error.message) || '操作未完成，请稍后重试' });
+        });
       }).then(() => {
         if (!this._closed) this.setData({ actionId: '' });
       });

@@ -92,22 +92,30 @@
   line-height: 1.4;
 }
 
-.tag-permanent { background: #eaf3ff; color: #2e65af; }
-.tag-fixed { background: #eef1f5; color: #4a5b73; }
-.tag-unknown { background: #fdeeee; color: #c04040; }
+/* 保管期限三态（契约 retention.state） */
+.tag-PERMANENT { background: #eaf3ff; color: #2e65af; }
+.tag-FIXED { background: #eef1f5; color: #4a5b73; }
+.tag-UNKNOWN { background: #fdeeee; color: #c04040; }
+
+/* 检查结果 */
 .tag-pass { background: #eaf7ee; color: #2f8f4e; }
 .tag-warn { background: #fff4e6; color: #c07a12; }
 .tag-fail { background: #fdeeee; color: #c04040; }
-.tag-running { background: #eef4fd; color: #2e65af; }
-.tag-review { background: #fff4e6; color: #c07a12; }
-.tag-returned { background: #fdeeee; color: #c04040; }
-.tag-done { background: #eaf7ee; color: #2f8f4e; }
+
+/* 批次状态四态（契约 batch.status） */
+.tag-RUNNING { background: #eef4fd; color: #2e65af; }
+.tag-SUCCESS { background: #eaf7ee; color: #2f8f4e; }
+.tag-PARTIAL { background: #fff4e6; color: #c07a12; }
+.tag-FAILED { background: #fdeeee; color: #c04040; }
+
+/* 库位状态（status 0 启用 / 1 停用） */
 .tag-available { background: #eaf7ee; color: #2f8f4e; }
-.tag-full { background: #fff4e6; color: #c07a12; }
 .tag-disabled { background: #eef1f5; color: #8794a6; }
-.tag-pending { background: #eef4fd; color: #2e65af; }
-.tag-archived { background: #eaf7ee; color: #2f8f4e; }
-.tag-located { background: #eef1f5; color: #4a5b73; }
+
+/* 档案状态（DRAFT/SUBMITTED/ARCHIVED） */
+.tag-DRAFT { background: #eef1f5; color: #8794a6; }
+.tag-SUBMITTED { background: #eef4fd; color: #2e65af; }
+.tag-ARCHIVED { background: #eaf7ee; color: #2f8f4e; }
 
 .item-foot {
   display: flex;

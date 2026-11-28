@@ -20,60 +20,60 @@
   <request-state wx:elif="{{status === 'empty'}}" status="empty" message="没有匹配的档案，换个档号或题名再试" />
 
   <block wx:else>
-    <view wx:for="{{rows}}" wx:key="id" class="card item">
-      <view data-id="{{item.id}}" bindtap="toggle">
+    <view wx:for="{{rows}}" wx:key="archiveCode" class="card item">
+      <view data-id="{{item.archiveCode}}" bindtap="toggle">
         <view class="item-head">
           <text class="item-code">{{item.archiveCode}}</text>
-          <text class="tag tag-{{item.statusTone}}">{{item.statusLabel}}</text>
+          <text class="tag tag-{{item.archiveStatus}}">{{item.statusLabel}}</text>
         </view>
         <text class="item-title">{{item.title}}</text>
         <view class="tags">
-          <text class="tag tag-{{item.retention.tone}}">{{item.retention.label}}</text>
-          <text class="tag">{{item.mediumLabel}}</text>
+          <text class="tag tag-{{item.retention.state}}">{{item.retention.label}}</text>
+          <text class="tag">介质：{{item.mediumLabel || '未登记'}}</text>
           <text class="tag tag-{{item.check.tone}}">通过 {{item.check.passed}}/{{item.check.total}}</text>
         </view>
         <view class="item-foot">
-          <text class="foot-note">{{item.locationCode}} · 最近检查 {{item.lastCheckAt}}</text>
-          <text class="expand">{{expandedId === item.id ? '收起' : '查看明细'}}</text>
+          <text class="foot-note">{{item.locationText}} · 最近检查 {{item.lastCheckAt}}</text>
+          <text class="expand">{{expandedId === item.archiveCode ? '收起' : '查看明细'}}</text>
         </view>
       </view>
 
-      <view wx:if="{{expandedId === item.id}}" class="detail">
+      <view wx:if="{{expandedId === item.archiveCode}}" class="detail">
         <text class="detail-label">逐项检查结果</text>
-        <view wx:for="{{item.checks}}" wx:for-item="check" wx:key="label" class="check">
+        <view wx:for="{{item.checks}}" wx:for-item="check" wx:key="code" class="check">
           <view class="check-main">
             <text class="check-name">{{check.label}}</text>
-            <text class="check-msg">{{check.message}}</text>
+            <text wx:if="{{check.detail}}" class="check-msg">{{check.detail}}</text>
           </view>
-          <text class="tag tag-{{check.tone}}">{{check.resultLabel}}</text>
+          <text class="tag tag-{{check.passed ? 'pass' : 'fail'}}">{{check.passed ? '通过' : '未通过'}}</text>
         </view>
 
         <view class="kv">
           <text class="kv-key">保管期限</text>
-          <text class="kv-val">{{item.retention.label}}{{item.retention.tone === 'unknown' ? '，需人工补正' : ''}}</text>
+          <text class="kv-val">{{item.retention.label}}{{item.retention.message ? '（' + item.retention.message + '）' : ''}}</text>
         </view>
         <view class="kv">
           <text class="kv-key">存储介质</text>
-          <text class="kv-val">{{item.mediumLabel}}</text>
+          <text class="kv-val">{{item.mediumLabel || '未登记'}}</text>
         </view>
         <view class="kv">
           <text class="kv-key">所属批次</text>
-          <text class="kv-val">{{item.batchNo}}</text>
+          <text class="kv-val">{{item.batchText}}</text>
         </view>
         <view class="kv">
           <text class="kv-key">保管库位</text>
-          <text class="kv-val">{{item.locationCode}}</text>
+          <text class="kv-val">{{item.locationText}}</text>
         </view>
         <view class="kv">
           <text class="kv-key">归档时间</text>
-          <text class="kv-val">{{item.archivedAt}}</text>
+          <text class="kv-val">{{item.archivedText}}</text>
         </view>
 
         <view class="actions">
-          <button class="mini-button mini-secondary" data-id="{{item.id}}" data-action="recheck"
-                  bindtap="runAction" disabled="{{actionId === item.id}}">重新检查</button>
+          <button class="mini-button mini-secondary" data-id="{{item.archiveCode}}" data-action="recheck"
+                  bindtap="runAction" disabled="{{actionId === item.archiveCode}}">重新检查</button>
         </view>
-        <text wx:if="{{actionError && expandedId === item.id}}" class="action-error">{{actionError}}</text>
+        <text wx:if="{{actionError && expandedId === item.archiveCode}}" class="action-error">{{actionError}}</text>
       </view>
     </view>
 

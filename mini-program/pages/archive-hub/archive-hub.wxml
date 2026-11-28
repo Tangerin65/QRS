@@ -19,7 +19,7 @@
       </view>
       <view class="summary-cell">
         <text class="summary-num bad">{{summary.batchReturned}}</text>
-        <text class="summary-label">已退回</text>
+        <text class="summary-label">有失败项</text>
       </view>
       <view class="summary-cell">
         <text class="summary-num">{{summary.locationAvailable}}</text>
