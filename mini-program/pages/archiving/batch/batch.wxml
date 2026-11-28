@@ -1,7 +1,7 @@
 <view class="page">
   <view class="list-head">
     <text class="list-title">归档批次</text>
-    <text class="list-sub">共 {{total}} 个批次 · 点条目查看来源、失败原因与逐件明细</text>
+    <text class="list-sub">共 {{total}} 个批次 · 点条目查看退回原因与逐件明细</text>
   </view>
 
   <view class="chips">
@@ -22,7 +22,6 @@
         </view>
         <text class="item-title">{{item.name}}</text>
         <view class="tags">
-          <text class="tag">来源：{{item.sourceLabel || '未登记'}}</text>
           <text class="tag">共 {{item.total}} 件</text>
           <text wx:if="{{item.retentionText}}" class="tag">{{item.retentionText}}</text>
         </view>
@@ -33,14 +32,6 @@
       </view>
 
       <view wx:if="{{expandedId === item.batchNo}}" class="detail">
-        <view class="kv">
-          <text class="kv-key">批次来源</text>
-          <text class="kv-val">{{item.sourceLabel || '未登记'}}</text>
-        </view>
-        <view class="kv">
-          <text class="kv-key">来源说明</text>
-          <text class="kv-val">{{item.sourceDetail || '未登记'}}</text>
-        </view>
         <view class="kv">
           <text class="kv-key">成功 / 失败</text>
           <text class="kv-val">{{item.success}} / {{item.fail}}</text>
@@ -58,12 +49,9 @@
           <text class="kv-val">{{item.updatedAt}}</text>
         </view>
 
-        <block wx:if="{{item.hasReturnedInfo}}">
-          <text class="detail-label">失败原因</text>
-          <view class="returned-box">
-            {{item.returnedReason || '见逐件明细'}}
-            <text wx:if="{{item.returnedMeta}}" class="returned-meta">{{item.returnedMeta}}</text>
-          </view>
+        <block wx:if="{{item.hasReturnedReason}}">
+          <text class="detail-label">退回原因</text>
+          <view class="returned-box">{{item.returnedReason}}</view>
         </block>
 
         <text class="detail-label">逐件明细</text>

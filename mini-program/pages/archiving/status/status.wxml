@@ -29,7 +29,6 @@
         <text class="item-title">{{item.title}}</text>
         <view class="tags">
           <text class="tag tag-{{item.retention.state}}">{{item.retention.label}}</text>
-          <text class="tag">介质：{{item.mediumLabel || '未登记'}}</text>
           <text class="tag tag-{{item.check.tone}}">通过 {{item.check.passed}}/{{item.check.total}}</text>
         </view>
         <view class="item-foot">
@@ -51,10 +50,6 @@
         <view class="kv">
           <text class="kv-key">保管期限</text>
           <text class="kv-val">{{item.retention.label}}{{item.retention.message ? '（' + item.retention.message + '）' : ''}}</text>
-        </view>
-        <view class="kv">
-          <text class="kv-key">存储介质</text>
-          <text class="kv-val">{{item.mediumLabel || '未登记'}}</text>
         </view>
         <view class="kv">
           <text class="kv-key">所属批次</text>

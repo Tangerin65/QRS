@@ -1,12 +1,7 @@
 <view class="page">
   <view class="list-head">
     <text class="list-title">库位</text>
-    <text class="list-sub">共 {{total}} 个库位 · 点条目查看介质、容量与电子存储位置</text>
-  </view>
-
-  <view class="chips">
-    <view wx:for="{{filters}}" wx:key="value" class="chip {{filter === item.value ? 'chip-on' : ''}}"
-          data-value="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
+    <text class="list-sub">共 {{total}} 个库位 · 点条目查看容量与在架档案</text>
   </view>
 
   <request-state wx:if="{{status === 'loading'}}" status="loading" />
@@ -22,7 +17,6 @@
         </view>
         <text class="item-title">{{item.locationName}}</text>
         <view class="tags">
-          <text class="tag">介质：{{item.mediumLabel || '未登记'}}</text>
           <text class="tag">占用 {{item.capacityText}}</text>
         </view>
         <view class="bar">
@@ -53,20 +47,12 @@
           <text class="kv-val">{{item.house}}</text>
         </view>
         <view class="kv">
-          <text class="kv-key">存储介质</text>
-          <text class="kv-val">{{item.mediumLabel || '未登记'}}</text>
-        </view>
-        <view class="kv" wx:if="{{item.hasElectronic}}">
-          <text class="kv-key">电子存储位置</text>
-          <text class="kv-val">{{item.electronicPath}}</text>
-        </view>
-        <view class="kv">
           <text class="kv-key">容量占用</text>
           <text class="kv-val">{{item.capacityText}}（{{item.percentClamped}}%）</text>
         </view>
-        <view class="kv" wx:if="{{item.note}}">
+        <view class="kv" wx:if="{{item.remark}}">
           <text class="kv-key">备注</text>
-          <text class="kv-val">{{item.note}}</text>
+          <text class="kv-val">{{item.remark}}</text>
         </view>
 
         <block wx:if="{{item.archives.length}}">
