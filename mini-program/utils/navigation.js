@@ -24,6 +24,16 @@ const entries = [
     permission: draftPermissions.view,
     workbenchOnly: true
   },
+  {
+    key: 'archiving',
+    label: '归档',
+    title: '归档',
+    icon: 'archives',
+    path: '/pages/archive-hub/archive-hub',
+    // 临时复用查档权限；M10 权限码（如 archivingView）待后端落地后替换
+    permission: draftPermissions.view,
+    workbenchOnly: true
+  },
   { key: 'messages', label: '待办', title: '我的待办', desc: '查看个人待办与业务消息',
     path: '/pages/messages/messages', permission: 'records:message:view' },
   { key: 'profile', label: '我的', title: '个人中心', desc: '账号状态与登录管理',

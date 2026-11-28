@@ -7,7 +7,12 @@
     "pages/scan/scan",
     "pages/archive-workbench/archive-workbench",
     "pages/borrow/mine/mine",
-    "pages/borrow/apply/apply"
+    "pages/borrow/apply/apply",
+    "pages/archive-hub/archive-hub",
+    "pages/archiving/pending/pending",
+    "pages/archiving/batch/batch",
+    "pages/archiving/location/location",
+    "pages/archiving/status/status"
   ],
   "window": {
     "navigationBarTitleText": "档案管理系统",

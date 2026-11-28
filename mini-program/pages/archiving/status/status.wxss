@@ -1,0 +1,34 @@
+@import "../common.wxss";
+
+.search {
+  display: flex;
+  align-items: center;
+  margin-top: 18rpx;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  height: 76rpx;
+  padding: 0 22rpx;
+  border: 1rpx solid #e1e4e8;
+  border-radius: 6rpx;
+  background: #fff;
+  font-size: 26rpx;
+  color: #28374d;
+}
+
+.search-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 152rpx;
+  width: 152rpx;
+  max-width: 152rpx;
+  height: 76rpx;
+  margin-left: 16rpx;
+  border-radius: 6rpx;
+  background: #2e65af;
+  color: #fff;
+  font-size: 26rpx;
+}

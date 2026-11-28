@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "库位",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "request-state": "/components/request-state/request-state"
+  }
+}

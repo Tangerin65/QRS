@@ -1,0 +1,84 @@
+<view class="page">
+  <view class="list-head">
+    <text class="list-title">归档状态查询</text>
+    <text class="list-sub">按档号或题名检索归档进度、保管期限状态与检查结果</text>
+  </view>
+
+  <view class="search">
+    <input class="search-input" value="{{keyword}}" placeholder="输入档号或题名"
+           confirm-type="search" bindinput="onKeyword" bindconfirm="search" />
+    <button class="search-button" bindtap="search">查询</button>
+  </view>
+
+  <view class="chips">
+    <view wx:for="{{filters}}" wx:key="value" class="chip {{filter === item.value ? 'chip-on' : ''}}"
+          data-value="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
+  </view>
+
+  <request-state wx:if="{{status === 'loading'}}" status="loading" />
+  <request-state wx:elif="{{status === 'error'}}" status="error" message="{{error}}" bind:retry="retry" />
+  <request-state wx:elif="{{status === 'empty'}}" status="empty" message="没有匹配的档案，换个档号或题名再试" />
+
+  <block wx:else>
+    <view wx:for="{{rows}}" wx:key="id" class="card item">
+      <view data-id="{{item.id}}" bindtap="toggle">
+        <view class="item-head">
+          <text class="item-code">{{item.archiveCode}}</text>
+          <text class="tag tag-{{item.statusTone}}">{{item.statusLabel}}</text>
+        </view>
+        <text class="item-title">{{item.title}}</text>
+        <view class="tags">
+          <text class="tag tag-{{item.retention.tone}}">{{item.retention.label}}</text>
+          <text class="tag">{{item.mediumLabel}}</text>
+          <text class="tag tag-{{item.check.tone}}">{{item.check.label}} {{item.check.passed}}/{{item.check.total}}</text>
+        </view>
+        <view class="item-foot">
+          <text class="foot-note">{{item.locationCode}} · 最近检查 {{item.lastCheckAt}}</text>
+          <text class="expand">{{expandedId === item.id ? '收起' : '查看明细'}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{expandedId === item.id}}" class="detail">
+        <text class="detail-label">逐项检查结果</text>
+        <view wx:for="{{item.checks}}" wx:for-item="check" wx:key="label" class="check">
+          <view class="check-main">
+            <text class="check-name">{{check.label}}</text>
+            <text class="check-msg">{{check.message}}</text>
+          </view>
+          <text class="tag tag-{{check.tone}}">{{check.resultLabel}}</text>
+        </view>
+
+        <view class="kv">
+          <text class="kv-key">保管期限</text>
+          <text class="kv-val">{{item.retention.label}}{{item.retention.tone === 'unknown' ? '，需人工补正' : ''}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">存储介质</text>
+          <text class="kv-val">{{item.mediumLabel}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">所属批次</text>
+          <text class="kv-val">{{item.batchNo}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">保管库位</text>
+          <text class="kv-val">{{item.locationCode}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">归档时间</text>
+          <text class="kv-val">{{item.archivedAt}}</text>
+        </view>
+
+        <view class="actions">
+          <button class="mini-button mini-secondary" data-id="{{item.id}}" data-action="recheck"
+                  bindtap="runAction" disabled="{{actionId === item.id}}">重新检查</button>
+        </view>
+        <text wx:if="{{actionError && expandedId === item.id}}" class="action-error">{{actionError}}</text>
+      </view>
+    </view>
+
+    <button wx:if="{{hasMore}}" class="secondary-button more-button" bindtap="loadMore"
+            loading="{{loadingMore}}">加载更多</button>
+    <text class="note">数据来自接口桩（MOCK），真实状态查询接口待后端提供。</text>
+  </block>
+</view>

@@ -1,0 +1,81 @@
+<view class="page">
+  <view class="list-head">
+    <text class="list-title">归档批次</text>
+    <text class="list-sub">共 {{total}} 个批次 · 点条目查看来源与退回原因</text>
+  </view>
+
+  <view class="chips">
+    <view wx:for="{{filters}}" wx:key="value" class="chip {{filter === item.value ? 'chip-on' : ''}}"
+          data-value="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
+  </view>
+
+  <request-state wx:if="{{status === 'loading'}}" status="loading" />
+  <request-state wx:elif="{{status === 'error'}}" status="error" message="{{error}}" bind:retry="retry" />
+  <request-state wx:elif="{{status === 'empty'}}" status="empty" message="当前筛选下没有批次" />
+
+  <block wx:else>
+    <view wx:for="{{rows}}" wx:key="id" class="card item">
+      <view data-id="{{item.id}}" bindtap="toggle">
+        <view class="item-head">
+          <text class="item-code">{{item.batchNo}}</text>
+          <text class="tag tag-{{item.statusTone}}">{{item.statusLabel}}</text>
+        </view>
+        <text class="item-title">{{item.name}}</text>
+        <view class="tags">
+          <text class="tag">来源：{{item.sourceLabel}}</text>
+          <text class="tag">{{item.count}} 件</text>
+          <text class="tag">{{item.retentionText}}</text>
+        </view>
+        <view class="item-foot">
+          <text class="foot-note">{{item.updatedAt}} · 处理人 {{item.handledBy}}</text>
+          <text class="expand">{{expandedId === item.id ? '收起' : '查看明细'}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{expandedId === item.id}}" class="detail">
+        <view class="kv">
+          <text class="kv-key">批次来源</text>
+          <text class="kv-val">{{item.sourceLabel}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">来源说明</text>
+          <text class="kv-val">{{item.sourceDetail}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">件数</text>
+          <text class="kv-val">{{item.count}} 件</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">期限构成</text>
+          <text class="kv-val">{{item.retentionText}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">创建时间</text>
+          <text class="kv-val">{{item.createdAt}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">最近更新</text>
+          <text class="kv-val">{{item.updatedAt}}</text>
+        </view>
+
+        <block wx:if="{{item.returnedReason}}">
+          <text class="detail-label">退回原因</text>
+          <view class="returned-box">
+            {{item.returnedReason}}
+            <text class="returned-meta">{{item.returnedBy}} 于 {{item.returnedAt}} 退回</text>
+          </view>
+        </block>
+
+        <view class="actions">
+          <button wx:if="{{item.canRetry}}" class="mini-button mini-primary" data-id="{{item.id}}"
+                  data-action="retry" bindtap="runAction" disabled="{{actionId === item.id}}">补正后重新组批</button>
+        </view>
+        <text wx:if="{{actionError && expandedId === item.id}}" class="action-error">{{actionError}}</text>
+      </view>
+    </view>
+
+    <button wx:if="{{hasMore}}" class="secondary-button more-button" bindtap="loadMore"
+            loading="{{loadingMore}}">加载更多</button>
+    <text class="note">数据来自接口桩（MOCK），批次审核与重新组批的真实接口待后端提供。</text>
+  </block>
+</view>

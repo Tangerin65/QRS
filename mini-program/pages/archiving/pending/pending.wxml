@@ -1,0 +1,74 @@
+<view class="page">
+  <view class="list-head">
+    <text class="list-title">待归档</text>
+    <text class="list-sub">共 {{total}} 件待归档 · 点条目查看逐项检查结果</text>
+  </view>
+
+  <view class="chips">
+    <view wx:for="{{filters}}" wx:key="value" class="chip {{filter === item.value ? 'chip-on' : ''}}"
+          data-value="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
+  </view>
+
+  <request-state wx:if="{{status === 'loading'}}" status="loading" />
+  <request-state wx:elif="{{status === 'error'}}" status="error" message="{{error}}" bind:retry="retry" />
+  <request-state wx:elif="{{status === 'empty'}}" status="empty" message="当前筛选下没有待归档档案" />
+
+  <block wx:else>
+    <view wx:for="{{rows}}" wx:key="id" class="card item">
+      <view data-id="{{item.id}}" bindtap="toggle">
+        <view class="item-head">
+          <text class="item-code">{{item.archiveCode}}</text>
+          <text class="tag tag-{{item.retention.tone}}">{{item.retention.label}}</text>
+        </view>
+        <text class="item-title">{{item.title}}</text>
+        <view class="tags">
+          <text class="tag">{{item.categoryName}}</text>
+          <text class="tag">{{item.mediumLabel}}</text>
+          <text class="tag tag-{{item.check.tone}}">{{item.check.label}} {{item.check.passed}}/{{item.check.total}}</text>
+        </view>
+        <view class="item-foot">
+          <text class="foot-note">{{item.formingDate}} · {{item.batchText}}</text>
+          <text class="expand">{{expandedId === item.id ? '收起' : '展开检查'}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{expandedId === item.id}}" class="detail">
+        <text class="detail-label">逐项检查结果</text>
+        <view wx:for="{{item.checks}}" wx:for-item="check" wx:key="label" class="check">
+          <view class="check-main">
+            <text class="check-name">{{check.label}}</text>
+            <text class="check-msg">{{check.message}}</text>
+          </view>
+          <text class="tag tag-{{check.tone}}">{{check.resultLabel}}</text>
+        </view>
+
+        <view class="kv">
+          <text class="kv-key">保管期限</text>
+          <text class="kv-val">{{item.retention.label}}{{item.retention.tone === 'unknown' ? '，需人工补正后才可归档' : ''}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">存储介质</text>
+          <text class="kv-val">{{item.mediumLabel}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">存储位置</text>
+          <text class="kv-val">{{item.storage}}</text>
+        </view>
+        <view class="kv">
+          <text class="kv-key">批次来源</text>
+          <text class="kv-val">{{item.batchText}}</text>
+        </view>
+
+        <view class="actions">
+          <button class="mini-button mini-primary" data-id="{{item.id}}" data-action="join"
+                  bindtap="runAction" disabled="{{actionId === item.id}}">加入批次</button>
+        </view>
+        <text wx:if="{{actionError && expandedId === item.id}}" class="action-error">{{actionError}}</text>
+      </view>
+    </view>
+
+    <button wx:if="{{hasMore}}" class="secondary-button more-button" bindtap="loadMore"
+            loading="{{loadingMore}}">加载更多</button>
+    <text class="note">数据来自接口桩（MOCK），后端 /api/mobile/archiving/** 就绪后切换为真实请求。</text>
+  </block>
+</view>
