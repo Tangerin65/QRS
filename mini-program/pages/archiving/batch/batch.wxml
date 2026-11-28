@@ -76,6 +76,5 @@
 
     <button wx:if="{{hasMore}}" class="secondary-button more-button" bindtap="loadMore"
             loading="{{loadingMore}}">加载更多</button>
-    <text class="note">数据来自接口桩（MOCK），批次审核与重新组批的真实接口待后端提供。</text>
   </block>
 </view>

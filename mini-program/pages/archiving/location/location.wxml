@@ -75,6 +75,5 @@
 
     <button wx:if="{{hasMore}}" class="secondary-button more-button" bindtap="loadMore"
             loading="{{loadingMore}}">加载更多</button>
-    <text class="note">数据来自接口桩（MOCK），库位容量与电子存储节点信息待后端提供。</text>
   </block>
 </view>

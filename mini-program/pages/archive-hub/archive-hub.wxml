@@ -1,7 +1,7 @@
 <view class="page hub-page">
   <view class="hub-head">
     <text class="list-title">归档</text>
-    <text class="list-sub">M10 归档与保管位置 · 数据来自接口桩</text>
+    <text class="list-sub">档案归档、批次与库位管理</text>
   </view>
 
   <request-state wx:if="{{status === 'loading'}}" status="loading" />
@@ -41,7 +41,6 @@
       <text class="row-arrow">›</text>
     </view>
 
-    <text class="note">M09 分享协作、M11 保管期限鉴定 / 开放 / 销毁 的入口在此追加，hub 无需改写。</text>
     <button class="secondary-button hub-home" bindtap="goHome">返回工作台</button>
   </block>
 </view>

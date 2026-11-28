@@ -30,7 +30,7 @@
         <view class="tags">
           <text class="tag tag-{{item.retention.tone}}">{{item.retention.label}}</text>
           <text class="tag">{{item.mediumLabel}}</text>
-          <text class="tag tag-{{item.check.tone}}">{{item.check.label}} {{item.check.passed}}/{{item.check.total}}</text>
+          <text class="tag tag-{{item.check.tone}}">通过 {{item.check.passed}}/{{item.check.total}}</text>
         </view>
         <view class="item-foot">
           <text class="foot-note">{{item.locationCode}} · 最近检查 {{item.lastCheckAt}}</text>
@@ -79,6 +79,5 @@
 
     <button wx:if="{{hasMore}}" class="secondary-button more-button" bindtap="loadMore"
             loading="{{loadingMore}}">加载更多</button>
-    <text class="note">数据来自接口桩（MOCK），真实状态查询接口待后端提供。</text>
   </block>
 </view>

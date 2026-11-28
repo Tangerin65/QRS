@@ -30,8 +30,8 @@ const entries = [
     title: '归档',
     icon: 'archives',
     path: '/pages/archive-hub/archive-hub',
-    // 临时复用查档权限；M10 权限码（如 archivingView）待后端落地后替换
-    permission: draftPermissions.view,
+    // M10 复用 PC 权限码 archiveArchivingQuery；Batch/Location 细分权限待 mobile 接口落地后再收窄
+    permission: 'archiveArchivingQuery',
     workbenchOnly: true
   },
   { key: 'messages', label: '待办', title: '我的待办', desc: '查看个人待办与业务消息',
