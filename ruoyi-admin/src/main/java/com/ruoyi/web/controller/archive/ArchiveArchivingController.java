@@ -5,6 +5,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.ShiroUtils;
 import com.ruoyi.system.domain.ArchiveQuery;
 import com.ruoyi.system.domain.ArchiveRecord;
@@ -12,6 +13,7 @@ import com.ruoyi.system.service.ArchiveArchivingService;
 import com.ruoyi.system.service.ArchiveArchivingService.BatchItemRow;
 import com.ruoyi.system.service.ArchiveArchivingService.BatchRow;
 import com.ruoyi.system.service.ArchiveArchivingService.CheckItem;
+import com.ruoyi.system.service.ArchiveArchivingService.CheckReportRow;
 import com.ruoyi.system.service.ArchiveCatalogService;
 import com.ruoyi.system.service.ArchiveCatalogService.Choice;
 import com.ruoyi.system.service.ArchiveSecretLevels;
@@ -138,6 +140,8 @@ public class ArchiveArchivingController extends BaseController {
             ArchiveRecord record = archiving.requireArchive(archiveId, getLoginName(), getUserId(),
                 ShiroUtils.isAdmin(getUserId()), scope.categoryAllowed(), scope.maxSecretLevel());
             List<CheckItem> items = archiving.check(record, scope.categoryAllowed());
+            // 校验即留痕：逐项结果与当前版本一起落库，供事后追溯与复检判断。
+            archiving.saveCheckReport(record, items, null, "CHECK", getLoginName(), getUserId());
             boolean pass = items.stream().allMatch(CheckItem::passed);
             results.add(new CheckResult(record.getArchiveId(), record.getArchiveCode(), record.getTitle(),
                 record.getArchiveStatus(), pass, items));
@@ -173,9 +177,49 @@ public class ArchiveArchivingController extends BaseController {
         AccessScope scope = accessScope();
         ArchiveRecord record = archiving.requireArchive(archiveId, getLoginName(), getUserId(),
             ShiroUtils.isAdmin(getUserId()), scope.categoryAllowed(), scope.maxSecretLevel());
+        CheckReportRow latest = archiving.latestReport(archiveId);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("archive", record);
         data.put("items", archiving.check(record, scope.categoryAllowed()));
+        data.put("report", latest);
+        data.put("reportStale", ArchiveArchivingService.reportStale(latest, record));
+        return AjaxResult.success(data);
+    }
+
+    /** 每条档案最新一次校验结论，供待归档列表标记「待补正」。 */
+    @PostMapping("/archiving/checkstates")
+    @ResponseBody
+    @RequiresPermissions(QUERY)
+    public AjaxResult checkStates(@RequestBody CheckRequest request) {
+        AccessScope scope = accessScope();
+        boolean admin = ShiroUtils.isAdmin(getUserId());
+        List<Long> allowed = new ArrayList<>();
+        for (Long archiveId : safeIds(request.getArchiveIds())) {
+            try {
+                archiving.requireArchive(archiveId, getLoginName(), getUserId(), admin,
+                    scope.categoryAllowed(), scope.maxSecretLevel());
+                allowed.add(archiveId);
+            } catch (ServiceException e) {
+                // 越权或档案不存在：不返回它的校验状态
+            }
+        }
+        return AjaxResult.success(archiving.latestCheckStates(allowed));
+    }
+
+    /** 校验报告：最新一次 + 历史，并标出报告是否已过期（档案换版本后需复检）。 */
+    @GetMapping("/archiving/report/{archiveId}")
+    @ResponseBody
+    @RequiresPermissions(QUERY)
+    public AjaxResult report(@PathVariable long archiveId) {
+        AccessScope scope = accessScope();
+        ArchiveRecord record = archiving.requireArchive(archiveId, getLoginName(), getUserId(),
+            ShiroUtils.isAdmin(getUserId()), scope.categoryAllowed(), scope.maxSecretLevel());
+        CheckReportRow latest = archiving.latestReport(archiveId);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("latest", latest);
+        data.put("history", archiving.reports(archiveId, 20));
+        data.put("stale", ArchiveArchivingService.reportStale(latest, record));
+        data.put("archiveVersion", record.getVersion());
         return AjaxResult.success(data);
     }
 

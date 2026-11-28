@@ -62,9 +62,26 @@ var archiving = (function () {
     function rowActions(row) {
         var html = [];
         html.push('<a class="btn btn-info btn-xs" onclick="archiving.detail(' + row.archiveId + ')"><i class="fa fa-eye"></i>详情</a> ');
-        html.push('<a class="btn btn-primary btn-xs" onclick="archiving.checkOne(' + row.archiveId + ')"><i class="fa fa-check"></i>校验</a>');
+        html.push('<a class="btn btn-primary btn-xs" onclick="archiving.checkOne(' + row.archiveId + ')"><i class="fa fa-check"></i>校验</a> ');
+        html.push('<a class="btn btn-default btn-xs" onclick="archiving.showReport(' + row.archiveId + ')"><i class="fa fa-file-text-o"></i>报告</a>');
         if (typeof archivingFlags !== "undefined" && archivingFlags.canReturn) html.push(' <a class="btn btn-danger btn-xs" onclick="archiving.openReturn(' + row.archiveId + ',' + row.version + ')"><i class="fa fa-reply"></i>退回</a>');
         return html.join("");
+    }
+
+    // 校验失败但未归档的档案标「待补正」：按最新一份报告判定，不改档案状态。
+    function decorateCheckStates(rows) {
+        var ids = $.map(rows || [], function (row) { return row.archiveId; });
+        if (!ids.length) return;
+        postJson(prefix + "/checkstates", { archiveIds: ids }, function (res) {
+            var states = res.data || {};
+            var data = $("#bootstrap-table").bootstrapTable("getData");
+            $.each(data || [], function (index, row) {
+                var state = states[row.archiveId];
+                if (!state) return;
+                row.checkState = state;
+                $("#bootstrap-table").bootstrapTable("updateRow", { index: index, row: row });
+            });
+        });
     }
 
     function initTable() {
@@ -83,13 +100,18 @@ var archiving = (function () {
                 { field: "categoryName", title: "分类" },
                 { field: "secretName", title: "密级", formatter: function (value) { return escape(value); } },
                 { field: "retentionName", title: "保管期限" },
-                { field: "archiveStatus", title: "状态", formatter: function () { return "待归档"; } },
+                { field: "archiveStatus", title: "状态", formatter: function (value, row) {
+                    return row.checkState === "FAIL"
+                        ? '<span class="label label-warning">待补正</span>'
+                        : "待归档";
+                } },
                 { field: "createBy", title: "登记人" },
                 { field: "createTime", title: "登记时间" },
                 { title: "操作", align: "center", formatter: function (_, row) { return rowActions(row); } }
             ],
             onLoadSuccess: function (data) {
                 $("#summary").text("当前页 " + (data.rows || []).length + " 条");
+                decorateCheckStates(data.rows || []);
             }
         });
     }
@@ -107,6 +129,46 @@ var archiving = (function () {
         });
         $("#check-body").html(html || '<p class="text-muted">没有可校验的数据</p>');
         $("#check-modal").modal("show");
+    }
+
+    function itemList(items) {
+        var html = '<ul class="m10-check-list">';
+        $.each(items || [], function (_, item) {
+            var mark = item.passed ? '<i class="fa fa-check m10-pass"></i>' : '<i class="fa fa-times m10-fail"></i>';
+            html += '<li>' + mark + " " + escape(item.label) + "：" + escape(item.detail) + '</li>';
+        });
+        return html + '</ul>';
+    }
+
+    function renderReport(data) {
+        var latest = data.latest;
+        if (!latest) {
+            $("#report-body").html('<p class="text-muted">暂无校验报告。执行「归档校验」或「提交归档」后自动生成。</p>');
+            $("#report-modal").modal("show");
+            return;
+        }
+        var state = latest.reportResult === "PASS"
+            ? '<span class="label label-success">通过</span>'
+            : '<span class="label label-danger">不通过</span>';
+        var stale = data.stale ? ' <span class="label label-warning">档案已改版，需复检</span>' : "";
+        var html = '<h4>报告 #' + escape(latest.reportId) + "（" + escape(latest.reportSource) + "） " + state + stale + '</h4>';
+        html += '<p class="text-muted">校验时间 ' + escape(latest.checkTime) + '，校验人 ' + escape(latest.checkedBy)
+            + '，校验时档案版本 ' + escape(latest.archiveVersion)
+            + (data.archiveVersion != null ? '（当前版本 ' + escape(data.archiveVersion) + '）' : '')
+            + '，失败项 ' + escape(latest.failCount) + '/' + escape(latest.itemTotal) + '</p>';
+        html += itemList(latest.items);
+        var history = data.history || [];
+        if (history.length > 1) {
+            html += '<h5>历史报告</h5><table class="table table-condensed"><thead><tr><th>报告</th><th>来源</th><th>结论</th><th>档案版本</th><th>时间</th><th>校验人</th></tr></thead><tbody>';
+            $.each(history, function (_, row) {
+                html += '<tr><td>#' + escape(row.reportId) + '</td><td>' + escape(row.reportSource) + '</td><td>'
+                    + (row.reportResult === "PASS" ? "通过" : "不通过") + '</td><td>' + escape(row.archiveVersion)
+                    + '</td><td>' + escape(row.checkTime) + '</td><td>' + escape(row.checkedBy) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+        }
+        $("#report-body").html(html);
+        $("#report-modal").modal("show");
     }
 
     function selectedIds() {
@@ -137,11 +199,20 @@ var archiving = (function () {
             postJson(prefix + "/check", { archiveIds: ids }, function (res) {
                 if (fromModal) $("#submit-modal").modal("hide");
                 renderChecks(res.data || []);
+                $.table.refresh();
+                loadStatistics();
             });
         },
         checkOne: function (id) {
             postJson(prefix + "/check", { archiveIds: [id] }, function (res) {
                 renderChecks(res.data || []);
+                $.table.refresh();
+            });
+        },
+        showReport: function (id) {
+            $.get(prefix + "/report/" + id, function (res) {
+                if (res.code !== 0) return $.modal.alertWarning(res.msg || "读取失败");
+                renderReport(res.data || {});
             });
         },
         doSubmit: function () {
@@ -195,6 +266,12 @@ var archiving = (function () {
                     checks += '<li>' + mark + " " + escape(check.label) + "：" + escape(check.detail) + '</li>';
                 });
                 $("#detail-checks").html(checks);
+                var report = res.data.report;
+                $("#detail-report").html(report
+                    ? '<p class="' + (res.data.reportStale ? "m10-fail" : "text-muted") + '">最近校验：'
+                        + escape(report.checkTime) + " " + (report.reportResult === "PASS" ? "通过" : "不通过")
+                        + (res.data.reportStale ? "（档案已改版，需复检）" : "") + '</p>'
+                    : '<p class="text-muted">尚未校验。</p>');
                 $("#detail-modal").modal("show");
             });
         },

@@ -64,7 +64,7 @@
             <p id="submit-count" class="text-info"></p>
             <div class="form-group"><label for="submit-location">库位（柜架，可选）</label>
                 <select id="submit-location" class="form-control"><option value="">不指定库位</option></select></div>
-            <p class="help-block">归档前会逐条校验：状态、档号、题名、分类末级、附件、未结销毁。</p>
+            <p class="help-block">归档前会逐条校验 7 项：状态、档号、题名、分类末级、保管期限可识别、附件、未结销毁。校验失败留在待归档并标记「待补正」，不自动退回草稿。</p>
         </div>
         <div class="modal-footer">
             <button class="btn btn-default" data-dismiss="modal">取消</button>
@@ -90,7 +90,15 @@
 <div class="modal fade" id="detail-modal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
         <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">档案详情</h4></div>
-        <div class="modal-body"><pre id="detail-text" style="white-space:pre-wrap"></pre><h5>归档校验项</h5><ul id="detail-checks" class="m10-check-list"></ul></div>
+        <div class="modal-body"><pre id="detail-text" style="white-space:pre-wrap"></pre><h5>归档校验项</h5><ul id="detail-checks" class="m10-check-list"></ul><div id="detail-report"></div></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="report-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+        <div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">校验报告</h4></div>
+        <div class="modal-body" id="report-body"></div>
+        <div class="modal-footer"><button class="btn btn-default" data-dismiss="modal">关闭</button></div>
     </div></div>
 </div>
 
@@ -98,6 +106,6 @@
 <script th:inline="javascript">
     var archivingFlags = { canReturn: /*[[${canReturn}]]*/ false };
 </script>
-<script th:src="@{/js/archive/archiving.js(v=2)}"></script>
+<script th:src="@{/js/archive/archiving.js(v=3)}"></script>
 </body>
 </html>

@@ -1189,6 +1189,27 @@ CREATE TABLE IF NOT EXISTS arc_archive_batch_item (
     KEY idx_arc_batch_item_batch (batch_id, item_result)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次明细';
 
+-- 归档校验报告：每次校验/提交复检的逐项结果，带当时档案版本，换版本即需复检
+CREATE TABLE IF NOT EXISTS arc_archive_check_report (
+    report_id       BIGINT NOT NULL AUTO_INCREMENT,
+    archive_id      BIGINT NOT NULL,
+    archive_code    VARCHAR(96) NOT NULL DEFAULT '',
+    title           VARCHAR(200) NOT NULL DEFAULT '',
+    archive_version INT NOT NULL DEFAULT 0 COMMENT '校验时的 arc_archive.version',
+    batch_id        BIGINT DEFAULT NULL COMMENT 'SUBMIT 报告所属批次，CHECK 为 NULL',
+    report_source   VARCHAR(16) NOT NULL DEFAULT 'CHECK' COMMENT 'CHECK 人工校验 / SUBMIT 归档复检',
+    report_result   VARCHAR(8) NOT NULL COMMENT 'PASS / FAIL',
+    item_total      INT NOT NULL DEFAULT 0,
+    fail_count      INT NOT NULL DEFAULT 0,
+    items_json      TEXT NOT NULL COMMENT '逐项结果：[{code,label,passed,detail}]',
+    checked_by_id   BIGINT NOT NULL DEFAULT 0,
+    checked_by      VARCHAR(64) NOT NULL DEFAULT '',
+    check_time      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (report_id),
+    KEY idx_arc_check_archive (archive_id, report_id),
+    KEY idx_arc_check_batch (batch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档校验报告';
+
 
 -- M10归档与库位权限
 START TRANSACTION;

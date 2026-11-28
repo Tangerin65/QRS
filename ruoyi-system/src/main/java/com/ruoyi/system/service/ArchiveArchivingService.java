@@ -1,5 +1,7 @@
 package com.ruoyi.system.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.system.domain.ArchiveQuery;
 import com.ruoyi.system.domain.ArchiveRecord;
@@ -7,14 +9,19 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.LongPredicate;
 import java.util.stream.Collectors;
 import com.github.pagehelper.PageHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +33,9 @@ public class ArchiveArchivingService {
     public static final String SUBMITTED = "SUBMITTED";
     public static final String ARCHIVED = "ARCHIVED";
     private static final int MAX_BATCH = 200;
+    private static final Logger log = LoggerFactory.getLogger(ArchiveArchivingService.class);
+    /** 校验报告逐项结果的 JSON 编解码；只用字符串与布尔，无 java.time 字段。 */
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final JdbcTemplate jdbc;
     private final IArchiveService archives;
@@ -49,6 +59,11 @@ public class ArchiveArchivingService {
     public record BatchItemRow(long itemId, long batchId, long archiveId, String archiveCode, String title,
                                String itemResult, String reasonCode, String reason) {}
 
+    /** 单次校验报告：逐项结果与当时档案版本，归档前换版本即需复检。 */
+    public record CheckReportRow(long reportId, long archiveId, String archiveCode, int archiveVersion, Long batchId,
+                                 String reportSource, String reportResult, int itemTotal, int failCount,
+                                 List<CheckItem> items, String checkedBy, String checkTime) {}
+
     private static final RowMapper<BatchRow> BATCH_ROW = (rs, i) -> new BatchRow(
         rs.getLong("batch_id"), rs.getString("batch_no"), rs.getString("applicant_name"),
         rs.getInt("total_count"), rs.getInt("success_count"), rs.getInt("fail_count"),
@@ -59,6 +74,12 @@ public class ArchiveArchivingService {
         rs.getLong("item_id"), rs.getLong("batch_id"), rs.getLong("archive_id"),
         rs.getString("archive_code"), rs.getString("title"), rs.getString("item_result"),
         rs.getString("reason_code"), rs.getString("reason"));
+
+    private static final RowMapper<CheckReportRow> REPORT_ROW = (rs, i) -> new CheckReportRow(
+        rs.getLong("report_id"), rs.getLong("archive_id"), rs.getString("archive_code"),
+        rs.getInt("archive_version"), rs.getObject("batch_id", Long.class), rs.getString("report_source"),
+        rs.getString("report_result"), rs.getInt("item_total"), rs.getInt("fail_count"),
+        parseItems(rs.getString("items_json")), rs.getString("checked_by"), rs.getString("check_time"));
 
     /** 待归档列表：沿用 M01 的数据范围与密级过滤，只取 SUBMITTED。 */
     public List<ArchiveRecord> pending(ArchiveQuery query) {
@@ -71,7 +92,7 @@ public class ArchiveArchivingService {
         return archives.selectArchiveDetail(archiveId, actor, actorId, admin, categoryAllowed, maxSecretLevel);
     }
 
-    /** 逐项校验：状态、档号、题名、分类末级、附件、未结销毁。 */
+    /** 逐项校验：状态、档号、题名、分类末级、保管期限、附件、未结销毁（共 7 项）。 */
     public List<CheckItem> check(ArchiveRecord record, LongPredicate categoryAllowed) {
         List<CheckItem> items = new ArrayList<>();
         boolean statusOk = SUBMITTED.equals(record.getArchiveStatus());
@@ -88,6 +109,9 @@ public class ArchiveArchivingService {
             categoryDetail = categoryOk ? "启用末级分类" : "分类已停用或不是末级";
         }
         items.add(new CheckItem("CATEGORY", "分类为启用末级", categoryOk, categoryDetail));
+        RetentionSpec retention = resolveRetention(record.getRetentionCode(), record.getRetentionName());
+        items.add(new CheckItem("RETENTION", "保管期限可识别", retention.recognized(),
+            retention.recognized() ? retention.display() : "保管期限为空或无法识别：" + retentionLabel(record)));
         long fileCount = countFiles(record.getArchiveId());
         items.add(new CheckItem("FILE", "至少一个附件", fileCount > 0, "附件 " + fileCount + " 个"));
         long openDestroy = countOpenDestroy(record.getArchiveId());
@@ -158,6 +182,99 @@ public class ArchiveArchivingService {
         return RetentionSpec.UNKNOWN;
     }
 
+    /** 报告里记下登记时保存的原始期限值，方便判断是哪套键值没识别出来。 */
+    private static String retentionLabel(ArchiveRecord record) {
+        String code = record.getRetentionCode() == null ? "" : record.getRetentionCode().trim();
+        String name = record.getRetentionName() == null ? "" : record.getRetentionName().trim();
+        String text = (code + " " + name).trim();
+        return text.isEmpty() ? "登记时未填保管期限" : text;
+    }
+
+    /**
+     * 逐项校验结果落库，形成可追溯的校验报告。报告随档案版本保存：
+     * 只对写入时的 archive.version 有效，档案被修改后必须重新校验。
+     *
+     * @param source CHECK 为人工校验，SUBMIT 为归档时的事务内复检
+     */
+    public void saveCheckReport(ArchiveRecord record, List<CheckItem> checks, Long batchId, String source,
+                                String actor, long actorId) {
+        int failCount = (int) checks.stream().filter(item -> !item.passed()).count();
+        String result = failCount == 0 ? "PASS" : "FAIL";
+        try {
+            jdbc.update("insert into arc_archive_check_report(archive_id,archive_code,title,archive_version,batch_id,"
+                    + "report_source,report_result,item_total,fail_count,items_json,checked_by_id,checked_by) "
+                    + "values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                record.getArchiveId(), nullSafe(record.getArchiveCode()), nullSafe(record.getTitle()),
+                record.getVersion() == null ? 0 : record.getVersion(), batchId, source, result,
+                checks.size(), failCount, writeItems(checks), actorId, actor);
+        } catch (DataAccessException e) {
+            log.warn("校验报告未落库（请执行 sql/setup_qrs.sql 的 M10 校验报告建表段）：archiveId={}",
+                record.getArchiveId(), e);
+        }
+    }
+
+    /** 最新一次校验报告；没有报告或未执行迁移时返回 null。 */
+    public CheckReportRow latestReport(long archiveId) {
+        List<CheckReportRow> rows = reports(archiveId, 1);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** 校验报告历史，新的在前。 */
+    public List<CheckReportRow> reports(long archiveId, int limit) {
+        try {
+            return jdbc.query("select report_id,archive_id,archive_code,archive_version,batch_id,report_source,"
+                + "report_result,item_total,fail_count,items_json,checked_by,"
+                + "date_format(check_time,'%Y-%m-%d %H:%i:%s') check_time "
+                + "from arc_archive_check_report where archive_id=? order by report_id desc limit ?",
+                REPORT_ROW, archiveId, Math.max(1, Math.min(limit, 200)));
+        } catch (DataAccessException e) {
+            log.warn("读取校验报告失败（请执行 sql/setup_qrs.sql 的 M10 校验报告建表段）：archiveId={}", archiveId, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /** 每条档案最新报告的结果，供待归档列表标记「待补正」。 */
+    public Map<Long, String> latestCheckStates(List<Long> archiveIds) {
+        if (archiveIds == null || archiveIds.isEmpty()) return Collections.emptyMap();
+        String placeholders = archiveIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        Map<Long, String> states = new HashMap<>();
+        try {
+            jdbc.query("select r.archive_id,r.report_result from arc_archive_check_report r "
+                    + "join (select archive_id,max(report_id) report_id from arc_archive_check_report "
+                    + "where archive_id in (" + placeholders + ") group by archive_id) t on r.report_id=t.report_id",
+                (RowCallbackHandler) rs -> states.put(rs.getLong("archive_id"), rs.getString("report_result")),
+                archiveIds.toArray());
+        } catch (DataAccessException e) {
+            log.warn("读取校验状态失败（请执行 sql/setup_qrs.sql 的 M10 校验报告建表段）：{}", e.getMessage());
+        }
+        return states;
+    }
+
+    /** 报告是否已过期：档案版本变了，上次校验结论不再适用，必须复检。 */
+    public static boolean reportStale(CheckReportRow report, ArchiveRecord record) {
+        return report != null && record != null && record.getVersion() != null
+            && report.archiveVersion() != record.getVersion();
+    }
+
+    private static String writeItems(List<CheckItem> checks) {
+        try {
+            return JSON.writeValueAsString(checks);
+        } catch (JsonProcessingException e) {
+            throw new ServiceException("校验报告序列化失败");
+        }
+    }
+
+    private static List<CheckItem> parseItems(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyList();
+        try {
+            CheckItem[] items = JSON.readValue(json, CheckItem[].class);
+            return items == null ? Collections.emptyList() : List.of(items);
+        } catch (JsonProcessingException e) {
+            log.warn("校验报告 JSON 解析失败，按空报告处理", e);
+            return Collections.emptyList();
+        }
+    }
+
     @Transactional
     public SubmitResult submit(List<Long> archiveIds, Long locationId, String actor, long actorId, boolean admin,
                                LongPredicate categoryAllowed, int maxSecretLevel) {
@@ -176,19 +293,32 @@ public class ArchiveArchivingService {
             if (archiveId == null) continue;
             try {
                 ArchiveRecord record = requireArchive(archiveId, actor, actorId, admin, categoryAllowed, maxSecretLevel);
-                String reason = check(record, categoryAllowed).stream()
-                    .filter(item -> !item.passed())
-                    .map(item -> item.label() + "（" + item.detail() + "）")
-                    .collect(Collectors.joining("；"));
-                if (!reason.isEmpty()) {
+                // 归档前一律在事务内复检，不复用列表页的旧报告：档案换版本后旧结论即刻失效。
+                List<CheckItem> checks = check(record, categoryAllowed);
+                List<CheckItem> failedChecks = checks.stream().filter(item -> !item.passed()).toList();
+                saveCheckReport(record, checks, batchId, "SUBMIT", actor, actorId);
+                if (!failedChecks.isEmpty()) {
+                    String reason = failedChecks.stream()
+                        .map(item -> item.label() + "（" + item.detail() + "）")
+                        .collect(Collectors.joining("；"));
+                    // 仅保管期限无法识别时单列 RETENTION，其余统一 CHECK；档案留在待归档待补正，不自动回草稿。
+                    String reasonCode = failedChecks.size() == 1 && "RETENTION".equals(failedChecks.get(0).code())
+                        ? "RETENTION" : "CHECK";
                     fail++;
-                    items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", "CHECK", reason));
-                    insertItem(batchId, record, "FAIL", "CHECK", reason);
+                    items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", reasonCode, reason));
+                    insertItem(batchId, record, "FAIL", reasonCode, reason);
                     continue;
                 }
                 RetentionSpec retention = resolveRetention(record.getRetentionCode(), record.getRetentionName());
-                LocalDate endDate = retention.recognized() && !retention.permanent()
-                    ? today.plusYears(retention.years()) : null;
+                if (!retention.recognized()) {
+                    // 防御：RETENTION 校验项已拦截 UNKNOWN，走到这里说明校验项被改动过，仍拒绝归档。
+                    fail++;
+                    items.add(new SubmitItem(archiveId, record.getArchiveCode(), record.getTitle(), "FAIL", "RETENTION",
+                        "保管期限为空或无法识别（" + retentionLabel(record) + "）"));
+                    insertItem(batchId, record, "FAIL", "RETENTION", "保管期限为空或无法识别");
+                    continue;
+                }
+                LocalDate endDate = retention.permanent() ? null : today.plusYears(retention.years());
                 int updated = jdbc.update("update arc_archive set archive_status='ARCHIVED',archive_date=?,retention_end_date=?,"
                         + "location_id=?,version=version+1,update_by=?,update_time=now() "
                         + "where archive_id=? and version=? and archive_status='SUBMITTED' and del_flag='0'",
