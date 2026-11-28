@@ -14,7 +14,8 @@ const entries = [
   { key: 'archives', label: '查档', title: '档案检索', desc: '查询授权范围内的档案',
     path: '/pages/archives/archives', permission: 'records:search:view', serverPermission: 'archiveSearch' },
   { key: 'borrow', label: '借阅', title: '我的借阅', desc: '查看借阅记录并提交申请',
-    path: '/pages/borrow/mine/mine', permission: 'borrowView', serverPermission: 'borrowView' },
+    path: '/pages/borrow/mine/mine', permission: 'borrowView', serverPermission: 'borrowView',
+    noIcon: true, shortLabel: '借' },
   {
     key: 'archive-drafts',
     label: '档案登记',

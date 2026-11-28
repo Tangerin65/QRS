@@ -12,7 +12,9 @@
     "pages/archiving/pending/pending",
     "pages/archiving/batch/batch",
     "pages/archiving/location/location",
-    "pages/archiving/status/status"
+    "pages/archiving/status/status",
+    "pages/borrow/detail/detail",
+    "pages/borrow/renew/renew"
   ],
   "window": {
     "navigationBarTitleText": "档案管理系统",

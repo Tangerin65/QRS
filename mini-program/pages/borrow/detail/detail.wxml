@@ -1,0 +1,50 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state">加载中…</view>
+  <view wx:elif="{{error}}" class="state error">{{error}}</view>
+
+  <view wx:else>
+    <view class="card">
+      <view class="detail-head">
+        <text class="no">{{record.borrowNo}}</text>
+        <text class="status status-{{record.borrowStatus}}">{{record.statusText}}</text>
+      </view>
+      <view class="row"><text class="label">档号</text><text>{{record.archiveCode}}</text></view>
+      <view class="row"><text class="label">题名</text><text>{{record.archiveTitle}}</text></view>
+      <view class="row"><text class="label">申请人</text><text>{{record.applicantName}}</text></view>
+      <view class="row"><text class="label">借期</text><text>{{record.startDate}} 至 {{record.endDate}}</text></view>
+      <view class="row"><text class="label">事由</text><text>{{record.reason}}</text></view>
+      <view class="row" wx:if="{{record.overdueText}}"><text class="label">逾期</text><text class="overdue">{{record.overdueText}}</text></view>
+      <view class="row" wx:if="{{record.actualReturnDate}}"><text class="label">归还时间</text><text>{{record.actualReturnDate}}</text></view>
+    </view>
+
+    <view class="card" wx:if="{{record.borrowStatus === 'LENT'}}">
+      <view class="actions">
+        <button class="primary-button" size="mini" bindtap="renew">申请续借</button>
+        <button class="secondary-button" size="mini" bindtap="giveBack">登记归还</button>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">审批进度</view>
+      <view wx:if="{{approvals.length === 0}}" class="empty">暂无审批记录</view>
+      <view class="timeline" wx:for="{{approvals}}" wx:key="recordId">
+        <text class="timeline-dot"></text>
+        <view class="timeline-body">
+          <view class="timeline-title">{{item.approverName}}　{{item.resultText}}</view>
+          <view class="timeline-meta">{{item.handledAt}}</view>
+          <view class="timeline-text" wx:if="{{item.opinion}}">意见：{{item.opinion}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">续借记录</view>
+      <view wx:if="{{renews.length === 0}}" class="empty">暂无续借记录</view>
+      <view class="renew-item" wx:for="{{renews}}" wx:key="renewId">
+        <view class="timeline-title">{{item.oldEndDate}} → {{item.requestedEndDate}}</view>
+        <view class="timeline-meta">{{item.statusText}}　{{item.approverName || ''}}　{{item.handledAt || ''}}</view>
+        <view class="timeline-text" wx:if="{{item.reason}}">原因：{{item.reason}}</view>
+      </view>
+    </view>
+  </view>
+</view>

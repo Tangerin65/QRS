@@ -109,6 +109,43 @@ public class MobileBorrowController {
         return ok(borrows.statistics(query));
     }
 
+    /** 续借申请。body：borrowId、requestedEndDate（yyyy-MM-dd）、reason。 */
+    @PostMapping("/renew")
+    public ResponseEntity<Map<String, Object>> renew(@RequestHeader(value = "Authorization", required = false) String auth,
+                                                     @RequestBody(required = false) Map<String, Object> body) {
+        SysUser user = current(auth);
+        if (user == null) return unauthorized();
+        if (body == null) return fail("参数不能为空");
+        Long borrowId = longValue(body.get("borrowId"));
+        if (borrowId == null) return fail("缺少借阅单号");
+        try {
+            return ok(borrows.applyRenew(borrowId, date(body.get("requestedEndDate")), text(body.get("reason")),
+                    user.getLoginName(), user.getUserId()));
+        } catch (ServiceException e) {
+            return fail(e.getMessage());
+        } catch (java.time.format.DateTimeParseException e) {
+            return fail("日期格式应为 yyyy-MM-dd");
+        }
+    }
+
+    /** 登记归还。body：borrowId。仅允许本人归还自己的借阅单。 */
+    @PostMapping("/return")
+    public ResponseEntity<Map<String, Object>> giveBack(@RequestHeader(value = "Authorization", required = false) String auth,
+                                                        @RequestBody(required = false) Map<String, Object> body) {
+        SysUser user = current(auth);
+        if (user == null) return unauthorized();
+        Long borrowId = body == null ? null : longValue(body.get("borrowId"));
+        if (borrowId == null) return fail("缺少借阅单号");
+        try {
+            // 先按“本人”范围取详情，越权会抛业务异常
+            borrows.selectBorrowDetail(borrowId, user.getUserId(), false);
+            borrows.giveBack(borrowId, user.getLoginName(), user.getUserId());
+            return ok(null);
+        } catch (ServiceException e) {
+            return fail(e.getMessage());
+        }
+    }
+
     /** 借阅详情（本人或审批人）。 */
     @GetMapping("/detail/{borrowId}")
     public ResponseEntity<Map<String, Object>> detail(@RequestHeader(value = "Authorization", required = false) String auth,
@@ -130,7 +167,9 @@ public class MobileBorrowController {
             Map<String, Object> session = binding.session(token, "miniapp");
             Object userId = session == null ? null : session.get("userId");
             if (userId == null) return null;
-            return users.selectUserById(((Number) userId).longValue());
+            // 注意：M12 会话里 userId 是字符串（如 "1"），不能直接强转 Number
+            long id = userId instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(userId).trim());
+            return users.selectUserById(id);
         } catch (RuntimeException e) {
             return null;
         }
