@@ -4,6 +4,7 @@ import com.ruoyi.common.exception.ServiceException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +13,9 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +38,47 @@ public class ArchiveLocationService {
                               int status, int sortOrder, String remark, long usedCount, int childCount) {}
 
     public record ImportLine(int row, String code, String name, String level, String parentCode, String result, String reason) {}
+
+    /** 库位下在架档案的介质聚合：全部纸质→PAPER，含电子与纸质→MIXED，只有电子→ELECTRONIC，未登记为空串。 */
+    public record LocationStorage(String medium, String mediumLabel, String electronicPath) {}
+
+    /**
+     * 按库位聚合在架档案的存储介质与电子存储位置（契约 §4.9 口径）。
+     * 阶段2 列未迁移时返回空 Map，页面显示「未登记」而不是报错。
+     */
+    public Map<Long, LocationStorage> storageByLocation() {
+        Map<Long, LocationStorage> result = new LinkedHashMap<>();
+        try {
+            jdbc.query("select a.location_id,"
+                    + "sum(case when a.storage_media in ('PAPER','MIXED') then 1 else 0 end) paper_count,"
+                    + "sum(case when a.storage_media in ('ELECTRONIC','MIXED') then 1 else 0 end) electronic_count,"
+                    + "group_concat(distinct nullif(a.electronic_location,'') separator '；') electronic_path "
+                    + "from arc_archive a where a.location_id is not null and a.del_flag='0' "
+                    + "and a.storage_media<>'' group by a.location_id",
+                (RowCallbackHandler) rs -> {
+                    long locationId = rs.getLong("location_id");
+                    int paper = rs.getInt("paper_count");
+                    int electronic = rs.getInt("electronic_count");
+                    String medium = paper > 0 && electronic > 0 ? "MIXED"
+                        : (electronic > 0 ? "ELECTRONIC" : "PAPER");
+                    String path = rs.getString("electronic_path") == null ? "" : rs.getString("electronic_path");
+                    if (path.length() > 200) path = path.substring(0, 200);
+                    result.put(locationId, new LocationStorage(medium, mediumLabel(medium), path));
+                });
+        } catch (DataAccessException e) {
+            return Collections.emptyMap();
+        }
+        return result;
+    }
+
+    public static String mediumLabel(String medium) {
+        return switch (medium == null ? "" : medium) {
+            case "PAPER" -> "纸质";
+            case "ELECTRONIC" -> "电子";
+            case "MIXED" -> "混合";
+            default -> "未登记";
+        };
+    }
 
     private static final RowMapper<LocationRow> ROW = (rs, i) -> new LocationRow(
         rs.getLong("location_id"), rs.getObject("parent_id", Long.class), rs.getString("parent_code"),

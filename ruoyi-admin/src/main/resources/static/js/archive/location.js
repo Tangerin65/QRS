@@ -47,6 +47,15 @@ var locationPage = (function () {
                 { field: "levelName", title: "层级" },
                 { field: "capacity", title: "容量", formatter: function (v) { return v == null ? "" : v; } },
                 { field: "usedCount", title: "已挂档案" },
+                { field: "mediumLabel", title: "介质", formatter: function (value, row) {
+                    if (!value || value === "未登记") return '<span class="text-muted">未登记</span>';
+                    var tone = value === "纸质" ? "primary" : (value === "电子" ? "info" : "warning");
+                    return '<span class="label label-' + tone + '">' + escape(value) + '</span>';
+                } },
+                { field: "electronicPath", title: "电子存储位置", formatter: function (value) {
+                    // 阶段2 字段空值统一「未登记」，与契约 §7 和小程序一致。
+                    return value ? escape(value) : '<span class="text-muted">未登记</span>';
+                } },
                 { field: "status", title: "状态", formatter: function (v) { return v === 0 ? '<span class="label label-success">启用</span>' : '<span class="label label-default">停用</span>'; } },
                 { field: "sortOrder", title: "排序" },
                 { field: "remark", title: "备注" },
@@ -169,11 +178,11 @@ var locationPage = (function () {
             window.location.href = prefix + "/export?" + $.param($.common.formToJSON("location-form"));
         },
         printRows: function () {
-            var html = '<html><head><meta charset="utf-8"><title>库位清单</title><style>body{font-family:SimSun,serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:4px 6px;font-size:12px}h2{text-align:center}</style></head><body><h2>库位清单</h2><table><thead><tr><th>完整路径</th><th>编码</th><th>名称</th><th>层级</th><th>容量</th><th>已挂档案</th><th>状态</th></tr></thead><tbody>';
+            var html = '<html><head><meta charset="utf-8"><title>库位清单</title><style>body{font-family:SimSun,serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:4px 6px;font-size:12px}h2{text-align:center}</style></head><body><h2>库位清单</h2><table><thead><tr><th>完整路径</th><th>编码</th><th>名称</th><th>层级</th><th>容量</th><th>已挂档案</th><th>介质</th><th>状态</th></tr></thead><tbody>';
             $.each(treeCache, function (_, row) {
                 html += '<tr><td>' + escape(row.levelPath) + '</td><td>' + escape(row.locationCode) + '</td><td>' + escape(row.locationName)
                     + '</td><td>' + escape(row.levelName) + '</td><td>' + (row.capacity == null ? "" : row.capacity)
-                    + '</td><td>' + row.usedCount + '</td><td>' + (row.status === 0 ? "启用" : "停用") + '</td></tr>';
+                    + '</td><td>' + row.usedCount + '</td><td>' + escape(row.mediumLabel || "未登记") + '</td><td>' + (row.status === 0 ? "启用" : "停用") + '</td></tr>';
             });
             html += '</tbody></table><p style="text-align:right;font-size:12px">打印时间：' + new Date().toLocaleString() + '</p></body></html>';
             var win = window.open("", "_blank");

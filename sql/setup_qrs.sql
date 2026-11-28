@@ -865,6 +865,10 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     archive_date DATE DEFAULT NULL,
     retention_end_date DATE DEFAULT NULL,
     location_id BIGINT DEFAULT NULL,
+    storage_media VARCHAR(16) NOT NULL DEFAULT '' COMMENT '存储介质：PAPER/ELECTRONIC/MIXED，空为未登记',
+    electronic_location VARCHAR(500) NOT NULL DEFAULT '' COMMENT '电子存储位置（介质为电子/混合时填写）',
+    archived_by VARCHAR(64) NOT NULL DEFAULT '' COMMENT '归档操作人，与登记人 create_by 区分',
+    archive_batch_id BIGINT DEFAULT NULL COMMENT '归档批次 arc_archive_batch.batch_id',
     version INT NOT NULL DEFAULT 1,
     dept_id BIGINT NOT NULL,
     create_by VARCHAR(64) NOT NULL,
@@ -879,7 +883,8 @@ CREATE TABLE IF NOT EXISTS arc_archive (
     KEY idx_arc_archive_dept (dept_id, del_flag, archive_status),
     KEY idx_arc_archive_forming_date (forming_date),
     KEY idx_arc_archive_retention_end (retention_end_date),
-    KEY idx_arc_archive_location (location_id)
+    KEY idx_arc_archive_location (location_id),
+    KEY idx_arc_archive_batch (archive_batch_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='档案登记信息';
 
 CREATE TABLE IF NOT EXISTS arc_audit_event (
@@ -1007,6 +1012,64 @@ SET @idx_location_sql = IF(@has_idx_location = 0,
 PREPARE idx_location_stmt FROM @idx_location_sql;
 EXECUTE idx_location_stmt;
 DEALLOCATE PREPARE idx_location_stmt;
+
+
+-- M10阶段2归档属性迁移（存储介质、电子存储位置、归档人、归档批次）
+
+SET @has_storage_media = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'storage_media'
+);
+SET @storage_media_sql = IF(@has_storage_media = 0,
+    'ALTER TABLE arc_archive ADD COLUMN storage_media VARCHAR(16) NOT NULL DEFAULT '''' COMMENT ''存储介质：PAPER/ELECTRONIC/MIXED，空为未登记'' AFTER location_id',
+    'SELECT 1');
+PREPARE storage_media_stmt FROM @storage_media_sql;
+EXECUTE storage_media_stmt;
+DEALLOCATE PREPARE storage_media_stmt;
+
+SET @has_electronic_location = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'electronic_location'
+);
+SET @electronic_location_sql = IF(@has_electronic_location = 0,
+    'ALTER TABLE arc_archive ADD COLUMN electronic_location VARCHAR(500) NOT NULL DEFAULT '''' COMMENT ''电子存储位置（介质为电子/混合时填写）'' AFTER storage_media',
+    'SELECT 1');
+PREPARE electronic_location_stmt FROM @electronic_location_sql;
+EXECUTE electronic_location_stmt;
+DEALLOCATE PREPARE electronic_location_stmt;
+
+SET @has_archived_by = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'archived_by'
+);
+SET @archived_by_sql = IF(@has_archived_by = 0,
+    'ALTER TABLE arc_archive ADD COLUMN archived_by VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''归档操作人，与登记人 create_by 区分'' AFTER electronic_location',
+    'SELECT 1');
+PREPARE archived_by_stmt FROM @archived_by_sql;
+EXECUTE archived_by_stmt;
+DEALLOCATE PREPARE archived_by_stmt;
+
+SET @has_archive_batch_id = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'archive_batch_id'
+);
+SET @archive_batch_id_sql = IF(@has_archive_batch_id = 0,
+    'ALTER TABLE arc_archive ADD COLUMN archive_batch_id BIGINT DEFAULT NULL COMMENT ''归档批次 arc_archive_batch.batch_id'' AFTER archived_by',
+    'SELECT 1');
+PREPARE archive_batch_id_stmt FROM @archive_batch_id_sql;
+EXECUTE archive_batch_id_stmt;
+DEALLOCATE PREPARE archive_batch_id_stmt;
+
+SET @has_idx_archive_batch = (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND index_name = 'idx_arc_archive_batch'
+);
+SET @idx_archive_batch_sql = IF(@has_idx_archive_batch = 0,
+    'ALTER TABLE arc_archive ADD KEY idx_arc_archive_batch (archive_batch_id)',
+    'SELECT 1');
+PREPARE idx_archive_batch_stmt FROM @idx_archive_batch_sql;
+EXECUTE idx_archive_batch_stmt;
+DEALLOCATE PREPARE idx_archive_batch_stmt;
 
 
 -- M01档案登记权限
@@ -1169,6 +1232,8 @@ CREATE TABLE IF NOT EXISTS arc_archive_batch (
     fail_count     INT NOT NULL DEFAULT 0,
     batch_status   VARCHAR(16) NOT NULL DEFAULT 'RUNNING',
     location_id    BIGINT DEFAULT NULL,
+    source_type    VARCHAR(16) NOT NULL DEFAULT '' COMMENT '批次来源：TRANSFER/AUTO/MANUAL/REBATCH/MOBILE，空为未登记',
+    source_ref     VARCHAR(64) NOT NULL DEFAULT '' COMMENT '来源引用，REBATCH 记原批次号',
     submit_time    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     finish_time    DATETIME DEFAULT NULL,
     remark         VARCHAR(500) NOT NULL DEFAULT '',
@@ -1188,6 +1253,90 @@ CREATE TABLE IF NOT EXISTS arc_archive_batch_item (
     PRIMARY KEY (item_id),
     KEY idx_arc_batch_item_batch (batch_id, item_result)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档批次明细';
+
+-- 归档校验报告：每次校验/提交复检的逐项结果，带当时档案版本，换版本即需复检
+CREATE TABLE IF NOT EXISTS arc_archive_check_report (
+    report_id       BIGINT NOT NULL AUTO_INCREMENT,
+    archive_id      BIGINT NOT NULL,
+    archive_code    VARCHAR(96) NOT NULL DEFAULT '',
+    title           VARCHAR(200) NOT NULL DEFAULT '',
+    archive_version INT NOT NULL DEFAULT 0 COMMENT '校验时的 arc_archive.version',
+    batch_id        BIGINT DEFAULT NULL COMMENT 'SUBMIT 报告所属批次，CHECK 为 NULL',
+    report_source   VARCHAR(16) NOT NULL DEFAULT 'CHECK' COMMENT 'CHECK 人工校验 / SUBMIT 归档复检',
+    report_result   VARCHAR(8) NOT NULL COMMENT 'PASS / FAIL',
+    item_total      INT NOT NULL DEFAULT 0,
+    fail_count      INT NOT NULL DEFAULT 0,
+    items_json      TEXT NOT NULL COMMENT '逐项结果：[{code,label,passed,detail}]',
+    checked_by_id   BIGINT NOT NULL DEFAULT 0,
+    checked_by      VARCHAR(64) NOT NULL DEFAULT '',
+    check_time      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (report_id),
+    KEY idx_arc_check_archive (archive_id, report_id),
+    KEY idx_arc_check_batch (batch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='归档校验报告';
+
+
+-- M10阶段2批次来源迁移（arc_archive_batch.source_type / source_ref）
+
+SET @has_batch_table = (
+    SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive_batch'
+);
+SET @has_source_type = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive_batch' AND column_name = 'source_type'
+);
+SET @source_type_sql = IF(@has_batch_table = 1 AND @has_source_type = 0,
+    'ALTER TABLE arc_archive_batch ADD COLUMN source_type VARCHAR(16) NOT NULL DEFAULT '''' COMMENT ''批次来源：TRANSFER/AUTO/MANUAL/REBATCH/MOBILE，空为未登记'' AFTER location_id',
+    'SELECT 1');
+PREPARE source_type_stmt FROM @source_type_sql;
+EXECUTE source_type_stmt;
+DEALLOCATE PREPARE source_type_stmt;
+
+SET @has_source_ref = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive_batch' AND column_name = 'source_ref'
+);
+SET @source_ref_sql = IF(@has_batch_table = 1 AND @has_source_ref = 0,
+    'ALTER TABLE arc_archive_batch ADD COLUMN source_ref VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''来源引用，REBATCH 记原批次号'' AFTER source_type',
+    'SELECT 1');
+PREPARE source_ref_stmt FROM @source_ref_sql;
+EXECUTE source_ref_stmt;
+DEALLOCATE PREPARE source_ref_stmt;
+
+-- 阶段2 之前只有 PC 手工勾选提交一种入口，存量批次统一按 MANUAL 记账（移动端来源 MOBILE、重新组批 REBATCH 由代码写入）
+SET @backfill_source_sql = IF(@has_batch_table = 1,
+    'UPDATE arc_archive_batch SET source_type = ''MANUAL'' WHERE source_type = ''''',
+    'SELECT 1');
+PREPARE backfill_source_stmt FROM @backfill_source_sql;
+EXECUTE backfill_source_stmt;
+DEALLOCATE PREPARE backfill_source_stmt;
+
+-- 存量已归档档案回填阶段2 属性：通用条件，不写死 id；空库无副作用，重复执行不再变更
+SET @has_archive_batch_id = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'archive_batch_id'
+);
+SET @has_archived_by = (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'arc_archive' AND column_name = 'archived_by'
+);
+
+-- 批次号：取该档案在批次明细里最近一条 OK 记录所属批次
+SET @backfill_batch_id_sql = IF(@has_batch_table = 1 AND @has_archive_batch_id = 1,
+    'UPDATE arc_archive a JOIN arc_archive_batch_item i ON i.item_id = (SELECT i2.item_id FROM arc_archive_batch_item i2 WHERE i2.archive_id = a.archive_id AND i2.item_result = ''OK'' ORDER BY i2.item_id DESC LIMIT 1) SET a.archive_batch_id = i.batch_id WHERE a.archive_status = ''ARCHIVED'' AND a.del_flag = ''0'' AND a.archive_batch_id IS NULL',
+    'SELECT 1');
+PREPARE backfill_batch_id_stmt FROM @backfill_batch_id_sql;
+EXECUTE backfill_batch_id_stmt;
+DEALLOCATE PREPARE backfill_batch_id_stmt;
+
+-- 归档人：批次号已有但 archived_by 为空时，取该批次申请人（与小程序/PC 的「归档人」同义）
+SET @backfill_archived_by_sql = IF(@has_batch_table = 1 AND @has_archived_by = 1,
+    'UPDATE arc_archive a JOIN arc_archive_batch b ON b.batch_id = a.archive_batch_id SET a.archived_by = b.applicant_name WHERE a.archive_status = ''ARCHIVED'' AND a.del_flag = ''0'' AND CHAR_LENGTH(a.archived_by) = 0',
+    'SELECT 1');
+PREPARE backfill_archived_by_stmt FROM @backfill_archived_by_sql;
+EXECUTE backfill_archived_by_stmt;
+DEALLOCATE PREPARE backfill_archived_by_stmt;
 
 
 -- M10归档与库位权限

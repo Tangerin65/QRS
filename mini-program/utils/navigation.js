@@ -25,6 +25,16 @@ const entries = [
     permission: draftPermissions.view,
     workbenchOnly: true
   },
+  {
+    key: 'archiving',
+    label: '归档',
+    title: '归档',
+    icon: 'archives',
+    path: '/pages/archive-hub/archive-hub',
+    // M10 复用 PC 权限码 archiveArchivingQuery；Batch/Location 细分权限待 mobile 接口落地后再收窄
+    permission: 'archiveArchivingQuery',
+    workbenchOnly: true
+  },
   { key: 'messages', label: '待办', title: '我的待办', desc: '查看个人待办与业务消息',
     path: '/pages/messages/messages', permission: 'records:message:view' },
   { key: 'profile', label: '我的', title: '个人中心', desc: '账号状态与登录管理',

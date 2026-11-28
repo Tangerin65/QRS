@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "归档批次",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "request-state": "/components/request-state/request-state"
+  }
+}

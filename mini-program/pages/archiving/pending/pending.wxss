@@ -1,0 +1,14 @@
+@import "../common.wxss";
+
+/* 介质/库位选择行内输入框（与 kv 行对齐，只在本页用） */
+.kv-input {
+  flex: 1;
+  min-width: 0;
+  height: 64rpx;
+  padding: 0 16rpx;
+  border: 1rpx solid #e1e4e8;
+  border-radius: 4rpx;
+  background: #fff;
+  font-size: 23rpx;
+  color: #2f3a48;
+}

@@ -1,0 +1,300 @@
+/* 归档子页公共样式：与 borrow / archive-workbench 同一套色板与圆角 */
+
+.list-head {
+  padding: 8rpx 4rpx 4rpx;
+}
+
+.list-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #233047;
+  line-height: 1.4;
+}
+
+.list-sub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8794a6;
+  line-height: 1.5;
+}
+
+/* 筛选胶囊 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 18rpx 0 2rpx;
+}
+
+.chip {
+  margin: 0 14rpx 14rpx 0;
+  padding: 10rpx 24rpx;
+  border: 1rpx solid #e1e4e8;
+  border-radius: 999rpx;
+  background: #fff;
+  color: #5b6b80;
+  font-size: 24rpx;
+  line-height: 1.3;
+}
+
+.chip-on {
+  border-color: #2e65af;
+  background: #eef4fd;
+  color: #2e65af;
+  font-weight: 500;
+}
+
+/* 条目卡片 */
+.item {
+  margin-top: 18rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 6rpx;
+}
+
+.item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.item-code {
+  flex: 1;
+  min-width: 0;
+  font-size: 22rpx;
+  color: #8794a6;
+  letter-spacing: .5rpx;
+}
+
+.item-title {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 29rpx;
+  font-weight: 600;
+  color: #28374d;
+  line-height: 1.45;
+}
+
+/* 标签：保管期限 / 介质 / 检查结果 / 批次状态统一用 tag-<tone> */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+
+.tag {
+  margin: 0 10rpx 8rpx 0;
+  padding: 4rpx 14rpx;
+  border-radius: 4rpx;
+  background: #eef1f5;
+  color: #5b6b80;
+  font-size: 21rpx;
+  line-height: 1.4;
+}
+
+/* 保管期限三态（契约 retention.state） */
+.tag-PERMANENT { background: #eaf3ff; color: #2e65af; }
+.tag-FIXED { background: #eef1f5; color: #4a5b73; }
+.tag-UNKNOWN { background: #fdeeee; color: #c04040; }
+
+/* 检查结果 */
+.tag-pass { background: #eaf7ee; color: #2f8f4e; }
+.tag-warn { background: #fff4e6; color: #c07a12; }
+.tag-fail { background: #fdeeee; color: #c04040; }
+
+/* 批次状态四态（契约 batch.status） */
+.tag-RUNNING { background: #eef4fd; color: #2e65af; }
+.tag-SUCCESS { background: #eaf7ee; color: #2f8f4e; }
+.tag-PARTIAL { background: #fff4e6; color: #c07a12; }
+.tag-FAILED { background: #fdeeee; color: #c04040; }
+
+/* 库位状态（status 0 启用 / 1 停用） */
+.tag-available { background: #eaf7ee; color: #2f8f4e; }
+.tag-disabled { background: #eef1f5; color: #8794a6; }
+
+/* 档案状态（DRAFT/SUBMITTED/ARCHIVED） */
+.tag-DRAFT { background: #eef1f5; color: #8794a6; }
+.tag-SUBMITTED { background: #eef4fd; color: #2e65af; }
+.tag-ARCHIVED { background: #eaf7ee; color: #2f8f4e; }
+
+/* 存储介质（与 PC 同色：纸质 primary / 电子 info / 混合 warning / 空为灰） */
+.tag-PAPER { background: #eaf3ff; color: #2e65af; }
+.tag-ELECTRONIC { background: #e8f6fa; color: #2b7f96; }
+.tag-MIXED { background: #fff4e6; color: #c07a12; }
+
+.item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx dashed #e7eaef;
+}
+
+.foot-note {
+  flex: 1;
+  min-width: 0;
+  font-size: 23rpx;
+  color: #7a8999;
+  line-height: 1.5;
+}
+
+.expand {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  color: #2e65af;
+  font-size: 23rpx;
+}
+
+/* 展开区 */
+.detail {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #eef1f5;
+}
+
+.detail-label {
+  display: block;
+  margin: 6rpx 0 10rpx;
+  font-size: 23rpx;
+  color: #8794a6;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 14rpx;
+}
+
+.check-main {
+  flex: 1;
+  min-width: 0;
+  margin-right: 16rpx;
+}
+
+.check-name {
+  display: block;
+  font-size: 25rpx;
+  color: #344154;
+  line-height: 1.5;
+}
+
+.check-msg {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: #7a8999;
+  line-height: 1.5;
+}
+
+.kv {
+  display: flex;
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+
+.kv-key {
+  width: 156rpx;
+  flex-shrink: 0;
+  color: #8794a6;
+}
+
+.kv-val {
+  flex: 1;
+  min-width: 0;
+  color: #344154;
+  word-break: break-all;
+}
+
+.returned-box {
+  margin-top: 12rpx;
+  padding: 16rpx 18rpx;
+  border-left: 4rpx solid #d9534f;
+  border-radius: 4rpx;
+  background: #fdf3f3;
+  font-size: 23rpx;
+  color: #a43f3f;
+  line-height: 1.6;
+}
+
+.returned-meta {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 21rpx;
+  color: #b87a7a;
+}
+
+.bar {
+  height: 12rpx;
+  margin-top: 10rpx;
+  border-radius: 6rpx;
+  background: #eef1f5;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: #2e65af;
+}
+
+.bar-fill-full {
+  background: #d98b2b;
+}
+
+/* 操作按钮 */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 18rpx;
+}
+
+.mini-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64rpx;
+  margin: 0 16rpx 0 0;
+  padding: 10rpx 28rpx;
+  border-radius: 6rpx;
+  font-size: 25rpx;
+  line-height: 1.4;
+}
+
+.mini-primary {
+  background: #2e65af;
+  color: #fff;
+}
+
+.mini-secondary {
+  border: 1rpx solid #dbe3ef;
+  background: #fff;
+  color: #2e65af;
+}
+
+.mini-danger {
+  border: 1rpx solid #f0cccc;
+  background: #fff;
+  color: #c04040;
+}
+
+.action-error {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 23rpx;
+  color: #c04040;
+  line-height: 1.5;
+}
+
+.more-button {
+  margin-top: 20rpx;
+}
+
+.note {
+  display: block;
+  margin: 22rpx 8rpx 0;
+  font-size: 21rpx;
+  color: #9aa6b5;
+  line-height: 1.6;
+  text-align: center;
+}

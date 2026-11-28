@@ -8,6 +8,11 @@
     "pages/archive-workbench/archive-workbench",
     "pages/borrow/mine/mine",
     "pages/borrow/apply/apply",
+    "pages/archive-hub/archive-hub",
+    "pages/archiving/pending/pending",
+    "pages/archiving/batch/batch",
+    "pages/archiving/location/location",
+    "pages/archiving/status/status",
     "pages/borrow/detail/detail",
     "pages/borrow/renew/renew"
   ],

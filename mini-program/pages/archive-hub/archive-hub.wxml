@@ -1,0 +1,46 @@
+<view class="page hub-page">
+  <view class="hub-head">
+    <text class="list-title">归档</text>
+    <text class="list-sub">档案归档、批次与库位管理</text>
+  </view>
+
+  <request-state wx:if="{{status === 'loading'}}" status="loading" />
+  <request-state wx:elif="{{status === 'error'}}" status="error" message="{{error}}" bind:retry="retry" />
+
+  <block wx:else>
+    <view class="summary">
+      <view class="summary-cell">
+        <text class="summary-num">{{summary.pending}}</text>
+        <text class="summary-label">待归档</text>
+      </view>
+      <view class="summary-cell">
+        <text class="summary-num">{{summary.batchOpen}}</text>
+        <text class="summary-label">批次进行中</text>
+      </view>
+      <view class="summary-cell">
+        <text class="summary-num bad">{{summary.batchReturned}}</text>
+        <text class="summary-label">有失败项</text>
+      </view>
+      <view class="summary-cell">
+        <text class="summary-num">{{summary.locationAvailable}}</text>
+        <text class="summary-label">可用库位</text>
+      </view>
+    </view>
+
+    <view wx:for="{{sections}}" wx:key="key" class="card hub-item" hover-class="hub-item-pressed"
+          aria-role="button" aria-label="{{item.title}}" data-key="{{item.key}}" bindtap="open">
+      <view class="glyph glyph-{{item.tone}}">{{item.glyph}}</view>
+      <view class="hub-copy">
+        <view class="hub-line">
+          <text class="hub-title">{{item.title}}</text>
+          <text class="hub-value">{{item.valueText}}</text>
+        </view>
+        <text class="hub-desc">{{item.desc}}</text>
+        <text wx:if="{{item.hint}}" class="hub-hint">{{item.hint}}</text>
+      </view>
+      <text class="row-arrow">›</text>
+    </view>
+
+    <button class="secondary-button hub-home" bindtap="goHome">返回工作台</button>
+  </block>
+</view>

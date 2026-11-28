@@ -7,9 +7,12 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.system.service.ArchiveLocationService;
 import com.ruoyi.system.service.ArchiveLocationService.ImportLine;
 import com.ruoyi.system.service.ArchiveLocationService.LocationRow;
+import com.ruoyi.system.service.ArchiveLocationService.LocationStorage;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -75,7 +78,38 @@ public class ArchiveLocationController extends BaseController {
     @ResponseBody
     @RequiresPermissions(QUERY)
     public AjaxResult list(String keyword, String level, Integer status) {
-        return AjaxResult.success(locations.tree(keyword, level, status));
+        List<LocationRow> rows = locations.tree(keyword, level, status);
+        // 介质是「该库位下在架档案」的聚合口径，不是库位自身属性；阶段2 列未迁移时显示未登记。
+        Map<Long, LocationStorage> storage = locations.storageByLocation();
+        return AjaxResult.success(rows.stream()
+            .map(row -> locationView(row, storage.get(row.locationId()))).toList());
+    }
+
+    private static Map<String, Object> locationView(LocationRow row, LocationStorage storage) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("locationId", row.locationId());
+        view.put("parentId", row.parentId() == null ? "" : row.parentId().toString());
+        view.put("parentCode", nullSafe(row.parentCode()));
+        view.put("level", nullSafe(row.level()));
+        view.put("levelName", nullSafe(row.levelName()));
+        view.put("levelPath", nullSafe(row.levelPath()));
+        view.put("locationCode", nullSafe(row.locationCode()));
+        view.put("locationName", nullSafe(row.locationName()));
+        view.put("capacity", row.capacity());
+        view.put("usedCount", row.usedCount());
+        view.put("childCount", row.childCount());
+        view.put("status", row.status());
+        view.put("statusLabel", row.status() == 0 ? "启用" : "停用");
+        view.put("sortOrder", row.sortOrder());
+        view.put("remark", nullSafe(row.remark()));
+        view.put("medium", storage == null ? "" : storage.medium());
+        view.put("mediumLabel", ArchiveLocationService.mediumLabel(storage == null ? "" : storage.medium()));
+        view.put("electronicPath", storage == null ? "" : storage.electronicPath());
+        return view;
+    }
+
+    private static String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 
     @GetMapping("/choices")
